@@ -143,6 +143,21 @@ SOGo backend for OpenChange
 %prep
 %setup -q -n SOGo-%version
 
+# Workaround for https://bugzilla.altlinux.org/show_bug.cgi?id=30093
+cat << UNISTD__H > SoObjects/SOGo/unistd_.h
+#ifndef UNISTD__H
+#define UNISTD__H 1
+#define __block __glibc_block
+#include <unistd.h>
+#endif
+UNISTD__H
+ln -s ../../SoObjects/SOGo/unistd_.h SOPE/GDLContentStore
+ln -s ../SoObjects/SOGo/unistd_.h Main
+ln -s ../SoObjects/SOGo/unistd_.h Tools
+subst 's,<unistd\.h>,<unistd_.h>,' $(grep -Rl '<unistd\.h>' *)
+sed -i '/<crypt\.h>/i \
+#include <unistd_.h>' SoObjects/SOGo/NSData+Crypto.m
+
 %build
 . /usr/share/GNUstep/Makefiles/GNUstep.sh
 ./configure \
