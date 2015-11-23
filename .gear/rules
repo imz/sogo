@@ -1,1 +1,1 @@
-tar.gz: . name=SOGo-@version@ base=SOGo-@version@
+tar.gz: SOGo-@version@:. name=SOGo-@version@ base=SOGo-@version@
