@@ -145,7 +145,9 @@ SOGo backend for OpenChange
 
 %build
 . /usr/share/GNUstep/Makefiles/GNUstep.sh
-./configure
+./configure \
+            --enable-saml2 
+#           --enable-ldap-config
 
 %make_build CC="clang" LDFLAGS="$ldflags" messages=yes
 
