@@ -153,6 +153,7 @@ cat << UNISTD__H > SoObjects/SOGo/unistd_.h
 #endif
 UNISTD__H
 ln -s ../../SoObjects/SOGo/unistd_.h SOPE/GDLContentStore
+ln -s ../SoObjects/SOGo/unistd_.h ActiveSync
 ln -s ../SoObjects/SOGo/unistd_.h Main
 ln -s ../SoObjects/SOGo/unistd_.h Tools
 subst 's,<unistd\.h>,<unistd_.h>,' $(grep -Rl '<unistd\.h>' *)
@@ -265,7 +266,7 @@ rm -rf %buildroot%_bindir/test_quick_extract
 
 %files -n sogo-activesync
 %doc ActiveSync/LICENSE ActiveSync/README
-#_libdir/GNUstep/SOGo/ActiveSync.SOGo
+%_libdir/GNUstep/SOGo/ActiveSync.SOGo
 
 %files -n sogo-devel
 %_includedir/SOGo
