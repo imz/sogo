@@ -18,10 +18,16 @@ BuildPreReq:   gnustep-make-devel
 BuildRequires: clang
 BuildRequires: gnustep-base-devel
 BuildRequires: sope-appserver-devel sope-core-devel sope-ldap-devel sope-mime-devel sope-xml-devel sope-gdl1-devel sope-sbjson-devel
-BuildRequires: libmemcached-devel
 BuildRequires: libcurl-devel
-BuildRequires: lasso-devel
+BuildRequires: libffi-devel
+BuildRequires: libgcrypt-devel
+BuildRequires: libgmp-devel
+BuildRequires: libgnutls-devel
+BuildRequires: liblasso-devel
+BuildRequires: libmemcached-devel
 BuildRequires: libwbxml-devel
+BuildRequires: libicu-devel
+BuildRequires: zlib-devel
 
 Requires:     memcached stmpclean  zip
 #Requires:    gnustep-base sope-core httpd sope-core sope-appserver sope-ldap sope-cards sope-gdl1-contentstore sope-sbjson
