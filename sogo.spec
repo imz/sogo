@@ -23,10 +23,11 @@ BuildRequires: libffi-devel
 BuildRequires: libgcrypt-devel
 BuildRequires: libgmp-devel
 BuildRequires: libgnutls-devel
+BuildRequires: libicu-devel
 BuildRequires: liblasso-devel
 BuildRequires: libmemcached-devel
+BuildRequires: libobjc5-devel
 BuildRequires: libwbxml-devel
-BuildRequires: libicu-devel
 BuildRequires: zlib-devel
 
 Requires:     memcached stmpclean  zip
@@ -185,8 +186,8 @@ install -d %buildroot/var/log/sogo
 install -d %buildroot/var/run/sogo
 install -d %buildroot/var/spool/sogo
 
-install -d -m 750 -o %sogo_user -g %sogo_user %buildroot/etc/sogo
-install -D -m 640 -o %sogo_user -g %sogo_user Scripts/sogo.conf %buildroot/etc/sogo/sogo.conf
+install -d -m 750 %buildroot/etc/sogo
+install -D -m 640 Scripts/sogo.conf %buildroot/etc/sogo/sogo.conf
 install -Dm 755 Scripts/openchange_user_cleanup %buildroot/%_sbindir/openchange_user_cleanup
 
 install -d %buildroot/etc/httpd/conf.d
@@ -231,8 +232,8 @@ rm -rf %buildroot%_bindir/test_quick_extract
 %dir %attr(0750, root, %sogo_user) %_sysconfdir/sogo
 %_sbindir/sogod
 %_sbindir/openchange_user_cleanup
-%_libdir/sogo/libSOGo.so*
-%_libdir/sogo/libSOGoUI.so*
+%_libdir/sogo/libSOGo.so.*
+%_libdir/sogo/libSOGoUI.so.*
 %_libdir/GNUstep/SOGo/AdministrationUI.SOGo
 %_libdir/GNUstep/SOGo/Appointments.SOGo
 %_libdir/GNUstep/SOGo/CommonUI.SOGo
@@ -245,7 +246,7 @@ rm -rf %buildroot%_bindir/test_quick_extract
 %_libdir/GNUstep/SOGo/PreferencesUI.SOGo
 %_libdir/GNUstep/SOGo/SchedulerUI.SOGo
 %_libdir/GNUstep/Frameworks/SOGo.framework/Resources
-%_libdir/GNUstep/Frameworks/SOGo.framework/Versions/%{sogo_major_version}/sogo/libSOGo.so*
+%_libdir/GNUstep/Frameworks/SOGo.framework/Versions/%{sogo_major_version}/sogo/libSOGo.so.*
 %_libdir/GNUstep/Frameworks/SOGo.framework/Versions/%{sogo_major_version}/Resources
 %_libdir/GNUstep/Frameworks/SOGo.framework/Versions/Current
 %_libdir/GNUstep/SOGo/Templates
@@ -264,36 +265,36 @@ rm -rf %buildroot%_bindir/test_quick_extract
 
 %files -n sogo-activesync
 %doc ActiveSync/LICENSE ActiveSync/README
-%_libdir/GNUstep/SOGo/ActiveSync.SOGo
+#_libdir/GNUstep/SOGo/ActiveSync.SOGo
 
 %files -n sogo-devel
 %_includedir/SOGo
 %_includedir/SOGoUI
-%_libdir/sogo/libSOGo.so*
-%_libdir/sogo/libSOGoUI.so*
+%_libdir/sogo/libSOGo.so
+%_libdir/sogo/libSOGoUI.so
 %_libdir/GNUstep/Frameworks/SOGo.framework/Headers
 %_libdir/GNUstep/Frameworks/SOGo.framework/sogo/libSOGo.so
 %_libdir/GNUstep/Frameworks/SOGo.framework/sogo/SOGo
 %_libdir/GNUstep/Frameworks/SOGo.framework/Versions/%{sogo_major_version}/Headers
-%_libdir/GNUstep/Frameworks/SOGo.framework/Versions/%{sogo_major_version}/sogo/libSOGo.so*
+%_libdir/GNUstep/Frameworks/SOGo.framework/Versions/%{sogo_major_version}/sogo/libSOGo.so
 %_libdir/GNUstep/Frameworks/SOGo.framework/Versions/%{sogo_major_version}/sogo/SOGo
 
 %files -n sope-gdl1-contentstore
-%_libdir/sogo/libGDLContentStore*.so*
+%_libdir/sogo/libGDLContentStore*.so.*
 
 %files -n sope-gdl1-contentstore-devel
 %_includedir/GDLContentStore
-%_libdir/sogo/libGDLContentStore*.so*
+%_libdir/sogo/libGDLContentStore*.so
 
 %files -n sope-cards
-%_libdir/sogo/libNGCards.so*
+%_libdir/sogo/libNGCards.so.*
 %_libdir/GNUstep/SaxDrivers-*
 %_libdir/GNUstep/SaxMappings
 %_libdir/GNUstep/Libraries/Resources/NGCards
 
 %files -n sope-cards-devel
 %_includedir/NGCards
-%_libdir/sogo/libNGCards.so*
+%_libdir/sogo/libNGCards.so
 
 %if_with openchange
 %files openchange-backend
