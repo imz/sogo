@@ -46,7 +46,7 @@ NAME=sogo
 DAEMON=/usr/sbin/sogod
 DESC="SOGo"
 
-USER=$NAME
+USER=_sogo
 PREFORK=3
 
 PIDFILE=/var/run/$NAME/$NAME.pid
@@ -94,14 +94,14 @@ RETVAL=0
 
 start()
 {
-        start_daemon --pidfile "$PIDFILE" --lockfile "$LOCKFILE" --expect-user "$USER" "$DAEMON" $DAEMON_OPTS
+        start_daemon --pidfile "$PIDFILE" --lockfile "$LOCKFILE" --user "$USER" "$DAEMON" $DAEMON_OPTS
         RETVAL=$?
         return $RETVAL
 }
 
 stop()
 {
-        stop_daemon --pidfile "$PIDFILE" --lockfile "$LOCKFILE" --expect-user "$USER" "$DAEMON" $DAEMON_OPTS
+        stop_daemon --pidfile "$PIDFILE" --lockfile "$LOCKFILE" --user "$USER" "$DAEMON" $DAEMON_OPTS
         RETVAL=$?
         return $RETVAL
 }
@@ -140,7 +140,7 @@ case "$1" in
 		fi
 		;;
         status)
-		status --pidfile "$PIDFILE" --expect-user "$USER" --displayname "$DESC" -- "$DAEMON"
+		status --pidfile "$PIDFILE" --displayname "$DESC" -- "$DAEMON"
                 RETVAL=$?
                 ;;
         *)

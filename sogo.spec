@@ -198,10 +198,14 @@ install -Dm 600 Scripts/sogo.cron %buildroot/etc/cron.d/sogo
 install -Dm 755 Scripts/tmpwatch %buildroot/etc/cron.daily/sogo-tmpwatch
 install -D      Scripts/logrotate %buildroot%_logrotatedir/sogo
 install -Dm 644 Scripts/sogo-systemd-redhat %buildroot%_unitdir/sogod.service
+subst "s/^User=.*/User=%sogo_user/" %buildroot%_unitdir/sogod.service
 install -Dm 644 Scripts/sogo-systemd.conf %buildroot%_tmpfilesdir/sogo.conf
+subst "s/ sogo/ %sogo_user/g" %buildroot%_tmpfilesdir/sogo.conf
 install -Dm 755 %SOURCE1 %buildroot%_initdir/sogod
 
 cp Scripts/sogo-default %buildroot/etc/sysconfig/sogo
+echo "USER=%sogo_user" >> %buildroot/etc/sysconfig/sogo
+
 rm -rf %buildroot%_bindir/test_quick_extract
 
 # OpenChange
