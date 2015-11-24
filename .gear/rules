@@ -1,1 +1,2 @@
+copy: *.init
 tar.gz: SOGo-@version@:. name=SOGo-@version@ base=SOGo-@version@

@@ -13,6 +13,7 @@ Group:        Communications
 Packager:     Andrey Cherepanov <cas@altlinux.org>
 
 Source:       SOGo-%version.tar.gz
+Source1:      sogo-altlinux.init
 
 BuildPreReq:   gnustep-make-devel
 BuildRequires: clang
@@ -198,7 +199,7 @@ install -Dm 755 Scripts/tmpwatch %buildroot/etc/cron.daily/sogo-tmpwatch
 install -D      Scripts/logrotate %buildroot%_logrotatedir/sogo
 install -Dm 644 Scripts/sogo-systemd-redhat %buildroot%_unitdir/sogod.service
 install -Dm 644 Scripts/sogo-systemd.conf %buildroot%_tmpfilesdir/sogo.conf
-install -Dm 755 Scripts/sogo-init.d-redhat %buildroot%_initdir/sogod
+install -Dm 755 %SOURCE1 %buildroot%_initdir/sogod
 
 cp Scripts/sogo-default %buildroot/etc/sysconfig/sogo
 rm -rf %buildroot%_bindir/test_quick_extract
