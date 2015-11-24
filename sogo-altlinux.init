@@ -82,11 +82,11 @@ checkDir /var/spool/$NAME
 checkDir /var/log/$NAME
 
 . /etc/rc.d/init.d/functions
-if [ -z "$GNUSTEP_SYSTEM_ROOT" ]
-then
-  . /etc/GNUstep/GNUstep.conf
-  . ${GNUSTEP_MAKEFILES}/GNUstep.sh
-fi
+#if [ -z "$GNUSTEP_SYSTEM_ROOT" ]
+#then
+#  . /etc/GNUstep/GNUstep.conf
+#  . ${GNUSTEP_MAKEFILES}/GNUstep.sh
+#fi
 
 DAEMON_OPTS="-WOWorkersCount $PREFORK -WOPidFile $PIDFILE -WOLogFile $LOGFILE"
 
