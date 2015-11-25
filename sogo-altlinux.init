@@ -51,7 +51,7 @@ PREFORK=3
 
 PIDFILE=/var/run/$NAME/$NAME.pid
 LOGFILE=/var/log/$NAME/$NAME.log
-LOCKFILE=/var/lock/subsys/$name
+LOCKFILE=/var/lock/subsys/$NAME
 
 if [ -f /etc/sysconfig/$NAME ]; then
     . /etc/sysconfig/$NAME
@@ -101,7 +101,7 @@ start()
 
 stop()
 {
-        stop_daemon --pidfile "$PIDFILE" --lockfile "$LOCKFILE" --user "$USER" "$DAEMON" $DAEMON_OPTS
+        stop_daemon --pidfile "$PIDFILE" --lockfile "$LOCKFILE" --expect-user "$USER" "$DAEMON"
         RETVAL=$?
         return $RETVAL
 }
