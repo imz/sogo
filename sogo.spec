@@ -32,8 +32,6 @@ BuildRequires: libwbxml-devel
 BuildRequires: zlib-devel
 
 Requires:     memcached stmpclean  zip
-#Requires:    gnustep-base sope-core httpd sope-core sope-appserver sope-ldap sope-cards sope-gdl1-contentstore sope-sbjson
-#Requires:    libcurl
 
 %{!?sogo_major_version: %global sogo_major_version %(/bin/echo %version | /bin/cut -f 1 -d .)}
 
@@ -82,7 +80,6 @@ alarms.
 Summary:      SOGo module to handle ActiveSync requests
 Group:        Communications
 Requires:     sogo = %version-%release
-#Requires:     libwbxml
 
 %description -n sogo-activesync
 SOGo module to handle ActiveSync requests
