@@ -31,7 +31,10 @@ BuildRequires: libobjc5-devel
 BuildRequires: libwbxml-devel
 BuildRequires: zlib-devel
 
-Requires:     memcached stmpclean  zip
+Requires:      memcached 
+Requires:      mod_ngobjweb
+Requires:      stmpclean
+Requires:      zip
 
 %{!?sogo_major_version: %global sogo_major_version %(/bin/echo %version | /bin/cut -f 1 -d .)}
 
