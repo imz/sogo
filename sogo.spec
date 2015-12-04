@@ -1,4 +1,4 @@
-%def_without openchange
+%def_with openchange
 %define sogo_user _sogo
 
 Summary:      SOGo is a very fast and scalable modern collaboration suite (groupware)
@@ -27,14 +27,19 @@ BuildRequires: libgnutls-devel
 BuildRequires: libicu-devel
 BuildRequires: liblasso-devel
 BuildRequires: libmemcached-devel
+BuildRequires: libnanomsg-devel
 BuildRequires: libobjc5-devel
 BuildRequires: libwbxml-devel
+BuildRequires: openchange-devel
 BuildRequires: zlib-devel
 
 Requires:      memcached 
 Requires:      mod_ngobjweb
 Requires:      stmpclean
 Requires:      zip
+
+Requires:      openchange-server
+Requires:      apache2-mod_ngobjweb
 
 %{!?sogo_major_version: %global sogo_major_version %(/bin/echo %version | /bin/cut -f 1 -d .)}
 
@@ -208,17 +213,19 @@ echo "USER=%sogo_user" >> %buildroot/etc/sysconfig/sogo
 
 rm -rf %buildroot%_bindir/test_quick_extract
 
+export LD_LIBRARY_PATH=%buildroot%_libdir
+
 # OpenChange
 %if_with openchange
-(cd OpenChange; \
- LD_LIBRARY_PATH=%buildroot%_libdir \
- %makeinstall_std GNUSTEP_INSTALLATION_DOMAIN=SYSTEM )
+pushd OpenChange
+%makeinstall_std GNUSTEP_INSTALLATION_DOMAIN=SYSTEM
+popd
 %endif
 
 # ActiveSync
-(cd ActiveSync; \
- LD_LIBRARY_PATH=%buildroot%_libdir \
- %makeinstall_std GNUSTEP_INSTALLATION_DOMAIN=SYSTEM )
+pushd ActiveSync
+%makeinstall_std GNUSTEP_INSTALLATION_DOMAIN=SYSTEM 
+popd
 
 %files -n sogo
 %doc ChangeLog NEWS Scripts/*sh Scripts/updates.php Apache/SOGo-apple-ab.conf
