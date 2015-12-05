@@ -24,6 +24,7 @@
  */
 
 #if !defined(__OpenBSD__) && !defined(__FreeBSD__)
+#define __block __glibc_block
 #include <crypt.h>
 #endif
 

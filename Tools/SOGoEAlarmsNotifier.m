@@ -18,6 +18,7 @@
  * Boston, MA 02111-1307, USA.
  */
 
+#define __block __glibc_block
 #include <unistd.h>
 
 #import <Foundation/NSArray.h>

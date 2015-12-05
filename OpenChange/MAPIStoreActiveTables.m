@@ -24,6 +24,7 @@
    instances of a given table, independently from its store and context.
    Primary useful for notifications across different connections. */
 
+#define __block __glibc_block
 #import <Foundation/NSArray.h>
 #import <Foundation/NSString.h>
 

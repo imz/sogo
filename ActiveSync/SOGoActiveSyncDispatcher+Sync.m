@@ -108,6 +108,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "SOGoMailObject+ActiveSync.h"
 #include "SOGoSyncCacheObject.h"
 
+#define __block __glibc_block
 #include <unistd.h>
 
 @implementation SOGoActiveSyncDispatcher (Sync)

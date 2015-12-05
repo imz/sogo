@@ -136,6 +136,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #import <GDLContentStore/GCSChannelManager.h>
 
+#define __block __glibc_block
 #include <unistd.h>
 
 #ifdef HAVE_OPENSSL

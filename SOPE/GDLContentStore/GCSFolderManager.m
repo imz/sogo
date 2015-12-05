@@ -36,6 +36,7 @@
 #import <GDLAccess/EOAdaptorChannel.h>
 #import <GDLAccess/EOAdaptorContext.h>
 #import <NGExtensions/NGResourceLocator.h>
+#define __block __glibc_block
 #import <unistd.h>
 
 #import "GCSChannelManager.h"
