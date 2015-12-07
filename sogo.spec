@@ -163,12 +163,12 @@ SOGo backend for OpenChange
 
 # OpenChange
 %if_with openchange
-(cd OpenChange; \
- LD_LIBRARY_PATH=../SOPE/NGCards/obj:../SOPE/GDLContentStore/obj \
- make GNUSTEP_INSTALLATION_DOMAIN=SYSTEM )
+pushd OpenChange
+export LD_LIBRARY_PATH=../SOPE/NGCards/obj:../SOPE/GDLContentStore/obj
+make GNUSTEP_INSTALLATION_DOMAIN=SYSTEM
+popd
 %endif
 
-# ****************************** install ******************************
 %install
 export QA_SKIP_BUILD_ROOT=1
 
