@@ -166,7 +166,7 @@ SOGo backend for OpenChange
 pushd OpenChange
 subst 's@-Wall@-Wall -fobjc-exceptions@' GNUmakefile
 export LD_LIBRARY_PATH=../SOPE/NGCards/obj:../SOPE/GDLContentStore/obj
-make GNUSTEP_INSTALLATION_DOMAIN=SYSTEM
+make GNUSTEP_INSTALLATION_DOMAIN=SYSTEM CC="clang" LDFLAGS="$ldflags" messages=yes
 popd
 %endif
 
