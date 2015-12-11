@@ -1,12 +1,11 @@
 [Unit]
 Description=SOGo is a groupware server
-After=network.target
+After=network.target memcached.service postfix.service dovecot.service postgresql.service
 
 [Service]
 Environment="PREFORK=3"
 EnvironmentFile=-/etc/sysconfig/sogo
-Type=forking
-ExecStart=/usr/sbin/sogod -WOWorkersCount ${PREFORK} -WOPidFile /var/run/sogo/sogo.pid -WOLogFile /var/log/sogo/sogo.log
+ExecStart=/usr/sbin/sogod -WOWorkersCount ${PREFORK} -WOPidFile /var/run/sogo/sogo.pid -WONoDetach YES -WOLogFile /var/log/sogo/sogo.log
 PIDFile=/var/run/sogo/sogo.pid
 User=sogo
 
