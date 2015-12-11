@@ -38,7 +38,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#define __block __glibc_block
 #include <unistd.h>
 
 #import "SOGoSystemDefaults.h"

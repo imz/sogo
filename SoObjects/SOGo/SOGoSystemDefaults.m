@@ -20,7 +20,6 @@
  */
 
 #import <dlfcn.h>
-#define __block __glibc_block
 #import <unistd.h>
 
 #import <Foundation/NSArray.h>
