@@ -13,7 +13,7 @@ Group:        Communications
 Packager:     Andrey Cherepanov <cas@altlinux.org>
 
 Source:       SOGo-%version.tar.gz
-Source1:      sogo-altlinux.init
+Source1:      sogo.init
 Patch:        %name-%version-%release.patch
 
 BuildPreReq:   gnustep-make-devel
@@ -190,11 +190,11 @@ cat Apache/SOGo.conf | sed -e "s@/lib/@/%{_lib}/@g" > %buildroot/etc/httpd/conf.
 install -Dm 600 Scripts/sogo.cron %buildroot/etc/cron.d/sogo
 install -Dm 755 Scripts/tmpwatch %buildroot/etc/cron.daily/sogo-tmpwatch
 install -D      Scripts/logrotate %buildroot%_logrotatedir/sogo
-install -Dm 644 Scripts/sogo-systemd-redhat %buildroot%_unitdir/sogod.service
-subst "s/^User=.*/User=%sogo_user/" %buildroot%_unitdir/sogod.service
+install -Dm 644 Scripts/sogo-systemd-redhat %buildroot%_unitdir/sogo.service
+subst "s/^User=.*/User=%sogo_user/" %buildroot%_unitdir/sogo.service
 install -Dm 644 Scripts/sogo-systemd.conf %buildroot%_tmpfilesdir/sogo.conf
 subst "s/ sogo/ %sogo_user/g" %buildroot%_tmpfilesdir/sogo.conf
-install -Dm 755 %SOURCE1 %buildroot%_initdir/sogod
+install -Dm 755 %SOURCE1 %buildroot%_initdir/sogo
 
 cp Scripts/sogo-default %buildroot/etc/sysconfig/sogo
 echo "USER=%sogo_user" >> %buildroot/etc/sysconfig/sogo
@@ -222,7 +222,7 @@ popd
 %config(noreplace) %_sysconfdir/cron.d/sogo
 %config(noreplace) %_sysconfdir/httpd/conf.d/SOGo.conf
 %config(noreplace) %_sysconfdir/sysconfig/sogo
-%_unitdir/sogod.service
+%_unitdir/sogo.service
 %_tmpfilesdir/sogo.conf
 %_initdir/sogod
 %_sysconfdir/cron.daily/sogo-tmpwatch
@@ -309,10 +309,10 @@ if ! id %sogo_user >& /dev/null; then
 fi
 
 %post
-%post_service sogod
+%post_service sogo
 
 %preun
-%preun_service sogod
+%preun_service sogo
 
 %postun
 if test "$1" = "0"
