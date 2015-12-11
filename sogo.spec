@@ -29,7 +29,7 @@ BuildRequires: libicu-devel
 BuildRequires: liblasso-devel
 BuildRequires: libmemcached-devel
 BuildRequires: libnanomsg-devel
-BuildRequires: libobjc5-devel
+BuildRequires: libobjc-devel
 BuildRequires: libwbxml-devel
 BuildRequires: openchange-devel
 BuildRequires: zlib-devel
