@@ -36,13 +36,13 @@ BuildRequires: zlib-devel
 BuildRequires: python-module-samba-DC
 
 Requires:      memcached 
-Requires:      mod_ngobjweb
 Requires:      stmpclean
 Requires:      zip
 
 Requires:      openchange-server
 Requires:      apache2-mod_ngobjweb
 
+%filter_from_requires /^\/usr\/%_lib\/samba-dc\/lib/d
 %{!?sogo_major_version: %global sogo_major_version %(/bin/echo %version | /bin/cut -f 1 -d .)}
 
 %description
@@ -144,6 +144,7 @@ SOPE versit parsing library for iCal and VCard formats
 %package openchange-backend
 Summary:      SOGo backend for OpenChange
 Group:        Communications
+Requires:     samba-DC-libs
 
 %description openchange-backend
 SOGo backend for OpenChange
