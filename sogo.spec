@@ -17,7 +17,7 @@ Source1:      sogo.init
 Patch:        %name-%version-%release.patch
 
 BuildPreReq:   gnustep-make-devel
-BuildRequires: clang
+BuildRequires: gcc-objc
 BuildRequires: gnustep-base-devel
 BuildRequires: sope-appserver-devel sope-core-devel sope-ldap-devel sope-mime-devel sope-xml-devel sope-gdl1-devel sope-sbjson-devel
 BuildRequires: libcurl-devel
@@ -159,14 +159,14 @@ SOGo backend for OpenChange
             --enable-saml2 
 #           --enable-ldap-config
 
-%make_build CC="clang" LDFLAGS="$ldflags" messages=yes
+%make_build CC="cc" LDFLAGS="$ldflags" messages=yes
 
 # OpenChange
 %if_with openchange
 pushd OpenChange
 subst 's@-Wall@-Wall -fobjc-exceptions@' GNUmakefile
 export LD_LIBRARY_PATH=../SOPE/NGCards/obj:../SOPE/GDLContentStore/obj
-make GNUSTEP_INSTALLATION_DOMAIN=SYSTEM CC="clang" LDFLAGS="$ldflags" messages=yes
+make GNUSTEP_INSTALLATION_DOMAIN=SYSTEM CC="cc" LDFLAGS="$ldflags" messages=yes
 popd
 %endif
 
@@ -213,6 +213,8 @@ popd
 # ActiveSync
 pushd ActiveSync
 %makeinstall_std GNUSTEP_INSTALLATION_DOMAIN=SYSTEM 
+install -Dm0644 LICENSE %buildroot%_defaultdocdir/sogo-activesync-%version/LICENSE
+install -Dm0644 README  %buildroot%_defaultdocdir/sogo-activesync-%version/README
 popd
 
 %files -n sogo
@@ -224,7 +226,7 @@ popd
 %config(noreplace) %_sysconfdir/sysconfig/sogo
 %_unitdir/sogo.service
 %_tmpfilesdir/sogo.conf
-%_initdir/sogod
+%_initdir/sogo
 %_sysconfdir/cron.daily/sogo-tmpwatch
 %dir %attr(0700, %sogo_user, %sogo_user) %_var/lib/sogo
 %dir %attr(0700, %sogo_user, %sogo_user) %_logdir/sogo
@@ -265,7 +267,7 @@ popd
 %{_sbindir}/sogo-slapd-sockd
 
 %files -n sogo-activesync
-%doc ActiveSync/LICENSE ActiveSync/README
+%doc %_defaultdocdir/sogo-activesync-%version
 %_libdir/GNUstep/SOGo/ActiveSync.SOGo
 
 %files -n sogo-devel
