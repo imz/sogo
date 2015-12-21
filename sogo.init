@@ -4,7 +4,7 @@
 # description: SOGo server
 # processname:  sogod
 # config:      /etc/sysconfig/sogo
-# config:      /etc/httpd/conf.d/SOGo.conf
+# config:      /etc/httpd2/conf/sites-enabled/SOGo.conf
 # pidfile:     /var/run/sogo/sogo.pid
 
 ### BEGIN INIT INFO

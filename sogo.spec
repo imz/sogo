@@ -16,7 +16,7 @@ Source:       SOGo-%version.tar.gz
 Source1:      sogo.init
 Patch:        %name-%version-%release.patch
 
-BuildPreReq:   gnustep-make-devel
+BuildPreReq:   gnustep-make-devel rpm-build-apache2
 BuildRequires: gcc-objc
 BuildRequires: gnustep-base-devel
 BuildRequires: sope-appserver-devel sope-core-devel sope-ldap-devel sope-mime-devel sope-xml-devel sope-gdl1-devel sope-sbjson-devel
@@ -185,9 +185,14 @@ install -d %buildroot/var/spool/sogo
 install -d -m 750 %buildroot/etc/sogo
 install -D -m 640 Scripts/sogo.conf %buildroot/etc/sogo/sogo.conf
 
-install -d %buildroot/etc/httpd/conf.d
-cat Apache/SOGo.conf | sed -e "s@/lib/@/%{_lib}/@g" > %buildroot/etc/httpd/conf.d/SOGo.conf
+# Apache2 configuration
+install -Dm0644 -p Apache/SOGo.conf %buildroot%apache2_sites_available/SOGo.conf
+subst "s@/lib/@/%_lib/@g" %buildroot%apache2_sites_available/SOGo.conf
+mkdir -p %buildroot%apache2_sites_enabled
+touch %buildroot%apache2_sites_enabled/SOGo.conf
+
 install -Dm 600 Scripts/sogo.cron %buildroot/etc/cron.d/sogo
+subst 's, sogo, %sogo_user,g' %buildroot/etc/cron.d/sogo
 install -Dm 755 Scripts/tmpwatch %buildroot/etc/cron.daily/sogo-tmpwatch
 install -D      Scripts/logrotate %buildroot%_logrotatedir/sogo
 install -Dm 644 Scripts/sogo-systemd-redhat %buildroot%_unitdir/sogo.service
@@ -222,7 +227,8 @@ popd
 %config(noreplace) %attr(0640, root, %sogo_user) %_sysconfdir/sogo/sogo.conf
 %config(noreplace) %_logrotatedir/sogo
 %config(noreplace) %_sysconfdir/cron.d/sogo
-%config(noreplace) %_sysconfdir/httpd/conf.d/SOGo.conf
+%config(noreplace) %apache2_sites_available/*.conf
+%ghost %apache2_sites_enabled/*.conf
 %config(noreplace) %_sysconfdir/sysconfig/sogo
 %_unitdir/sogo.service
 %_tmpfilesdir/sogo.conf
@@ -314,16 +320,6 @@ fi
 
 %preun
 %preun_service sogo
-
-%postun
-if test "$1" = "0"
-then
-  /usr/sbin/userdel %sogo_user
-  /usr/sbin/groupdel %sogo_user > /dev/null 2>&1
-  /bin/rm -rf %_var/run/sogo
-  /bin/rm -rf %_var/spool/sogo
-  # not removing /var/lib/sogo to keep .GNUstepDefaults
-fi
 
 %changelog
 * Thu Dec 17 2015 Andrey Cherepanov <cas@altlinux.org> 2.3.4-alt1
