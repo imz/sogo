@@ -184,7 +184,6 @@ install -d %buildroot/var/spool/sogo
 
 install -d -m 750 %buildroot/etc/sogo
 install -D -m 640 Scripts/sogo.conf %buildroot/etc/sogo/sogo.conf
-install -Dm 755 Scripts/openchange_user_cleanup %buildroot/%_sbindir/openchange_user_cleanup
 
 install -d %buildroot/etc/httpd/conf.d
 cat Apache/SOGo.conf | sed -e "s@/lib/@/%{_lib}/@g" > %buildroot/etc/httpd/conf.d/SOGo.conf
@@ -235,7 +234,6 @@ popd
 %dir %attr(0700, %sogo_user, %sogo_user) %_spooldir/sogo
 %dir %attr(0750, root, %sogo_user) %_sysconfdir/sogo
 %_sbindir/sogod
-%_sbindir/openchange_user_cleanup
 %_libdir/sogo/libSOGo.so.*
 %_libdir/sogo/libSOGoUI.so.*
 %_libdir/GNUstep/SOGo/AdministrationUI.SOGo
