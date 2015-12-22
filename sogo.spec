@@ -222,7 +222,7 @@ install -Dm0644 LICENSE %buildroot%_defaultdocdir/sogo-activesync-%version/LICEN
 install -Dm0644 README  %buildroot%_defaultdocdir/sogo-activesync-%version/README
 popd
 
-%files -n sogo
+%files
 %doc ChangeLog NEWS Scripts/*sh Scripts/updates.php Apache/SOGo-apple-ab.conf
 %config(noreplace) %attr(0640, root, %sogo_user) %_sysconfdir/sogo/sogo.conf
 %config(noreplace) %_logrotatedir/sogo
