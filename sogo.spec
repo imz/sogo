@@ -41,6 +41,9 @@ Requires:      zip
 
 Requires:      openchange-server
 Requires:      apache2-mod_ngobjweb
+%if_with openchange
+Requires:      %name-openchange-backend
+%endif
 
 %filter_from_requires /^\/usr\/%_lib\/samba-dc\/lib/d
 %{!?sogo_major_version: %global sogo_major_version %(/bin/echo %version | /bin/cut -f 1 -d .)}
