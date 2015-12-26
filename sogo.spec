@@ -4,7 +4,7 @@
 Summary:      SOGo is a very fast and scalable modern collaboration suite (groupware)
 Name:         sogo
 Version:      2.3.4
-Release:      alt1
+Release:      alt2
 
 License:      GPL
 URL:          http://www.inverse.ca/contributions/sogo.html
@@ -39,12 +39,6 @@ Requires:      memcached
 Requires:      stmpclean
 Requires:      zip
 
-Requires:      openchange-server
-Requires:      apache2-mod_ngobjweb
-%if_with openchange
-Requires:      %name-openchange-backend
-%endif
-
 %filter_from_requires /^\/usr\/%_lib\/samba-dc\/lib/d
 %{!?sogo_major_version: %global sogo_major_version %(/bin/echo %version | /bin/cut -f 1 -d .)}
 
@@ -61,47 +55,82 @@ The Web interface has been rewritten in an AJAX fashion to provided a
 faster UI for the users, consistency in look and feel with the Mozilla
 applications, and to reduce the load of the transactions on the server.
 
-%package -n sogo-tool
+%package -n task-sogo
+Summary: SOGo is a groupware server
+Group: System/Servers
+BuildArch: noarch
+Requires: sogo
+Requires: sogo-activesync
+Requires: sogo-tool
+Requires: sope-cards
+Requires: apache2-base
+Requires: apache2-mod_ngobjweb
+%if_with openchange
+Requires: %name-openchange-backend
+Requires: openchange-server
+Requires: openchange-ocsmanager
+Requires: openchange-rpcproxy
+%endif
+
+%description -n task-sogo
+SOGo is a groupware server built around OpenGroupware.org (OGo) and
+the SOPE application server.  It focuses on scalability.
+
+The Inverse edition of this project has many feature enhancements:
+- CalDAV and GroupDAV compliance
+- full handling of vCard as well as vCalendar/iCalendar formats
+- support for folder sharing and ACLs
+
+The Web interface has been rewritten in an AJAX fashion to provided a
+faster UI for the users, consistency in look and feel with the Mozilla
+applications, and to reduce the load of the transactions on the server.
+
+It supports MAPI access for Microsoft Outlook.
+
+See http://altlinux.org/SOGo for more information about deployment and
+configuration.
+
+%package tool
 Summary:      Command-line toolsuite for SOGo
 Group:        Communications
 Requires:     sogo = %version-%release
 
-%description -n sogo-tool
+%description tool
 Administrative tool for SOGo that provides the following internal commands:
   backup          -- backup user folders
   restore         -- restore user folders
   remove-doubles  -- remove duplicate contacts from the user addressbooks
   check-doubles   -- list user addressbooks with duplicate contacts
 
-%package -n sogo-slapd-sockd
+%package slapd-sockd
 Summary:      SOGo backend for slapd and back-sock
 Group:        Communications
 
-%description -n sogo-slapd-sockd
+%description slapd-sockd
 SOGo backend for slapd and back-sock, enabling access to private
 addressbooks via LDAP.
 
-%package -n sogo-ealarms-notify
+%package ealarms-notify
 Summary:      SOGo utility for executing email alarms
 Group:        Communications
 
-%description -n sogo-ealarms-notify
+%description ealarms-notify
 SOGo utility executed each minute via a cronjob for executing email
 alarms.
 
-%package -n sogo-activesync
+%package activesync
 Summary:      SOGo module to handle ActiveSync requests
 Group:        Communications
 Requires:     sogo = %version-%release
 
-%description -n sogo-activesync
+%description activesync
 SOGo module to handle ActiveSync requests
 
-%package -n sogo-devel
+%package devel
 Summary:      Development headers and libraries for SOGo
 Group:        Development/Objective-C
 
-%description -n sogo-devel
+%description devel
 Development headers and libraries for SOGo. Needed to create modules.
 
 %package -n sope-gdl1-contentstore
@@ -313,6 +342,8 @@ popd
 %_libdir/mapistore_backends/*
 %endif
 
+%files -n task-sogo
+
 %pre
 if ! id %sogo_user >& /dev/null; then
   /usr/sbin/useradd -d %{_var}/lib/sogo -c "SOGo daemon" -s /sbin/nologin -M -r %sogo_user
@@ -325,6 +356,10 @@ fi
 %preun_service sogo
 
 %changelog
+* Sat Dec 26 2015 Andrey Cherepanov <cas@altlinux.org> 2.3.4-alt2
+- Add metapackage task-sogo for completely install SOGo
+- Spec cleanup
+
 * Thu Dec 17 2015 Andrey Cherepanov <cas@altlinux.org> 2.3.4-alt1
 - New version
 
