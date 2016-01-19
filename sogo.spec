@@ -35,7 +35,6 @@ BuildRequires: openchange-devel
 BuildRequires: zlib-devel
 BuildRequires: python-module-samba-DC
 
-Requires:      memcached 
 Requires:      stmpclean
 Requires:      zip
 
@@ -65,6 +64,7 @@ Requires: sogo-tool
 Requires: sope-cards
 Requires: apache2-base
 Requires: apache2-mod_ngobjweb
+Requires: memcached 
 %if_with openchange
 Requires: %name-openchange-backend
 Requires: openchange-server
@@ -358,6 +358,7 @@ fi
 %changelog
 * Tue Jan 19 2016 Andrey Cherepanov <cas@altlinux.org> 2.3.6-alt1
 - New version
+- Move memcached requirement to task-sogo
 
 * Tue Jan 12 2016 Andrey Cherepanov <cas@altlinux.org> 2.3.5-alt1
 - New version
