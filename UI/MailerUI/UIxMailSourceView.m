@@ -1,8 +1,6 @@
 /* UIxMailSourceView.m - this file is part of SOGo
  *
- * Copyright (C) 2007 Inverse inc.
- *
- * Author: Wolfgang Sourdeau <wsourdeau@inverse.ca>
+ * Copyright (C) 2007-2015 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +20,8 @@
 
 #import <NGObjWeb/WOContext.h>
 #import <NGObjWeb/WOResponse.h>
+#import <NGExtensions/NSString+misc.h>
+
 #import <Foundation/NSString.h>
 #import <SoObjects/Mailer/SOGoMailObject.h>
 
@@ -41,7 +41,7 @@
   response = [self responseWithStatus: 200];
   [response setHeader: @"text/plain; charset=utf-8"
 	    forKey: @"content-type"];
-  [response appendContentString: source];
+  [response appendContentString: [source stringByEscapingHTMLString]];
 
   return response;
 }

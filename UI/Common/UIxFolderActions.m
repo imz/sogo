@@ -1,6 +1,6 @@
 /* UIxFolderActions.m - this file is part of SOGo
  *
- * Copyright (C) 2007-2013 Inverse inc.
+ * Copyright (C) 2007-2015 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,14 +32,21 @@
 #import <NGObjWeb/SoClassSecurityInfo.h>
 #import <NGObjWeb/NSException+HTTP.h>
 
-#import <SoObjects/SOGo/SOGoUserManager.h>
-#import <SoObjects/SOGo/NSArray+Utilities.h>
-#import <SoObjects/SOGo/SOGoContentObject.h>
-#import <SoObjects/SOGo/SOGoGCSFolder.h>
-#import <SoObjects/SOGo/SOGoParentFolder.h>
-#import <SoObjects/SOGo/SOGoPermissions.h>
-#import <SoObjects/SOGo/SOGoUser.h>
-#import <SoObjects/SOGo/SOGoUserSettings.h>
+#import <SOGo/SOGoUserManager.h>
+#import <SOGo/NSArray+Utilities.h>
+#import <SOGo/NSDictionary+Utilities.h>
+#import <SOGo/NSString+Utilities.h>
+#import <SOGo/SOGoContentObject.h>
+#import <SOGo/SOGoGCSFolder.h>
+#import <SOGo/SOGoParentFolder.h>
+#import <SOGo/SOGoPermissions.h>
+#import <SOGo/SOGoUser.h>
+#import <SOGo/SOGoUserSettings.h>
+
+#import <Contacts/SOGoContactGCSFolder.h>
+#import <Contacts/SOGoContactSourceFolder.h>
+
+#import <Appointments/SOGoAppointmentFolder.h>
 
 #import "WODirectAction+SOGo.h"
 
@@ -74,18 +81,17 @@
 - (WOResponse *) _subscribeAction: (BOOL) reallyDo
 {
   WOResponse *response;
+  NSDictionary *jsonResponse;
   NSURL *mailInvitationURL;
 
-  response = [context response];
-  [response setHeader: @"text/plain; charset=utf-8"
-               forKey: @"Content-Type"];
-
+  response = nil;
   [self _setupContext];
   if ([owner isEqualToString: login])
     {
-      [response setStatus: 403];
-      [response appendContentString:
-                  @"You cannot (un)subscribe to a folder that you own!"];
+      jsonResponse = [NSDictionary dictionaryWithObject: [self labelForKey: @"You cannot (un)subscribe to a folder that you own!"]
+                                                 forKey: @"error"];
+      response = [self responseWithStatus: 403
+                    andJSONRepresentation: jsonResponse];
     }
   else
     {
@@ -95,14 +101,27 @@
 
       if (isMailInvitation)
         {
-          mailInvitationURL
-            = [clientObject soURLToBaseContainerForCurrentUser];
-          [response setStatus: 302];
+          mailInvitationURL = [clientObject soURLToBaseContainerForCurrentUser];
+          response = [self responseWithStatus: 302];
           [response setHeader: [mailInvitationURL absoluteString]
                        forKey: @"location"];
         }
       else
-        [response setStatus: 204];
+        {
+          // @see [SOGoGCSFolder folderWithSubscriptionReference:inContainer:]
+          jsonResponse
+            = [NSDictionary dictionaryWithObjectsAndKeys:
+                              [NSString stringWithFormat: @"%@_%@", [owner asCSSIdentifier], [clientObject nameInContainer]], @"id",
+                            owner, @"owner",
+                            [clientObject displayName], @"name",
+                            [NSNumber numberWithBool: [clientObject isKindOfClass: [SOGoGCSFolder class]]], @"isEditable",
+                            [NSNumber numberWithBool:
+                                        [clientObject isKindOfClass: [SOGoContactSourceFolder class]]
+                                      && ![(SOGoContactSourceFolder *) clientObject isPersonalSource]], @"isRemote",
+                            nil];
+          response = [self responseWithStatus: 200
+                        andJSONRepresentation: jsonResponse];
+        }
     }
 
   return response;
@@ -118,6 +137,14 @@
   return [self _subscribeAction: NO];
 }
 
+/**
+ * @api {get} /so/:username/:folderPath/canAccessContent Test access rights
+ * @apiVersion 1.0.0
+ * @apiName GetCanAccessContent
+ * @apiGroup Common
+ * @apiExample {curl} Example usage:
+ *     curl -i http://localhost/SOGo/so/sogo1/Calendar/personal/canAccessContent
+ */
 - (WOResponse *) canAccessContentAction
 {
   /* We want this action to be authorized managed by the SOPE's internal acl
@@ -190,12 +217,71 @@
   return [self _realFolderActivation: NO];
 }
 
+/**
+ * @api {get} /so/:username/:folderPath/newguid Generate new ID
+ * @apiVersion 1.0.0
+ * @apiName GetNewGUID
+ * @apiGroup Common
+ * @apiExample {curl} Example usage:
+ *     curl -i http://localhost/SOGo/so/sogo1/Calendar/personal/newguid
+ *
+ * @apiSuccess (Success 200) {String} pid Folder ID (element's parent)
+ * @apiSuccess (Success 200) {String} id  New element ID
+ * @apiError   (Error 500) {Object} error The error message
+ */
+- (WOResponse *) newguidAction
+{
+  NSString *objectId, *folderId;
+  NSDictionary *data;
+  WOResponse *response;
+  SOGoFolder *co;
+  SoSecurityManager *sm;
+
+  co = [self clientObject];
+  objectId = [co globallyUniqueObjectId];
+  if ([objectId length] > 0)
+    {
+      sm = [SoSecurityManager sharedSecurityManager];
+      if (![sm validatePermission: SoPerm_AddDocumentsImagesAndFiles
+	      onObject: co
+	      inContext: context])
+	{
+          folderId = [co nameInContainer];
+	}
+      else
+	{
+          folderId = @"personal";
+	}
+      // Append meaningful extension to objects of calendars and addressbooks
+      if ([co isKindOfClass: [SOGoContactGCSFolder class]])
+        {
+          objectId = [NSString stringWithFormat: @"%@.vcf", objectId];
+        }
+      else if ([co isKindOfClass: [SOGoAppointmentFolder class]])
+        {
+          objectId = [NSString stringWithFormat: @"%@.ics", objectId];
+        }
+      data = [NSDictionary dictionaryWithObjectsAndKeys: objectId, @"id", folderId, @"pid", nil];
+      response = [self responseWithStatus: 200
+                                andString: [data jsonRepresentation]];
+    }
+  else
+    response = [NSException exceptionWithHTTPStatus: 500 /* Internal Error */
+                                             reason: @"could not create a unique ID"];
+
+  return response;
+}
+
 - (WOResponse *) renameFolderAction
 {
   WOResponse *response;
+  WORequest *request;
+  NSDictionary *params, *message;
   NSString *folderName;
 
-  folderName = [[context request] formValueForKey: @"name"];
+  request = [context request];
+  params = [[request contentAsString] objectFromJSONString];
+  folderName = [params objectForKey: @"name"];
   if ([folderName length] > 0)
     {
       clientObject = [self clientObject];
@@ -204,22 +290,38 @@
     }
   else
     {
-      response = [self responseWithStatus: 500];
-      [response appendContentString: @"Missing 'name' parameter."];
+      message = [NSDictionary dictionaryWithObject: @"Missing name parameter" forKey: @"error"];
+      response = [self responseWithStatus: 500
+                                andString: [message jsonRepresentation]];
     }
 
   return response;
 }
 
+/**
+ * @api {post} /so/:username/:folderPath/batchDelete?uids=:uids Delete multiple resources
+ * @apiVersion 1.0.0
+ * @apiName GetBatchDelete
+ * @apiGroup Common
+ * @apiExample {curl} Example usage:
+ *     curl -i http://localhost/SOGo/so/sogo1/Contacts/personal/batchDelete \
+ *          -H 'Content-Type: application/json' \
+ *          -d '{ "uids": ["1BC8-52F53F80-1-38C52041.vcf", "4095-52B0C180-31-9225E71.vlf"] }'
+ *
+ * @apiParam {String[]} uids List of resources IDs
+ *
+ * @apiError (Error 400) {Object} error The error message
+ */
 - (id) batchDeleteAction
 {
   WOResponse *response;
-  NSString *idsParam;
+  NSDictionary *data;
   NSArray *ids;
 
-  idsParam = [[context request] formValueForKey: @"ids"];
-  ids = [idsParam componentsSeparatedByString: @","];
-  if ([ids count])
+  data = [[[context request] contentAsString] objectFromJSONString];
+  ids = [data objectForKey: @"uids"];
+  
+  if ([ids isKindOfClass: [NSArray class]] && [ids count])
     {
       clientObject = [self clientObject];
       [clientObject deleteEntriesWithIds: ids];
@@ -227,8 +329,9 @@
     }
   else
     {
-      response = [self responseWithStatus: 500];
-      [response appendContentString: @"At least 1 id required."];
+      response = [self responseWithStatus: 400
+                    andJSONRepresentation: [NSDictionary dictionaryWithObject: @"At least 1 id required."
+                                                                     forKey: @"error"]];
     }
   
   return response;
@@ -305,16 +408,17 @@
 
 - (id <WOActionResults>) copyAction
 {
-  WORequest *request;
   id <WOActionResults> response;
   NSString *destinationFolderId;
   NSArray *contactsId;
+  NSDictionary *data;
   NSException *ex;
   
-  request = [context request];
+  data = [[[context request] contentAsString] objectFromJSONString];
+  contactsId = [data objectForKey: @"uids"];
+  destinationFolderId = [data objectForKey: @"folder"];
 
-  if ((destinationFolderId = [request formValueForKey: @"folder"]) &&
-      (contactsId = [request formValuesForKey: @"uid"]))
+  if (destinationFolderId && [contactsId count])
     ex = [self _moveContacts: contactsId
                     toFolder: destinationFolderId
 		 andKeepCopy: YES];
@@ -333,16 +437,17 @@
 
 - (id <WOActionResults>) moveAction
 {
-  WORequest *request;
   id <WOActionResults> response;
   NSString *destinationFolderId;
+  NSDictionary *data;
   NSArray *contactsId;
   NSException *ex;
   
-  request = [context request];
+  data = [[[context request] contentAsString] objectFromJSONString];
+  contactsId = [data objectForKey: @"uids"];
+  destinationFolderId = [data objectForKey: @"folder"];
 
-  if ((destinationFolderId = [request formValueForKey: @"folder"])
-      && (contactsId = [request formValuesForKey: @"uid"]))
+  if (destinationFolderId && [contactsId count])
     ex = [self _moveContacts: contactsId
                     toFolder: destinationFolderId
 		 andKeepCopy: NO];
@@ -359,13 +464,24 @@
   return response;
 }
 
+/**
+ * @api {get} /so/:username/:folderPath/subscribeUsers?uids=:uids Subscribe user(s)
+ * @apiVersion 1.0.0
+ * @apiName GetSubscribeUsers
+ * @apiGroup Common
+ * @apiExample {curl} Example usage:
+ *     curl -i http://localhost/SOGo/so/sogo1/Calendar/personal/subscribeUsers?uids=sogo2,sogo3
+ *
+ * @apiParam {String} uids Comma-separated list of user IDs
+ *
+ * @apiError (Error 400) {Object} error The error message
+ */
 - (id <WOActionResults>) subscribeUsersAction
 {
   id <WOActionResults> response;
   NSString *uids;
   NSArray *userIDs;
   SOGoGCSFolder *folder;
-  NSException *ex;
   int count, max;
   
   uids = [[context request] formValueForKey: @"uids"];
@@ -378,16 +494,12 @@
         [folder subscribeUserOrGroup: [userIDs objectAtIndex: count]
 			    reallyDo: YES
                             response: nil];
-      ex = nil;
+      response = [self responseWith204];
     }
   else
-    ex = [NSException exceptionWithHTTPStatus: 400
-                                       reason: @"missing 'uids' parameter"];
-  
-  if (ex)
-    response = (id <WOActionResults>) ex;
-  else
-    response = [self responseWith204];
+    response = [self responseWithStatus: 400
+                  andJSONRepresentation: [NSDictionary dictionaryWithObject: @"missing 'uids' parameter"
+                                                                     forKey: @"message"]];
   
   return response;
 }

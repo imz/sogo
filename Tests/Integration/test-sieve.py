@@ -16,17 +16,18 @@ sieve_simple_filter="""require ["fileinto"];\r\nif anyof (header :contains "subj
 
 class sieveTest(unittest.TestCase):
     def _killFilters(self):
-      filtersKill={}
-      # kill existing filters
-      filtersKill["SOGoSieveFilters"]= "[]"
-      # vacation filters
-      filtersKill["autoReplyText"] = ""
-      filtersKill["autoReplyEmailAddresses"] = ""
-      # forwarding filters
-      filtersKill["forwardAddress"] = ""
-      
       self.prefs=preferences.preferences()
-      self.prefs.set(filtersKill)
+      # kill existing filters
+      self.prefs.set_or_create("SOGoSieveFilters", [], ["defaults"])
+      # vacation filters
+      self.prefs.set_or_create("autoReplyText", "", ["defaults", "Vacation"])
+      self.prefs.set_or_create("autoReplyEmailAddresses", [], ["defaults", "Vacation"])
+      self.prefs.set_or_create("daysBetweenResponse", 7, ["defaults", "Vacation"])
+      self.prefs.set_or_create("ignoreLists", 0, ["defaults", "Vacation"])
+      self.prefs.set_or_create("enabled", 0, ["defaults", "Vacation"])
+      # forwarding filters
+      self.prefs.set_or_create("forwardAddress", [], ["defaults", "Forward"])
+      self.prefs.set_or_create("keepCopy", 0, ["defaults", "Forward"])
 
     def setUp(self):
       ret = ""
@@ -54,7 +55,7 @@ class sieveTest(unittest.TestCase):
 
       for (script, isActive) in sieveScriptList:
           if (script == "sogo"):
-	      sieveFoundsogo=1
+              sieveFoundsogo=1
 	      self.assertEqual(isActive, True, "sogo sieve script is not active!")
 	      (ret, createdSieveScript) = self.ms.getscript(script)
               self.assertEqual(ret, "OK", "Couldn't get sogo sieve script")
@@ -73,13 +74,16 @@ class sieveTest(unittest.TestCase):
 					       "days": preferences.daysBetweenResponseList[daysSelect],
 					     }
 
-      filterAdd = {"Vacation":"1",
-                   "autoReplyText": vacation_msg,
-                   "daysBetweenResponse": "%d" % daysSelect,
-		   "autoReplyEmailAddresses": self.user_email,
-		  } 
+      # Enabling Vacation now is an 'enabled' setting in the subdict Vacation
+      # We need to get that subdict first -- next save/set will also save this
+      vacation = self.prefs.get("Vacation")
+      vacation['enabled'] = 1
 
-      self.prefs.set(filterAdd)
+      self.prefs.set_nosave("autoReplyText", vacation_msg)
+      self.prefs.set_nosave("daysBetweenResponse", "%d" % preferences.daysBetweenResponseList[daysSelect])
+      self.prefs.set_nosave("autoReplyEmailAddresses", [self.user_email])
+      self.prefs.save()
+
       createdSieveScript=self._getSogoSieveScript()
 
       self.assertEqual(sieveScript, createdSieveScript)
@@ -94,14 +98,17 @@ class sieveTest(unittest.TestCase):
 					       "days": preferences.daysBetweenResponseList[daysSelect],
 					     }
 
-      filterAdd = {"Vacation":"1",
-                   "autoReplyText": vacation_msg,
-                   "daysBetweenResponse": "%d" % daysSelect,
-		   "autoReplyEmailAddresses": self.user_email,
-		   "ignoreLists": "1",
-		  } 
+      # Enabling Vacation now is an 'enabled' setting in the subdict Vacation
+      # We need to get that subdict first -- next save/set will also save this
+      vacation = self.prefs.get("Vacation")
+      vacation['enabled'] = 1
 
-      self.prefs.set(filterAdd)
+      self.prefs.set_nosave("autoReplyText", vacation_msg)
+      self.prefs.set_nosave("daysBetweenResponse", "%d" % preferences.daysBetweenResponseList[daysSelect])
+      self.prefs.set_nosave("autoReplyEmailAddresses", [self.user_email])
+      self.prefs.set_nosave("ignoreLists", 1)
+      self.prefs.save()
+
       createdSieveScript=self._getSogoSieveScript()
 
       self.assertEqual(sieveScript, createdSieveScript)
@@ -112,11 +119,13 @@ class sieveTest(unittest.TestCase):
 
       sieveScript = sieve_simple_forward % { "redirect_mailaddr": redirect_mailaddr }
 
-      filterAdd = { "Forward": "1",
-                    "forwardAddress": redirect_mailaddr,
-                  }
+      # Enabling Forward now is an 'enabled' setting in the subdict Forward
+      # We need to get that subdict first -- next save/set will also save this
+      forward = self.prefs.get("Forward")
+      forward['enabled'] = 1
 
-      self.prefs.set(filterAdd)
+      self.prefs.set("forwardAddress", [redirect_mailaddr])
+
       createdSieveScript = self._getSogoSieveScript()
       self.assertEqual(sieveScript, createdSieveScript)
 
@@ -126,12 +135,15 @@ class sieveTest(unittest.TestCase):
 
       sieveScript = sieve_forward_keep % { "redirect_mailaddr": redirect_mailaddr }
 
-      filterAdd = { "Forward": "1",
-                    "forwardAddress": redirect_mailaddr,
-                    "keepCopy": "1",
-                  }
+      # Enabling Forward now is an 'enabled' setting in the subdict Forward
+      # We need to get that subdict first -- next save/set will also save this
+      forward = self.prefs.get("Forward")
+      forward['enabled'] = 1
 
-      self.prefs.set(filterAdd)
+      self.prefs.set_nosave("forwardAddress", [redirect_mailaddr])
+      self.prefs.set_nosave("keepCopy", 1)
+      self.prefs.save()
+
       createdSieveScript = self._getSogoSieveScript()
       self.assertEqual(sieveScript, createdSieveScript)
 
@@ -142,10 +154,8 @@ class sieveTest(unittest.TestCase):
 
       sieveScript=sieve_simple_filter % { "subject": subject, "folderName": folderName }
 
-      filterAdd = { "SOGoSieveFilters": """[{"active": true, "actions": [{"method": "fileinto", "argument": "Sent"}], "rules": [{"operator": "contains", "field": "subject", "value": "%s"}], "match": "any", "name": "%s"}]""" % (subject, folderName)
-                  }
+      self.prefs.set("SOGoSieveFilters", [{"active": True, "actions": [{"method": "fileinto", "argument": "Sent"}], "rules": [{"operator": "contains", "field": "subject", "value": subject}], "match": "any", "name": folderName}])
 
-      self.prefs.set(filterAdd)
       createdSieveScript = self._getSogoSieveScript()
       self.assertEqual(sieveScript, createdSieveScript)
 

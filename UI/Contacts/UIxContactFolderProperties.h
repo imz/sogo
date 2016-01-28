@@ -1,6 +1,6 @@
-/* UIxContactFolderProperties.h - this file is part of SOGo
+/* UIxContactFolderProperties.m - this file is part of SOGo
  *
- * Copyright (C) 2014 Inverse inc.
+ * Copyright (C) 2015 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,10 +26,7 @@
 
 @interface UIxContactFolderProperties : UIxComponent
 {
-  SOGoContactGCSFolder *addressBook;
-  NSString *baseCardDAVURL, *basePublicCardDAVURL;
+  SOGoContactGCSFolder *addressbook;
 }
-
-- (NSString *) addressBookName;
 
 @end

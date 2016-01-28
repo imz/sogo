@@ -1,6 +1,6 @@
 /* UIxCalendarProperties.m - this file is part of SOGo
  *
- * Copyright (C) 2008-2014 Inverse inc.
+ * Copyright (C) 2008-2015 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,12 +21,15 @@
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSEnumerator.h>
 #import <Foundation/NSURL.h>
+#import <Foundation/NSValue.h>
 
 #import <NGObjWeb/WORequest.h>
 
+#import <SOGo/NSString+Utilities.h>
 #import <SOGo/SOGoUser.h>
 #import <SOGo/SOGoUserSettings.h>
 #import <SOGo/SOGoSystemDefaults.h>
+
 #import <Appointments/SOGoAppointmentFolder.h>
 #import <Appointments/SOGoWebAppointmentFolder.h>
 
@@ -39,9 +42,6 @@
   if ((self = [super init]))
     {
       calendar = [self clientObject];
-      baseCalDAVURL = nil;
-      basePublicCalDAVURL = nil;
-      reloadTasks = NO;
     }
 
   return self;
@@ -49,247 +49,91 @@
 
 - (void) dealloc
 {
-  [baseCalDAVURL release];
-  [basePublicCalDAVURL release];
   [super dealloc];
 }
 
-- (NSString *) calendarID
+/**
+ * @api {post} /so/:username/Calendar/:calendarId/save Save calendar
+ * @apiDescription Save a calendar's properties.
+ * @apiVersion 1.0.0
+ * @apiName PostSaveProperties
+ * @apiGroup Calendar
+ * @apiExample {curl} Example usage:
+ *     curl -i http://localhost/SOGo/so/sogo1/Calendar/personal/save \
+ *          -H "Content-Type: application/json" \
+ *          -d '{"name": "Personal Calendar", "notifications": {"notifyOnPersonalModifications": true}}'
+ *
+ * @apiParam {String} name                Human readable name
+ * @apiParam {String} color               Calendar's hex color code
+ * @apiParam {Number} includeInFreeBusy   1 if calendar must be include in freebusy
+ * @apiParam {Number} showCalendarAlarms  1 if alarms must be enabled
+ * @apiParam {Number} showCalendarTasks   1 if tasks must be enabled
+ * @apiParam {Number} synchronize         1 if we enable EAS synchronization for this calendar
+ * @apiParam {Number} reloadOnLogin       1 if calendar is a Web calendar that must be reload when user logins
+ * @apiParam {Object} [notifications]     Notification (if active user is the calendar's owner)
+ * @apiParam {Number} notifications.notifyOnPersonalModifications 1 if a mail is sent for each modification made by the owner
+ * @apiParam {Number} notifications.notifyOnExternalModifications 1 if a mail is sent for each modification made by someone else
+ * @apiParam {Number} notifications.notifyUserOnPersonalModifications 1 if a mail is sent to an external address for modification made by the owner
+ * @apiParam {String} [notifications.notifiedUserOnPersonalModifications] Email address to notify changes
+ */
+- (WOResponse *) savePropertiesAction
 {
-  return [calendar folderReference];
-}
+  WORequest *request;
+  NSDictionary *params;
+  id o, values;
 
-- (NSString *) calendarName
-{
-  return [calendar displayName];
-}
+  request = [context request];
+  params = [[request contentAsString] objectFromJSONString];
 
-- (void) setCalendarName: (NSString *) newName
-{
-  [calendar renameTo: newName];
-}
+  o = [params objectForKey: @"name"];
+  if ([o isKindOfClass: [NSString class]])
+    [calendar renameTo: o];
 
-- (NSString *) calendarColor
-{
-  return [calendar calendarColor];
-}
+  o = [params objectForKey: @"color"];
+  if ([o isKindOfClass: [NSString class]])
+    [calendar setCalendarColor: o];
 
-- (void) setCalendarColor: (NSString *) newColor
-{
-  [calendar setCalendarColor: newColor];
-}
+  o = [params objectForKey: @"includeInFreeBusy"];
+  if ([o isKindOfClass: [NSNumber class]])
+    [calendar setIncludeInFreeBusy: [o boolValue]];
 
-- (BOOL) includeInFreeBusy
-{
-  return [calendar includeInFreeBusy];
-}
+  o = [params objectForKey: @"showCalendarAlarms"];
+  if ([o isKindOfClass: [NSNumber class]])
+    [calendar setShowCalendarAlarms: [o boolValue]];
 
-- (void) setIncludeInFreeBusy: (BOOL) newInclude
-{
-  [calendar setIncludeInFreeBusy: newInclude];
-}
+  o = [params objectForKey: @"showCalendarTasks"];
+  if ([o isKindOfClass: [NSNumber class]])
+    [calendar setShowCalendarTasks: [o boolValue]];
 
-- (BOOL) synchronizeCalendar
-{
-  if ([self isWebCalendar])
-    return NO;
+  o = [params objectForKey: @"showCalendarTasks"];
+  if ([o isKindOfClass: [NSNumber class]])
+    [calendar setShowCalendarTasks: [o boolValue]];
 
-  return [self mustSynchronize] || [calendar synchronize];
-}
+  o = [params objectForKey: @"synchronize"];
+  if ([o isKindOfClass: [NSNumber class]])
+    [calendar setSynchronize: [o boolValue]];
 
-- (void) setSynchronizeCalendar: (BOOL) new
-{
-  [calendar setSynchronize: new];
-}
-
-- (BOOL) mustSynchronize
-{
-  return ([[calendar nameInContainer] isEqualToString: @"personal"] || [self isWebCalendar]);
-}
-
-- (BOOL) showCalendarAlarms
-{
-  return [calendar showCalendarAlarms];
-}
-
-- (void) setShowCalendarAlarms: (BOOL) new
-{
-  if (new != [calendar showCalendarAlarms])
-    reloadTasks = YES;
-  [calendar setShowCalendarAlarms: new];
-}
-
-- (BOOL) showCalendarTasks
-{
-  return [calendar showCalendarTasks];
-}
-
-- (void) setShowCalendarTasks: (BOOL) new
-{
-  if (new != [calendar showCalendarTasks])
-    reloadTasks = YES;
-  [calendar setShowCalendarTasks: new];
-}
-
-- (BOOL) isPublicAccessEnabled
-{
-  // NOTE: This method is the same found in Common/UIxAclEditor.m
-  return [[SOGoSystemDefaults sharedSystemDefaults]
-           enablePublicAccess];
-}
-
-- (BOOL) isWebCalendar
-{
-  return ([calendar isKindOfClass: [SOGoWebAppointmentFolder class]]);
-}
-
-- (NSString *) webCalendarURL
-{
-  return [calendar folderPropertyValueInCategory: @"WebCalendars"];
-}
-
-- (void) setReloadOnLogin: (BOOL) newReloadOnLogin
-{
-  if ([calendar respondsToSelector: @selector (setReloadOnLogin:)])
-    [(SOGoWebAppointmentFolder *) calendar
-      setReloadOnLogin: newReloadOnLogin];
-}
-
-- (BOOL) reloadOnLogin
-{
-  BOOL rc;
-
-  if ([calendar respondsToSelector: @selector (reloadOnLogin)])
-    rc = [(SOGoWebAppointmentFolder *) calendar reloadOnLogin];
-  else
-    rc = NO;
-
-  return rc;
-}
-
-- (BOOL) shouldTakeValuesFromRequest: (WORequest *) request
-                           inContext: (WOContext*) context
-{
-  NSString *method;
-
-  method = [[request uri] lastPathComponent];
-
-  return [method isEqualToString: @"saveProperties"];
-}
-
-- (id <WOActionResults>) savePropertiesAction
-{
-  NSString *action;
-
-  if (reloadTasks)
-    action = @"refreshTasks()";
-  else
-    action = nil;
-  return [self jsCloseWithRefreshMethod: action];
-}
-
-- (NSString *) _baseCalDAVURL
-{
-  NSString *davURL;
-
-  if (!baseCalDAVURL)
+  values = [params objectForKey: @"notifications"];
+  if ([values isKindOfClass: [NSDictionary class]])
     {
-      davURL = [[calendar realDavURL] absoluteString];
-      if ([davURL hasSuffix: @"/"])
-        baseCalDAVURL = [davURL substringToIndex: [davURL length] - 1];
-      else
-        baseCalDAVURL = davURL;
-      [baseCalDAVURL retain];
+      o = [values objectForKey: @"notifyOnPersonalModifications"];
+      if ([o isKindOfClass: [NSNumber class]])
+        [calendar setNotifyOnPersonalModifications: [o boolValue]];
+
+      o = [values objectForKey: @"notifyOnExternalModifications"];
+      if ([o isKindOfClass: [NSNumber class]])
+        [calendar setNotifyOnExternalModifications: [o boolValue]];
+
+      o = [values objectForKey: @"notifyUserOnPersonalModifications"];
+      if ([o isKindOfClass: [NSNumber class]])
+        [calendar setNotifyUserOnPersonalModifications: [o boolValue]];
+
+      o = [values objectForKey: @"notifiedUserOnPersonalModifications"];
+      if ([o isKindOfClass: [NSString class]])
+        [calendar setNotifiedUserOnPersonalModifications: o];
     }
 
-  return baseCalDAVURL;
-}
-
-- (NSString *) _basePublicCalDAVURL
-{
-  NSString *davURL;
-
-  if (!basePublicCalDAVURL)
-    {
-      davURL = [[calendar publicDavURL] absoluteString];
-      if ([davURL hasSuffix: @"/"])
-	basePublicCalDAVURL = [davURL substringToIndex: [davURL length] - 1];
-      else
-        basePublicCalDAVURL = davURL;
-      [basePublicCalDAVURL retain];
-    }
-
-  return basePublicCalDAVURL;
-}
-
-- (NSString *) calDavURL
-{
-  return [NSString stringWithFormat: @"%@/", [self _baseCalDAVURL]];
-}
-
-- (NSString *) webDavICSURL
-{
-  return [NSString stringWithFormat: @"%@.ics", [self _baseCalDAVURL]];
-}
-
-- (NSString *) webDavXMLURL
-{
-  return [NSString stringWithFormat: @"%@.xml", [self _baseCalDAVURL]];
-}
-
-- (NSString *) publicCalDavURL
-{
-  return [NSString stringWithFormat: @"%@/", [self _basePublicCalDAVURL]];
-}
-
-- (NSString *) publicWebDavICSURL
-{
-  return [NSString stringWithFormat: @"%@.ics", [self _basePublicCalDAVURL]];
-}
-
-- (NSString *) publicWebDavXMLURL
-{
-  return [NSString stringWithFormat: @"%@.xml", [self _basePublicCalDAVURL]];
-}
-
-- (BOOL) notifyOnPersonalModifications
-{
-  return [calendar notifyOnPersonalModifications];
-}
-
-- (void) setNotifyOnPersonalModifications: (BOOL) b
-{
-  [calendar setNotifyOnPersonalModifications: b];
-}
-
-- (BOOL) notifyOnExternalModifications
-{
-  return [calendar notifyOnExternalModifications];
-}
-
-- (void) setNotifyOnExternalModifications: (BOOL) b
-{
-  [calendar setNotifyOnExternalModifications: b];
-}
-
-- (BOOL) notifyUserOnPersonalModifications
-{
-  return [calendar notifyUserOnPersonalModifications];
-}
-
-- (void) setNotifyUserOnPersonalModifications: (BOOL) b
-{
-  [calendar setNotifyUserOnPersonalModifications: b];
-}
-
-- (NSString *) notifiedUserOnPersonalModifications
-{
-  return [calendar notifiedUserOnPersonalModifications];
-}
-
-- (void) setNotifiedUserOnPersonalModifications: (NSString *) theUser
-{
-  [calendar setNotifiedUserOnPersonalModifications: theUser];
+  return [self responseWith204];
 }
 
 @end

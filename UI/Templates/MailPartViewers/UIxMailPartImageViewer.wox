@@ -1,9 +1,28 @@
 <?xml version="1.0" standalone="yes"?>
-<img
-  xmlns="http://www.w3.org/1999/xhtml"
-  xmlns:var="http://www.skyrix.com/od/binding"
-  
-  var:src="pathToAttachment"
-  var:title="filenameForDisplay"
-  class="mailer_imagecontent"
-></img>
+<!DOCTYPE div>
+<container
+    xmlns="http://www.w3.org/1999/xhtml"
+    xmlns:var="http://www.skyrix.com/od/binding"
+    xmlns:const="http://www.skyrix.com/od/constant"
+    xmlns:label="OGo:label"
+    >
+  <md-card>
+    <img var:src="pathToAttachment"
+         var:title="filenameForDisplay"
+         class="md-card-image"></img>
+    <md-card-content>
+      <p class="md-caption" var:title="filenameForDisplay">
+        <var:string value="filenameForDisplay" />
+      </p>
+    </md-card-content>
+    <md-dialog-actions layout="row" layout-align="start center">
+      <div class="md-flex sg-attachment-size">
+        <var:string value="bodyInfo.size" formatter="sizeFormatter"/>
+      </div>
+      <md-button class="sg-icon-button" var:href="pathForDownload">
+        <md-tooltip md-direction="left"><var:string label:value="Save Attachment"/></md-tooltip>
+        <md-icon>file_download</md-icon>
+      </md-button>
+    </md-dialog-actions>
+  </md-card>
+</container>

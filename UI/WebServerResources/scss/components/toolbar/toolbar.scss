@@ -1,0 +1,115 @@
+/// toolbar.scss -*- Mode: scss; indent-tabs-mode: nil; basic-offset: 2 -*-
+//$toolbar-tools-height: 100%;
+$toolbar-height: $pitch;
+//$toolbar-medium-tall-height: 88px !default;
+$toolbar-tall-height: ($toolbar-height * 2);
+$toolbar-indent-margin: $pitch;
+$toolbar-padding: $mg;
+@import 'extends';
+
+// According to specs, there's no case where toolbars have no padding
+// We overule angular-material way of implenting this by defining padding toolbars
+// instead of toolbar-tools to prevent padding addition
+// INFO: because we make intensive use of border-box box sizing model, horizontal paddings
+// must be declare in containers with sg-padded
+md-toolbar {
+  z-index: $z-index-toolbar;
+  // dirty fix to override angular-material botchy typography
+  font-size: 1em !important;
+}
+
+// Colors transition when changing folder in dialogs
+md-dialog {
+  md-toolbar,
+  md-toolbar .md-input,
+  md-toolbar md-input-container.md-input-has-value label,
+  md-toolbar md-input-container label:not(.md-no-float),
+  md-toolbar md-icon {
+    transition: background-color $swift-ease-out-duration $swift-ease-out-timing-function,
+    color $swift-ease-out-duration $swift-ease-out-timing-function;
+  }
+}
+
+.md-toolbar-tools {
+  //padding: 0;
+  // dirty fix to override angular-material botchy typography
+  font-size: 1em !important;
+}
+
+md-toolbar,
+.md-toolbar-tools {
+  // Animate the first icon button of a "secondary" toolbar
+  &.sg-toolbar-secondary {
+    > .md-toolbar-tools > .sg-icon-button:first-child,
+    > .md-toolbar-tools > .md-icon-button:first-child,
+    > .sg-icon-button:first-child,
+    > .md-icon-button:first-child {
+      transition: $swift-ease-in;
+      transform: translateX(0px);
+    }
+    &.ng-hide > .md-toolbar-tools > .sg-icon-button:first-child,
+    &.ng-hide > .md-toolbar-tools > .md-icon-button:first-child,
+    &.ng-hide > .sg-icon-button:first-child,
+    &.ng-hide > .md-icon-button:first-child {
+      transform: translateX(-$touch-zone-width);
+    }
+  }
+  &.md-accent.md-hue-1 {
+    md-icon {
+      // Hack until this bug is fixed: https://github.com/angular/material/issues/5989
+      color: rgba(0,0,0,0.54);
+    }
+  }
+}
+
+.md-toolbar-tools.md-toolbar-tools-top {
+  align-items: flex-start;
+}
+
+.md-toolbar-tools.md-toolbar-tools-bottom {
+  height: (5 * $line);
+  max-height: (5 * $line);
+}
+
+header {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  justify-content: space-between;
+  display: flex;
+}
+hgroup {
+  align-items: center;
+  &h3 {
+    margin-bottom: 0;
+  }
+}
+
+.sg-toolbar-group {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  &-1 {
+    order: 1;
+    max-width: $listView-width;
+  }
+  &-2 {
+    order: 2;
+  }
+  &-3,
+  &-last {
+    order: 3;
+  }
+}
+
+.sg-folder-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+}
+
+.sg-toolbar-search {
+  padding: $toolbar-padding 0;
+}

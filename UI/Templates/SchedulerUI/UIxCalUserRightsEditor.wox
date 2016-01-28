@@ -1,54 +1,73 @@
 <?xml version="1.0" standalone="yes"?>
 <!DOCTYPE var:component>
-<var:component xmlns="http://www.w3.org/1999/xhtml"
-  xmlns:var="http://www.skyrix.com/od/binding"
-  xmlns:const="http://www.skyrix.com/od/constant"
-  xmlns:uix="OGo:uix"
-  xmlns:label="OGo:label"
-  xmlns:rsrc="OGo:url"
-  className="UIxPageFrame"
-  title="title"
-  const:toolbar="none"
-  const:popup="YES">
-  <form id="userRightsForm" const:href="saveUserRights">
-    <input id="uid" type="hidden" name="uid" var:value="uid"/>
-    <div class="title">
-      <label><span><var:string label:value="Access rights to"/></span>
-      <span id="folderName" class="value"><var:string value="folderName"/></span></label>
-      <label><span><var:string label:value="For user"/></span>
-      <span class="value"><var:string value="userDisplayName"/></span></label>
-    </div>
-    <div class="calendarUserRights">
-      <var:foreach list="rightTypes" item="currentRightType">
-	<div><span><var:string value="currentRightTypeLabel"/></span>
-	<var:popup list="objectRights" item="currentRight"
-		   var:name="currentRightTypeName"
-		   var:value="currentRight"
-		   string="currentRightLabel"
-		   selection="currentRightSelection"
-		   /></div>
-      </var:foreach>
-    </div>
-    <var:if condition="userIsAnonymousUser" const:negate="YES"
-      ><div class="basicUserRights">
-        <label><input type="checkbox" class="checkBox"
-            const:name="ObjectCreator"
-            var:checked="userCanCreateObjects"/><var:string
-            label:value="This person can create objects in my calendar."
-            /></label>
-        <br/>
-        <label><input type="checkbox" class="checkBox"
-            const:name="ObjectEraser"
-            var:checked="userCanEraseObjects"/><var:string
-            label:value="This person can erase objects from my calendar."
-            /></label>
-      </div></var:if>
-    <div class="buttons">
-      <a href="#" const:name="updateButton" id="updateButton" 
-        class="button actionButton">
-        <span><var:string label:value="Update" /></span></a>
-      <a href="#" const:name="cancelButton" id="cancelButton" class="button">
-        <span><var:string label:value="Cancel" /></span></a>
-    </div>
-  </form>
-</var:component>
+<container
+   xmlns="http://www.w3.org/1999/xhtml"
+   xmlns:var="http://www.skyrix.com/od/binding"
+   xmlns:const="http://www.skyrix.com/od/constant"
+   xmlns:rsrc="OGo:url"
+   xmlns:label="OGo:label"
+   xmlns:uix="OGo:uix">
+  <div layout="column">
+
+    <md-input-container class="md-block md-flex">
+      <label><var:string label:value="label_Public"/></label>
+      <md-select label:aria-label="Public"
+                 ng-model="acl.selectedUser.rights.Public"
+                 ng-change="acl.confirmChange(acl.selectedUser)">
+        <var:foreach list="objectRights" item="currentRight">
+          <md-option var:value="currentRight">
+            <var:string value="currentRightLabel"/>
+          </md-option>
+        </var:foreach>
+      </md-select>
+    </md-input-container>
+
+    <md-input-container class="md-block md-flex">
+      <label><var:string label:value="label_Confidential"/></label>
+      <md-select label:aria-label="Confidential"
+                 ng-model="acl.selectedUser.rights.Confidential"
+                 ng-change="acl.confirmChange(acl.selectedUser)">
+        <var:foreach list="objectRights" item="currentRight">
+          <md-option var:value="currentRight">
+            <var:string value="currentRightLabel"/>
+          </md-option>
+        </var:foreach>
+      </md-select>
+    </md-input-container>
+
+    <md-input-container class="md-block md-flex">
+      <label><var:string label:value="label_Private"/></label>
+      <md-select label:aria-label="Private"
+                 ng-model="acl.selectedUser.rights.Private"
+                 ng-change="acl.confirmChange(acl.selectedUser)">
+        <var:foreach list="objectRights" item="currentRight">
+          <md-option var:value="currentRight">
+            <var:string value="currentRightLabel"/>
+          </md-option>
+        </var:foreach>
+      </md-select>
+    </md-input-container>
+
+    <md-checkbox name="canCreateObjects"
+                 ng-model="acl.selectedUser.rights.canCreateObjects"
+                 ng-change="acl.confirmChange(acl.selectedUser)"
+                 ng-hide="acl.selectedUser.$isAnonymous()"
+                 ng-true-value="1"
+                 ng-false-value="0"
+                 label:aria-label="This person can create objects in my calendar.">
+      <var:string label:value="This person can create objects in my calendar." />
+    </md-checkbox>
+
+    <md-checkbox name="canEraseObjects"
+                 ng-model="acl.selectedUser.rights.canEraseObjects"
+                 ng-change="acl.confirmChange(acl.selectedUser)"
+                 ng-hide="acl.selectedUser.$isAnonymous()"
+                 ng-true-value="1"
+                 ng-false-value="0"
+                 label:aria-label="This person can erase objects from my calendar.">
+              <var:string label:value="This person can erase objects from my calendar." />
+    </md-checkbox>
+
+  </div>
+
+</container>

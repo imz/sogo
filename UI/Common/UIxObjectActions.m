@@ -1,8 +1,8 @@
 /* UIxObjectActions.m - this file is part of SOGo
  *
- * Copyright (C) 2007-2010 Inverse inc.
+ * Copyright (C) 2007-2016 Inverse inc.
  *
- * Author: Wolfgang Sourdeau <wsourdeau@inverse.ca>
+ * Author: Inverse <info@inverse.ca>
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,11 +23,16 @@
 #import <Foundation/NSArray.h>
 #import <Foundation/NSString.h>
 
+#import <NGObjWeb/NSException+HTTP.h>
 #import <NGObjWeb/WOContext+SoObjects.h>
 #import <NGObjWeb/WORequest.h>
 #import <NGObjWeb/WOResponse.h>
+
+#import <SoObjects/SOGo/SOGoContentObject.h>
 #import <SoObjects/SOGo/SOGoObject.h>
 #import <SoObjects/SOGo/SOGoPermissions.h>
+
+#import <SOGo/NSDictionary+Utilities.h>
 
 #import "WODirectAction+SOGo.h"
 
@@ -35,6 +40,16 @@
 
 @implementation UIxObjectActions
 
+/**
+ * @api {get} /so/:username/:folderPath/addUserInAcls?uid=:uid Add user to ACLs
+ * @apiVersion 1.0.0
+ * @apiName GetAddUserInAcls
+ * @apiGroup Common
+ * @apiExample {curl} Example usage:
+ *     curl -i http://localhost/SOGo/so/sogo1/Calendar/personal/addUserInAcls?uid=sogo2
+ *
+ * @apiParam {String} uid User ID
+ */
 - (WOResponse *) addUserInAclsAction
 {
   WOResponse *response;
@@ -53,6 +68,16 @@
   return response;
 }
 
+/**
+ * @api {get} /so/:username/:folderPath/removeUserFromAcls?uid=:uid Remove user from ACLs
+ * @apiVersion 1.0.0
+ * @apiName GetRemoveUserFromAcls
+ * @apiGroup Common
+ * @apiExample {curl} Example usage:
+ *     curl -i http://localhost/SOGo/so/sogo1/Calendar/personal/removeUserInAcls?uid=sogo2
+ *
+ * @apiParam {String} uid User ID
+ */
 - (WOResponse *) removeUserFromAclsAction
 {
   WOResponse *response;
@@ -74,10 +99,24 @@
 - (WOResponse *) deleteAction
 {
   WOResponse *response;
+  NSDictionary *data;
+  SOGoContentObject *deleteObject;
 
-  response = (WOResponse *) [[self clientObject] delete];
-  if (!response)
-    response = [self responseWithStatus: 204];
+  deleteObject = [self clientObject];
+  if ([deleteObject respondsToSelector: @selector (prepareDelete)])
+    [deleteObject prepareDelete];
+  response = (WOResponse *) [deleteObject delete];
+
+  if (response)
+    {
+      data = [NSDictionary dictionaryWithObjectsAndKeys: [(NSException *) response reason], @"error", nil];
+      response = [self responseWithStatus: 403
+                    andJSONRepresentation: data];
+    }
+  else
+    {
+      response = [self responseWithStatus: 204];
+    }
 
   return response;
 }

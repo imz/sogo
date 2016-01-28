@@ -37,8 +37,8 @@
 #import <SOGo/SOGoUserDefaults.h>
 #import <SOGo/WOResourceManager+SOGo.h>
 
-#import <Appointments/SOGoAppointmentFolder.h>
-#import <Appointments/SOGoAppointmentFolders.h>
+#import <SoObjects/Appointments/SOGoAppointmentFolder.h>
+#import <SoObjects/Appointments/SOGoAppointmentFolders.h>
 
 #import "UIxCalDayTable.h"
 
@@ -187,7 +187,6 @@
 {
   if (!calendarsToDisplay)
   {
-    int max=0, i;
     NSArray *folders;
     SOGoAppointmentFolders *co;
     SOGoAppointmentFolder *folder;
@@ -195,7 +194,7 @@
     unsigned int count, foldersCount;
     NSString *folderName, *fDisplayName;
     BOOL isActive;
-    
+
     co = [self clientObject];
     folders = [co subFolders];
     foldersCount = [folders count];
@@ -285,14 +284,47 @@
   return [daysToDisplay indexOfObject: currentTableDay];
 }
 
-- (NSString *) currentAppointmentHour
+- (NSNumber *) currentAppointmentHour
 {
-  return [NSString stringWithFormat: @"%.2d00", [currentTableHour intValue]];
+  return [NSNumber numberWithInt: [currentTableHour intValue]];
 }
 
 - (NSString *) labelForDay
 {
   return [weekDays objectAtIndex: [currentTableDay dayOfWeek]];
+}
+
+- (NSString *) labelForMonth
+{
+  NSCalendarDate *nextDay;
+  NSString *calendarFormat;
+  BOOL isLastOrFirstDay;
+
+  isLastOrFirstDay = NO;
+  calendarFormat = @"%b";
+
+  if ([currentView hasSuffix: @"dayview"])
+    {
+      isLastOrFirstDay = YES;
+      calendarFormat = @"%B";
+    }
+  else
+    {
+      if ([currentTableDay dayOfMonth] == 1)
+        {
+          isLastOrFirstDay = YES;
+        }
+      else if ([currentTableDay dayOfMonth] > 27)
+        {
+          nextDay = [currentTableDay dateByAddingYears: 0
+                                                months: 0
+                                                  days: 1];
+          if ([nextDay dayOfMonth] == 1)
+            isLastOrFirstDay = YES;
+        }
+    }
+
+  return isLastOrFirstDay? [currentTableDay descriptionWithCalendarFormat: calendarFormat locale: locale] : nil;
 }
 
 - (NSString *) labelForDate
@@ -400,18 +432,23 @@
                    numberOfDays];
 }
 
-- (NSString *) daysViewClasses
-{
-  NSString *daysView;
+// - (NSString *) daysViewClasses
+// {
+//   NSString *daysView;
   
-  if ([currentView isEqualToString:@"multicolumndayview"])
-    daysView = @"daysView daysViewForMultipleDays";
+//   if ([currentView isEqualToString:@"multicolumndayview"])
+//     daysView = @"daysView daysViewForMultipleDays";
 
-  else
-    daysView = [NSString stringWithFormat: @"daysView daysViewFor%dDays", numberOfDays];
+//   else
+//     daysView = [NSString stringWithFormat: @"daysView daysViewFor%dDays", numberOfDays];
   
-  return daysView;
-}
+//   return daysView;
+//}
+
+// - (NSString *) daysViewHeaderClasses
+// {
+//   return [NSString stringWithFormat: @"%@ daysHeader", [self daysViewClasses]];
+// }
 
 - (NSString *) dayClasses
 {
@@ -419,22 +456,18 @@
   unsigned int currentDayNbr, realDayOfWeek;
   
   classes = [NSMutableString string];
-  if ([currentView isEqualToString:@"multicolumndayview"])
-    [classes appendFormat:@"day dayColumn"];
-  else {
-    currentDayNbr = [daysToDisplay indexOfObject: currentTableDay];
-    realDayOfWeek = [currentTableDay dayOfWeek];
+  currentDayNbr = [daysToDisplay indexOfObject: currentTableDay];
+  realDayOfWeek = [currentTableDay dayOfWeek];
     
-    [classes appendFormat: @"day day%d", currentDayNbr];
+  [classes appendFormat: @"day day%d", currentDayNbr];
     
-    if (numberOfDays > 1)
+  if (numberOfDays > 1)
     {
       if (realDayOfWeek == 0 || realDayOfWeek == 6)
         [classes appendString: @" weekEndDay"];
       if ([currentTableDay isToday])
         [classes appendString: @" dayOfToday"];
     }
-  }
        
   return classes;
 }
@@ -469,6 +502,11 @@
     return YES;
   
   return NO;
+}
+
+- (BOOL) isWeekView
+{
+  return [currentView isEqualToString:@"weekview"];
 }
 
 @end

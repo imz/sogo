@@ -1,5 +1,5 @@
 { /* -*- Mode: java; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
-  requires = ( MAIN, Mailer );
+  requires = ( MAIN, Contacts, Mailer );
 
   publicResources = (
                      calendar.css,
@@ -45,10 +45,6 @@
           actionClass = "UIxObjectActions";
           actionName  = "delete";
         };
-        acls = {
-          protectedBy = "ReadAcls";
-          pageName    = "UIxAclEditor";
-        };
         saveAcls = {
           protectedBy = "Change Permissions";
           pageName    = "UIxAclEditor";
@@ -57,11 +53,21 @@
         userRights = {
           protectedBy = "ReadAcls";
           pageName    = "UIxUserRightsEditor";
+          actionName  = "userRights";
         };
         saveUserRights = {
           protectedBy = "Change Permissions";
           pageName    = "UIxUserRightsEditor";
           actionName = "saveUserRights";
+        };
+        acls = {
+          protectedBy = "ReadAcls";
+          pageName    = "UIxAclEditor";
+          actionName  = "acls";
+        };
+        UIxAclEditor = {
+          protectedBy = "ReadAcls";
+          pageName    = "UIxAclEditor";
         };
       };
     };
@@ -71,6 +77,15 @@
           protectedBy = "Add Folders";
           actionClass = "UIxParentFolderActions";
           actionName = "createFolder";
+        };
+      };
+    };
+    SOGoFolder = {
+      methods = {
+        newguid = {
+          protectedBy = "<public>";
+          actionClass = "UIxFolderActions";
+          actionName  = "newguid";
         };
       };
     };
@@ -106,7 +121,7 @@
           actionClass = "UIxFolderActions";
           actionName  = "subscribeUsers";
         };
-        renameFolder = {
+        save = {
           protectedBy = "Access Contents Information";
           actionClass = "UIxFolderActions";
           actionName  = "renameFolder";

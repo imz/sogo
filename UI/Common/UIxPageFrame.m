@@ -113,9 +113,7 @@
 
 - (NSString *) doctype
 {
-  return (@"<!DOCTYPE html"
-          @" PUBLIC \"-//W3C//DTD XHTML 1.1//EN\""
-          @" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">");
+  return (@"<!DOCTYPE html>");
 }
 
 /* Help URL/target */
@@ -164,7 +162,7 @@
 
 - (NSString *) relativePreferencesPath
 {
-  return [self relativePathToUserFolderSubPath: @"preferences"];
+  return [self relativePathToUserFolderSubPath: @"Preferences/"];
 }
 
 - (NSString *) relativeAdministrationPath
@@ -202,7 +200,7 @@
 
   return (siteFavicon
           ? siteFavicon
-          : [self urlForResourceFilename: @"sogo.ico"]);
+          : [self urlForResourceFilename: @"img/sogo.ico"]);
 }
 
 /* page based JavaScript */
@@ -251,15 +249,7 @@
 
 - (NSString *) commonLocalizableStrings
 {
-  NSString *rc;
-
-  if (isPopup)
-    rc = @"";
-  else
-    rc = [NSString stringWithFormat: @"var clabels = %@;",
-          [self _stringsForFramework: nil]];
-
-  return rc;
+  return [NSString stringWithFormat: @"var clabels = %@;", [self _stringsForFramework: nil]];
 }
 
 - (NSString *) productLocalizableStrings
@@ -268,32 +258,64 @@
 
   frameworkName = [[context page] frameworkName];
 
-  return [NSString stringWithFormat: @"var labels = %@;",
-		   [self _stringsForFramework: frameworkName]];
+  return [NSString stringWithFormat: @"var labels = %@;", [self _stringsForFramework: frameworkName]];
+}
+
+- (NSString *) angularModule
+{
+  NSString *frameworkName;
+
+  frameworkName = [[context page] frameworkName];
+
+  return [NSString stringWithFormat: @"SOGo.%@", frameworkName];
 }
 
 - (NSString *) pageJavaScriptURL
 {
   WOComponent *page;
-  NSString *pageJSFilename;
+  NSString *theme, *filename, *url;
   
-  page     = [context page];
-  pageJSFilename = [NSString stringWithFormat: @"%@.js",
-			     NSStringFromClass([page class])];
+  url = nil;
+  page = [context page];
+  theme = [context objectForKey: @"theme"];
+  if ([theme length])
+    {
+      filename = [NSString stringWithFormat: @"js/%@/%@.js", theme, NSStringFromClass([page class])];
+      url = [self urlForResourceFilename: filename];
+    }
+  if ([url length] == 0)
+    {
+      // No theme defined or no specific JavaScript for the theme; rollback to default JavaScript
+      filename = [NSString stringWithFormat: @"js/%@.js", NSStringFromClass([page class])];
+      url = [self urlForResourceFilename: filename];
+    }
+  //NSLog(@"pageJavaScript => %@", filename);
 
-  return [self urlForResourceFilename: pageJSFilename];
+  return url;
 }
 
 - (NSString *) productJavaScriptURL
 {
   WOComponent *page;
-  NSString *fwJSFilename;
+  NSString *theme, *filename, *url;
 
+  url = nil;
   page = [context page];
-  fwJSFilename = [NSString stringWithFormat: @"%@.js",
-			   [page frameworkName]];
+  [context resourceLookupLanguages];
+  theme = [context objectForKey: @"theme"];
+  if ([theme length])
+    {
+      filename = [NSString stringWithFormat: @"js/%@/%@.js", theme, [page frameworkName]];
+      url = [self urlForResourceFilename: filename];
+    }
+  if ([url length] == 0)
+    {
+      filename = [NSString stringWithFormat: @"js/%@.js", [page frameworkName]];
+      url = [self urlForResourceFilename: filename];
+    }
+  //NSLog(@"productJavaScript => %@", filename);
   
-  return [self urlForResourceFilename: fwJSFilename];
+  return url;
 }
 
 - (BOOL) hasPageSpecificJavaScript
@@ -314,12 +336,10 @@
   [additionalCSSFiles release];
   additionalCSSFiles = [NSMutableArray new];
 
-  cssFiles
-    = [[newCSSFiles componentsSeparatedByString: @","] objectEnumerator];
+  cssFiles = [[newCSSFiles componentsSeparatedByString: @","] objectEnumerator];
   while ((currentFile = [cssFiles nextObject]))
     {
-      filename = [self urlForResourceFilename:
-			 [currentFile stringByTrimmingSpaces]];
+      filename = [self urlForResourceFilename: [NSString stringWithFormat: @"css/%@", [currentFile stringByTrimmingSpaces]]];
       [additionalCSSFiles addObject: filename];
     }
 }
@@ -340,8 +360,7 @@
   jsFiles = [[newJSFiles componentsSeparatedByString: @","] objectEnumerator];
   while ((currentFile = [jsFiles nextObject]))
     {
-      filename = [self urlForResourceFilename:
-			 [currentFile stringByTrimmingSpaces]];
+      filename = [self urlForResourceFilename: [NSString stringWithFormat: @"js/%@", [currentFile stringByTrimmingSpaces]]];
       [additionalJSFiles addObject: filename];
     }
 }
@@ -367,8 +386,7 @@
       for (count = 0; count < max; count++)
         {
           currentFile = [prefsJSFiles objectAtIndex: count];
-          filename = [self urlForResourceFilename:
-                             [currentFile stringByTrimmingSpaces]];
+          filename = [self urlForResourceFilename: [currentFile stringByTrimmingSpaces]];
           [systemAdditionalJSFiles addObject: filename];
         }
     }
@@ -379,25 +397,25 @@
 - (NSString *) pageCSSURL
 {
   WOComponent *page;
-  NSString *pageJSFilename;
+  NSString *filename;
 
   page = [context page];
-  pageJSFilename = [NSString stringWithFormat: @"%@.css",
-			     NSStringFromClass([page class])];
+  filename = [NSString stringWithFormat: @"css/%@.css",
+                       NSStringFromClass([page class])];
 
-  return [self urlForResourceFilename: pageJSFilename];
+  return [self urlForResourceFilename: filename];
 }
 
 - (NSString *) productCSSURL
 {
   WOComponent *page;
-  NSString *fwJSFilename;
+  NSString *filename;
 
   page = [context page];
-  fwJSFilename = [NSString stringWithFormat: @"%@.css",
-			   [page frameworkName]];
+  filename = [NSString stringWithFormat: @"css/%@.css",
+                       [page frameworkName]];
   
-  return [self urlForResourceFilename: fwJSFilename];
+  return [self urlForResourceFilename: filename];
 }
 
 - (NSString *) thisPageURL
@@ -413,35 +431,6 @@
 - (BOOL) hasProductSpecificCSS
 {
   return ([[self productCSSURL] length] > 0);
-}
-
-- (BOOL) _moduleIs: (NSString *) moduleName
-{
-  NSString *frameworkName;
-
-  frameworkName = [[context page] frameworkName];
-
-  return [frameworkName isEqualToString: moduleName];
-}
-
-- (BOOL) isCalendar
-{
-  return [self _moduleIs: @"SchedulerUI"];
-}
-
-- (BOOL) isContacts
-{
-  return [self _moduleIs: @"ContactsUI"];
-}
-
-- (BOOL) isMail
-{
-  return [self _moduleIs: @"MailerUI"];
-}
-
-- (BOOL) isAdministration
-{
-  return [self _moduleIs: @"AdministrationUI"];
 }
 
 - (void) setToolbar: (NSString *) newToolbar
@@ -478,6 +467,12 @@
   /* The "identification" term is used in the human sense here. */
   return [[context activeUser] cn];
 }
+
+- (NSString *) userEmail
+{
+  return [[context activeUser] systemEmail];
+}
+
 
 - (BOOL) canLogoff
 {
@@ -621,3 +616,15 @@
 }
 
 @end /* UIxPageFrame */
+
+@interface UIxSidenavToolbarTemplate : UIxComponent
+@end
+
+@implementation UIxSidenavToolbarTemplate
+@end
+
+@interface UIxTopnavToolbarTemplate : UIxComponent
+@end
+
+@implementation UIxTopnavToolbarTemplate
+@end

@@ -27,7 +27,7 @@
 
 @interface UIxMailFolderActions : WODirectAction
 
-- (WOResponse *) createFolderAction;
+- (id <WOActionResults>) createFolderAction;
 - (WOResponse *) renameFolderAction;
 - (WOResponse *) deleteAction;
 - (WOResponse *) batchDeleteAction;

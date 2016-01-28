@@ -1,0 +1,143 @@
+/// icon.scss -*- Mode: scss; indent-tabs-mode: nil; basic-offset: 2 -*-
+@import 'extends';
+
+// TODO: encode font in base64 to include it in the CSS
+// perl -MMIME::Base64 -0777 -ne 'print encode_base64($_, "")' < fonts/MaterialIcons-Regular.woff
+
+// http://google.github.io/material-design-icons/#icon-font-for-the-web
+@font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../fonts/MaterialIcons-Regular.eot'); /* For IE6-8 */
+  src: local('Material Icons'),
+       local('MaterialIcons-Regular'),
+       url('../fonts/MaterialIcons-Regular.woff2') format('woff2'),
+       url('../fonts/MaterialIcons-Regular.woff') format('woff'),
+       url('../fonts/MaterialIcons-Regular.ttf') format('truetype');
+}
+
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;  /* Preferred icon size */
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Support for IE. */
+  font-feature-settings: 'liga';
+}
+
+// Define CSS styles to use ng-class with md-icon
+md-icon {
+  transition: 240ms;
+  &.sg-icon-toolbar-bg {
+    font-size: 84px;
+    opacity: 0.2;
+    overflow: hidden;
+    position: absolute;
+    right: $mg * 3;
+    transform: rotate(-15deg);
+  }
+  &.md-rotate-45 {
+    transform: rotate(45deg);
+  }
+  &.md-rotate-90 {
+    transform: rotate(90deg);
+  }
+  &.md-rotate-180 {
+    transform: rotate(180deg);
+  }
+//   &.icon-add:before {
+//     content: "\e317";
+  //   }
+  &.icon-alarm:before {
+    content: "\e855";
+  }
+  &.icon-delegated:before,
+  &.icon-arrow-forward:before {
+    content: "\e5c8";
+  }
+  &.icon-accepted:before,
+  &.icon-check:before {
+    content: "\e5ca";
+  }
+  &.icon-clear:before {
+    content: "\e14c";
+  }
+  &.icon-contacts:before {
+    content: "\e0ba";
+  }
+  &.icon-event:before {
+    content: "\e878";
+  }
+  &.icon-expand-less:before {
+    content: "\e5ce";
+  }
+  &.icon-expand-more:before {
+    content: "\e5cf";
+  }
+  &.icon-needs-action:before,
+  &.icon-help:before {
+    content: "\e887";
+  }
+  &.icon-more-horiz:before {
+    content: "\e5d3";
+  }
+  &.icon-tentative:before,
+  &.icon-person:before {
+    content: "\e7fd";
+  }
+//  &.icon_public:before {
+//    content: "\e80b";
+//  }
+  &.icon-declined:before,
+  &.icon-remove-circle:before {
+    content: "\e15c";
+  }
+  &.icon-repeat:before {
+    content: "\e040";
+  }
+  &.icon-search:before {
+    content: "\e8b6";
+  }
+  &.icon-star:before {
+    content: "\e838";
+  }
+  &.icon-star-border:before {
+    content: "\e83a";
+  }
+  &.icon-stop:before {
+    content: "\e047";
+  }
+  &.icon-visibility-off:before {
+    content: "\e8f5";
+  }
+  &.icon-vpn-key:before {
+    content: "\e0da";
+  }
+}
+
+// Message flag
+//.sg-msg-flag {
+//  md-icon {
+//    color: sg-color($sogoGreen, 50) !important;
+//    &.flagged {
+//      color: sg-color($sogoBlue, 600) !important;
+//    }
+//  }
+//}

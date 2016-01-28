@@ -64,10 +64,12 @@
 #import <SOGo/SOGoDomainDefaults.h>
 #import <SOGo/SOGoMailer.h>
 #import <SOGo/SOGoUser.h>
+#import <SOGo/SOGoUserFolder.h>
 #import <SOGo/SOGoUserDefaults.h>
 
 #import <NGCards/NGVCard.h>
 
+#import <Contacts/SOGoContactFolder.h>
 #import <Contacts/SOGoContactFolders.h>
 #import <Contacts/SOGoContactGCSEntry.h>
 
@@ -318,19 +320,19 @@ static NSString    *userAgent      = nil;
     {
       // newHeaders come from Web form; convert priority to MIME header representation
       priority = [newHeaders objectForKey: @"priority"];
-      if (!priority || [priority isEqualToString: @"NORMAL"])
+      if (!priority || [priority intValue] == 3)
         {
           [headers removeObjectForKey: @"X-Priority"];
         }
-      else if ([priority isEqualToString: @"HIGHEST"])
+      else if ([priority intValue] == 1)
         {
           [headers setObject: @"1 (Highest)"  forKey: @"X-Priority"];
         }
-      else if ([priority isEqualToString: @"HIGH"])
+      else if ([priority intValue] == 2)
         {
           [headers setObject: @"2 (High)"  forKey: @"X-Priority"];
         }
-      else if ([priority isEqualToString: @"LOW"])
+      else if ([priority intValue] == 4)
         {
           [headers setObject: @"4 (Low)"  forKey: @"X-Priority"];
         }
@@ -360,7 +362,7 @@ static NSString    *userAgent      = nil;
   else
     {
       receipt = [newHeaders objectForKey: @"receipt"];
-      if ([receipt isEqualToString: @"true"])
+      if ([receipt boolValue])
         {
           [headers setObject: receipt  forKey: @"receipt"];
           pureSender = [[newHeaders objectForKey: @"from"] pureEMailAddress];
@@ -646,7 +648,6 @@ static NSString    *userAgent      = nil;
           [imap4URL release];
           imap4URL = nil;
         }
-      [self storeInfo];
     }
   else
     error = [NSException exceptionWithHTTPStatus: 500 /* Server Error */
@@ -933,8 +934,6 @@ static NSString    *userAgent      = nil;
 
   [self setText: [sourceMail contentForEditing]];
   [self setIMAP4ID: [[sourceMail nameInContainer] intValue]];
-
-  [self storeInfo];
 }
 
 //
@@ -1013,11 +1012,11 @@ static NSString    *userAgent      = nil;
               withMetadata: attachment];
     }
 
-  [self storeInfo];
-
   // Save the message to the IMAP store so the user can eventually view the attached file(s)
   // from the Web interface
   [self save];
+
+  [self storeInfo];
 }
 
 /* accessors */
@@ -1602,17 +1601,16 @@ static NSString    *userAgent      = nil;
 {
   NSString *s, *dateString;
   NGMutableHashMap *map;
-  NSArray *emails;
-  id from, replyTo;
+  id emails, from, replyTo;
   
   map = [[[NGMutableHashMap alloc] initWithCapacity:16] autorelease];
   
   /* add recipients */
-  if ((emails = [headers objectForKey: @"to"]) != nil)
+  if ((emails = [headers objectForKey: @"to"]) != nil && [emails isKindOfClass: [NSArray class]])
     [map setObjects: [self _quoteSpecialsInArray: emails] forKey: @"to"];
-  if ((emails = [headers objectForKey: @"cc"]) != nil)
+  if ((emails = [headers objectForKey: @"cc"]) != nil && [emails isKindOfClass: [NSArray class]])
     [map setObjects: [self _quoteSpecialsInArray: emails] forKey: @"cc"];
-  if ((emails = [headers objectForKey: @"bcc"]) != nil)
+  if ((emails = [headers objectForKey: @"bcc"]) != nil && [emails isKindOfClass: [NSArray class]])
     [map setObjects: [self _quoteSpecialsInArray: emails] forKey: @"bcc"];
 
   /* add senders */

@@ -126,6 +126,9 @@ extern NSString *SOGoWeekStartFirstFullWeek;
 - (void) setRefreshViewCheck: (NSString *) newValue;
 - (NSString *) refreshViewCheck;
 
+- (void) setAlternateAvatar: (NSString *) newValue;
+- (NSString *) alternateAvatar;
+
 - (void) setMailComposeMessageType: (NSString *) newValue;
 - (NSString *) mailComposeMessageType;
 

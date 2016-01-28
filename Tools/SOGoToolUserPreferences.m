@@ -115,7 +115,7 @@ typedef enum
       [theKey caseInsensitiveCompare: @"Vacation"] == NSOrderedSame)
     {
       /* credentials file handling */
-      NSString *credsFilename, *authname=nil, *authpwd=nil;
+      NSString *credsFilename=nil, *authname=nil, *authpwd=nil;
       SOGoCredentialsFile *cf;
 
       credsFilename = [[NSUserDefaults standardUserDefaults] stringForKey: @"p"];

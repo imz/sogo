@@ -1,83 +1,96 @@
-<?xml version="1.0" standalone="yes"?>
-<!DOCTYPE var:component>
-<var:component xmlns="http://www.w3.org/1999/xhtml"
-  xmlns:var="http://www.skyrix.com/od/binding"
-  xmlns:const="http://www.skyrix.com/od/constant"
-  xmlns:uix="OGo:uix"
-  xmlns:label="OGo:label"
-  xmlns:rsrc="OGo:url"
-  className="UIxPageFrame"
-  title="title"
-  const:toolbar="none"
-  const:popup="YES">
-  <form id="userRightsForm" const:href="saveUserRights">
-    <input id="uid" type="hidden" name="uid" var:value="uid"/>
-    <div class="title">
-      <label><var:string label:value="Access rights to"/><br/>
-      <span id="folderName" class="value"><var:string value="folderName"/></span></label>
-      <label><var:string label:value="For user"/><br/>
-      <span class="value"><var:string value="userDisplayName"/></span></label>
-    </div>
-    <div class="calendarUserRights">
-      <label><input type="checkbox" class="checkBox"
-	  const:name="ObjectViewer"
-	  var:checked="userCanReadMails"/><var:string
-	  label:value="Read mails from this folder"/></label>
-      <br/>
-      <label><input type="checkbox" class="checkBox"
-	  const:name="MailSeenKeeper"
-	  var:checked="userCanMarkMailsRead"/><var:string
-	  label:value="Mark mails read and unread"/></label>
-      <br/>
-      <label><input type="checkbox" class="checkBox"
-	  const:name="MailWriter"
-	  var:checked="userCanWriteMails"/><var:string
-	  label:value="Modify the flags of the mails in this folder"/></label>
-      <br/>
-      <label><input type="checkbox" class="checkBox"
-	  const:name="ObjectCreator"
-	  var:checked="userCanInsertMails"/><var:string
-	  label:value="Insert, copy and move mails into this folder"/></label>
-      <br/>
-      <label><input type="checkbox" class="checkBox"
-	  const:name="MailPoster"
-	  var:checked="userCanPostMails"/><var:string
-	  label:value="Post mails"/></label>
-      <br/>
-      <label><input type="checkbox" class="checkBox"
-	  const:name="FolderCreator"
-	  var:checked="userCanCreateSubfolders"/><var:string
-	  label:value="Add subfolders to this folder"/></label>
-      <br/>
-      <label><input type="checkbox" class="checkBox"
-	  const:name="ObjectEraser"
-	  var:checked="userCanEraseMails"/><var:string
-	  label:value="Erase mails from this folder"/></label>
-      <br/>
-      <var:if condition="conformsToRFC4314">
-      <label><input type="checkbox" class="checkBox"
-	  const:name="FolderEraser"
-	  var:checked="userCanRemoveFolder"/><var:string
-	  label:value="Remove this folder"/></label>
-      <br/>
-      <label><input type="checkbox" class="checkBox"
-	  const:name="MailExpunger"
-	  var:checked="userCanExpungeFolder"/><var:string
-	  label:value="Expunge this folder"/></label>
-      <br/>
-      </var:if>
-      <label><input type="checkbox" class="checkBox"
-	  const:name="MailAdministrator"
-	  var:checked="userIsAdministrator"/><var:string
-	  label:value="Modify the acl of this folder"/></label>
-      <br/>
-    </div>
-    <div class="buttons">
-      <a href="#" const:name="updateButton" id="updateButton" 
-        class="button actionButton">
-        <span><var:string label:value="Update" /></span></a>
-      <a href="#" const:name="cancelButton" id="cancelButton" class="button">
-        <span><var:string label:value="Cancel" /></span></a>
-    </div>
-  </form>
-</var:component>
+<?xml version='1.0' standalone='yes'?>
+<container
+   xmlns="http://www.w3.org/1999/xhtml"
+   xmlns:var="http://www.skyrix.com/od/binding"
+   xmlns:const="http://www.skyrix.com/od/constant"
+   xmlns:rsrc="OGo:url"
+   xmlns:label="OGo:label"
+   xmlns:uix="OGo:uix">
+
+    <div class="mailUserRights" layout="column">
+    
+    <md-checkbox name="userCanReadMails"
+                 ng-model="acl.selectedUser.rights.userCanReadMails"
+                 ng-change="acl.confirmChange(acl.selectedUser)"
+                 ng-true-value="1"
+                 ng-false-value="0">
+      <var:string label:value="Read mails from this folder" />
+    </md-checkbox>
+    
+    <md-checkbox name="userCanMarkMailsRead"
+                 ng-model="acl.selectedUser.rights.userCanMarkMailsRead"
+                 ng-change="acl.confirmChange(acl.selectedUser)"
+                 ng-true-value="1"
+                 ng-false-value="0">
+      <var:string label:value="Mark mails read and unread" />
+    </md-checkbox>
+    
+    <md-checkbox name="userCanWriteMails"
+                 ng-model="acl.selectedUser.rights.userCanWriteMails"
+                 ng-change="acl.confirmChange(acl.selectedUser)"
+                 ng-true-value="1"
+                 ng-false-value="0">
+      <var:string label:value="Modify the flags of the mails in this folder" />
+    </md-checkbox>
+    
+    <md-checkbox name="userCanInsertMails"
+                 ng-model="acl.selectedUser.rights.userCanInsertMails"
+                 ng-change="acl.confirmChange(acl.selectedUser)"
+                 ng-true-value="1"
+                 ng-false-value="0">
+              <var:string label:value="Insert, copy and move mails into this folder" />
+    </md-checkbox>
+
+    <md-checkbox name="userCanPostMails"
+                 ng-model="acl.selectedUser.rights.userCanPostMails"
+                 ng-change="acl.confirmChange(acl.selectedUser)"
+                 ng-true-value="1"
+                 ng-false-value="0">
+              <var:string label:value="Post mails" />
+    </md-checkbox>
+
+    <md-checkbox name="userCanCreateSubfolders"
+                 ng-model="acl.selectedUser.rights.userCanCreateSubfolders"
+                 ng-change="acl.confirmChange(acl.selectedUser)"
+                 ng-true-value="1"
+                 ng-false-value="0">
+              <var:string label:value="Add subfolders to this folder" />
+    </md-checkbox>
+
+    <md-checkbox name="userCanEraseMails"
+                 ng-model="acl.selectedUser.rights.userCanEraseMails"
+                 ng-change="acl.confirmChange(acl.selectedUser)"
+                 ng-true-value="1"
+                 ng-false-value="0">
+              <var:string label:value="Erase mails from this folder" />
+    </md-checkbox>
+
+    <var:if condition="conformsToRFC4314">
+    <md-checkbox name="userCanRemoveFolder"
+                 ng-model="acl.selectedUser.rights.userCanRemoveFolder"
+                 ng-change="acl.confirmChange(acl.selectedUser)"
+                 ng-true-value="1"
+                 ng-false-value="0">
+              <var:string label:value="Remove this folder" />
+    </md-checkbox>
+    
+    <md-checkbox name="userCanExpungeFolder"
+                 ng-model="acl.selectedUser.rights.userCanExpungeFolder"
+                 ng-change="acl.confirmChange(acl.selectedUser)"
+                 ng-true-value="1"
+                 ng-false-value="0">
+              <var:string label:value="Expunge this folder" />
+    </md-checkbox>
+    </var:if>
+
+    <md-checkbox name="userIsAdministrator"
+                 ng-model="acl.selectedUser.rights.userIsAdministrator"
+                 ng-change="acl.confirmChange(acl.selectedUser)"
+                 ng-true-value="1"
+                 ng-false-value="0">
+      <var:string label:value="Modify the acl of this folder" />
+    </md-checkbox>
+ 
+  </div>
+
+</container>

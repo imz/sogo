@@ -47,7 +47,11 @@
           pageName    = "UIxContactFoldersView"; 
           actionName  = "checkRights";
         };
-        userFolders = {
+        UIxContactEditorTemplate = {
+          protectedBy = "View";
+          pageName    = "UIxContactEditorTemplate";
+        };
+        UIxContactsUserFolders = {
           protectedBy = "View";
           pageName    = "UIxContactsUserFolders"; 
         };
@@ -74,6 +78,11 @@
           actionClass = "UIxContactsListActions";
           actionName  = "contactsList";
         };
+        // contacts = {
+        //   protectedBy = "View";
+        //   actionClass = "UIxContactsListActions";
+        //   actionName  = "contactsList";
+        // };
         contactSearch = {
           protectedBy = "<public>";
           actionClass = "UIxContactsListActions";
@@ -109,20 +118,29 @@
           actionClass = "UIxContactFolderActions";
           actionName  = "import";
         };
+        UIxContactsUserRightsEditor = {
+          protectedBy = "ReadAcls";
+          pageName    = "UIxContactsUserRightsEditor";
+        };
         userRights = {
           protectedBy = "ReadAcls";
           pageName    = "UIxContactsUserRightsEditor";
+          actionName  = "userRights";
         };
         saveUserRights = {
           protectedBy = "Change Permissions";
           pageName    = "UIxContactsUserRightsEditor";
           actionName  = "saveUserRights";
         };
-        properties = {
+        links = {
           protectedBy = "View";
-          pageName = "UIxContactFolderProperties";
+          pageName = "UIxContactFolderLinksTemplate";
         };
-        saveProperties = { 
+        properties = {
+          protectedBy = "Access Contents Information";
+          pageName    = "UIxContactFolderProperties";
+        };
+        save = {
           protectedBy = "Access Contents Information";
           pageName = "UIxContactFolderProperties";
           actionName = "saveProperties";
@@ -148,11 +166,6 @@
           pageName    = "UIxContactEditor";
           actionName  = "new";
         };
-        renameFolder = {
-          protectedBy = "Change Permissions";
-          actionClass = "UIxFolderActions";
-          actionName  = "renameFolder";
-        };
         mailer-contacts = {
           protectedBy = "<public>";
           pageName    = "UIxContactFoldersView";
@@ -176,6 +189,7 @@
         view = {
           protectedBy = "Access Contents Information";
           pageName    = "UIxContactView";
+          actionName  = "data";
         };
         edit = {
           protectedBy = "Access Contents Information";
@@ -223,6 +237,7 @@
         view = {
           protectedBy = "Access Contents Information";
           pageName    = "UIxListView";
+          actionName  = "data";
         };
         properties = {
           protectedBy = "Access Contents Information";
@@ -260,6 +275,7 @@
         view = {
           protectedBy = "Access Contents Information";
           pageName    = "UIxContactView";
+          actionName  = "data";
         };
         edit = {
           protectedBy = "Access Contents Information";

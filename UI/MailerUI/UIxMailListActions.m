@@ -1,6 +1,5 @@
 /*
-  Copyright (C) 2004-2005 SKYRIX Software AG
-  Copyright (C) 2006-2013 Inverse inc.
+  Copyright (C) 2006-2015 Inverse inc.
 
   This file is part of SOGo
 
@@ -15,7 +14,7 @@
   License for more details.
 
   You should have received a copy of the GNU Lesser General Public
-  License along with OGo; see the file COPYING.  If not, write to the
+  License along with SOGo; see the file COPYING.  If not, write to the
   Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
   02111-1307, USA.
 */
@@ -32,8 +31,10 @@
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSEnumerator.h>
 #import <Foundation/NSTimeZone.h>
+#import <Foundation/NSUserDefaults.h> /* for locale string constants */
 #import <Foundation/NSValue.h>
 
+#import <NGObjWeb/WOApplication.h>
 #import <NGObjWeb/WOContext+SoObjects.h>
 #import <NGObjWeb/WOResponse.h>
 #import <NGObjWeb/WORequest.h>
@@ -54,11 +55,13 @@
 #import <Mailer/SOGoSentFolder.h>
 #import <SOGo/NSArray+Utilities.h>
 #import <SOGo/NSDictionary+Utilities.h>
+#import <SOGo/NSObject+Utilities.h>
 #import <SOGo/NSString+Utilities.h>
 #import <SOGo/SOGoDateFormatter.h>
 #import <SOGo/SOGoUser.h>
 #import <SOGo/SOGoUserDefaults.h>
 #import <SOGo/SOGoUserSettings.h>
+#import <SOGo/WOResourceManager+SOGo.h>
 
 #import <UI/Common/WODirectAction+SOGo.h>
 #import <UI/MailPartViewers/UIxMailSizeFormatter.h>
@@ -80,8 +83,10 @@
   if ((self = [super initWithRequest: newRequest]))
     {
       user = [[self context] activeUser];
+      ASSIGN (now, [NSCalendarDate calendarDate]);
       ASSIGN (dateFormatter, [user dateFormatterInContext: context]);
       ASSIGN (userTimeZone, [[user userDefaults] timeZone]);
+      [now setTimeZone: userTimeZone];
       sortByThread = [[user userDefaults] mailSortByThreads];
       folderType = 0;
       specificMessageNumber = 0;
@@ -119,7 +124,28 @@
   messageDate = [[message valueForKey: @"envelope"] date];
   [messageDate setTimeZone: userTimeZone];
 
-  return [dateFormatter formattedDateAndTime: messageDate];
+  if ([now dayOfCommonEra] == [messageDate dayOfCommonEra])
+    {
+      // Same day
+      return [dateFormatter formattedTime: messageDate];
+    }
+  else if ([now dayOfCommonEra] - [messageDate dayOfCommonEra] == 1)
+    {
+      // Yesterday
+      return [self labelForKey: @"Yesterday" inContext: context];
+    }
+  else if ([now dayOfCommonEra] - [messageDate dayOfCommonEra] < 7)
+    {
+      // Same week
+      WOResourceManager *resMgr = [[WOApplication application] resourceManager];
+      NSString *language = [[[context activeUser] userDefaults] language];
+      NSDictionary *locale = [resMgr localeForLanguageNamed: language];
+      return [[locale objectForKey: NSWeekDayNameArray] objectAtIndex: [messageDate dayOfWeek]];
+    }
+  else
+    {
+      return [dateFormatter shortFormattedDate: messageDate];
+    }
 }
 
 - (UIxMailSizeFormatter *) sizeFormatter
@@ -138,13 +164,15 @@
 //
 // Sometimes, the MUAs don't send over the string in () so we ignore it.
 //
-- (NSString *) messagePriority
+- (NSDictionary *) messagePriority
 {
-  NSString *result;
+  NSUInteger priority;
+  NSString *description;
   NSData *data;
     
   data = [message objectForKey: @"header"];
-  result = @"";
+  priority = 3;
+  description = [self labelForKey: @"normal" inContext: context];
 
   if (data)
     {
@@ -165,15 +193,34 @@
 	      s = [[s substringFromIndex: r.location+1]
 		    stringByTrimmingCharactersInSet: [NSCharacterSet whitespaceAndNewlineCharacterSet]];
 
-	      if ([s hasPrefix: @"1"]) result = [self labelForKey: @"highest"];
-	      else if ([s hasPrefix: @"2"]) result = [self labelForKey: @"high"];
-	      else if ([s hasPrefix: @"4"]) result = [self labelForKey: @"low"];
-	      else if ([s hasPrefix: @"5"]) result = [self labelForKey: @"lowest"];
+	      if ([s hasPrefix: @"1"])
+                {
+                  priority = 1;
+                  description = [self labelForKey: @"highest" inContext: context];
+                }
+	      else if ([s hasPrefix: @"2"])
+                {
+                  priority = 2;
+                  description = [self labelForKey: @"high" inContext: context];
+                }
+	      else if ([s hasPrefix: @"4"])
+                {
+                  priority = 4;
+                  description = [self labelForKey: @"low" inContext: context];
+                }
+	      else if ([s hasPrefix: @"5"])
+                {
+                  priority = 5;
+                  description = [self labelForKey: @"lowest" inContext: context];
+                }
 	    }
 	}
     }
   
-  return result;
+  return [NSDictionary dictionaryWithObjectsAndKeys:
+                            [NSNumber numberWithInt: priority], @"level",
+                       description, @"name",
+                       nil];
 }
 
 - (NSString *) messageSubject
@@ -186,7 +233,7 @@
   if (![subject length])
     subject = @"";
 
-  return [[subject safeString] stringByEscapingHTMLString];
+  return subject;
 }
 
 - (BOOL) showToAddress 
@@ -217,7 +264,7 @@
 {
   NSString *s;
   
-  s = [self labelForKey:@"View Mail Folder"];
+  s = [self labelForKey:@"View Mail Folder" inContext: context];
   s = [s stringByAppendingString:@": "];
   s = [s stringByAppendingString:[self objectTitle]];
   return s;
@@ -229,57 +276,45 @@
 {
   NSArray *flags;
   
-  flags = [[self message] valueForKey:@"flags"];
-  return [flags containsObject:@"deleted"];
+  flags = [[self message] valueForKey: @"flags"];
+  return [flags containsObject: @"deleted"];
 }
 
 - (BOOL) isMessageRead
 {
   NSArray *flags;
   
-  flags = [[self message] valueForKey:@"flags"];
-  return [flags containsObject:@"seen"];
+  flags = [[self message] valueForKey: @"flags"];
+  return [flags containsObject: @"seen"];
 }
 
 - (BOOL) isMessageFlagged
 {
   NSArray *flags;
-  
-  flags = [[self message] valueForKey:@"flags"];
-  return [flags containsObject:@"flagged"];
+
+  flags = [[self message] valueForKey: @"flags"];
+  return [flags containsObject: @"flagged"];
+}
+
+- (BOOL) isMessageAnswered
+{
+  NSArray *flags;
+
+  flags = [[self message] valueForKey: @"flags"];
+  return [flags containsObject: @"answered"];
+}
+
+- (BOOL) isMessageForwarded
+{
+  NSArray *flags;
+
+  flags = [[self message] valueForKey: @"flags"];
+  return [flags containsObject: @"$forwarded"];
 }
 
 - (NSString *) messageUidString 
 {
   return [[[self message] valueForKey:@"uid"] stringValue];
-}
-
-- (NSString *) messageRowStyleClass 
-{
-  NSArray *flags;
-  NSString *cellClass = @"";
-
-  flags = [[self message] valueForKey:@"flags"];
-
-  if ([self isMessageDeleted])
-    cellClass = [cellClass stringByAppendingString: @"mailer_listcell_deleted "];
-
-  if (![self isMessageRead])
-    cellClass = [cellClass stringByAppendingString: @"mailer_unreadmail "];
-  
-  if ([flags containsObject: @"answered"])
-    {
-      if ([flags containsObject: @"$forwarded"])
-	cellClass = [cellClass stringByAppendingString: @"mailer_forwardedrepliedmailsubject"];
-      else
-	cellClass = [cellClass stringByAppendingString: @"mailer_repliedmailsubject"];
-    }
-  else if ([flags containsObject: @"$forwarded"])
-    cellClass = [cellClass stringByAppendingString: @"mailer_forwardedmailsubject"];
-  else
-    cellClass = [cellClass stringByAppendingString: @"mailer_readmailsubject"];
-
-  return cellClass;
 }
 
 - (BOOL) hasMessageAttachment 
@@ -390,9 +425,9 @@
 {
   EOQualifier *qualifier, *searchQualifier;
   WORequest *request;
-  NSDictionary *sortingAttributes, *content;
+  NSDictionary *sortingAttributes, *content, *filter;
   NSArray *filters;
-  NSString *searchBy, *searchArgument, *searchInput, *searchString, *match;
+  NSString *searchBy, *searchInput, *searchString, *match;
   NSMutableArray *searchArray;
   int nbFilters, i;
   
@@ -413,17 +448,23 @@
           match = [sortingAttributes objectForKey :@"match"]; // AND, OR
         for (i = 0; i < nbFilters; i++)
           {
-            searchBy = [NSString stringWithString: [[filters objectAtIndex:i] objectForKey: @"searchBy"]];
-            searchArgument = [NSString stringWithString: [[filters objectAtIndex:i] objectForKey: @"searchArgument"]];
-            searchInput = [NSString stringWithString: [[filters objectAtIndex:i] objectForKey: @"searchInput"]];
-        
-            if ([[[filters objectAtIndex:i] objectForKey: @"negative"] boolValue])
-              searchString = [NSString stringWithFormat: @"(not (%@ %@: '%@'))", searchBy, searchArgument, searchInput];
+            filter = [filters objectAtIndex:i];
+            searchBy = [filter objectForKey: @"searchBy"];
+            searchInput = [filter objectForKey: @"searchInput"];
+            if (searchBy && searchInput)
+              {
+                if ([[filter objectForKey: @"negative"] boolValue])
+                  searchString = [NSString stringWithFormat: @"(not (%@ doesContain: '%@'))", searchBy, searchInput];
+                else
+                  searchString = [NSString stringWithFormat: @"(%@ doesContain: '%@')", searchBy, searchInput];
+
+                searchQualifier = [EOQualifier qualifierWithQualifierFormat: searchString];
+                [searchArray addObject: searchQualifier];
+              }
             else
-              searchString = [NSString stringWithFormat: @"(%@ %@: '%@')", searchBy, searchArgument, searchInput];
-        
-            searchQualifier = [EOQualifier qualifierWithQualifierFormat: searchString];
-            [searchArray addObject: searchQualifier];
+              {
+                [self errorWithFormat: @"Missing parameters in search filter: %@", filter];
+              }
           }
         if ([match isEqualToString: @"OR"])
           qualifier = [[EOOrQualifier alloc] initWithQualifierArray: searchArray];
@@ -462,8 +503,7 @@
 }
 
 /**
- * Returns a 
- of the messages threads as triples of
+ * Returns the messages threads as triples of
  * metadata, including the message UID, thread level and root position.
  * @param _sortedUIDs the interleaved arrays representation of the messages UIDs
  * @return an flatten array representation of the messages UIDs
@@ -576,23 +616,6 @@
   return index;
 }
 
-/* JavaScript */
-
-- (NSString *) msgRowID
-{
-  return [@"row_" stringByAppendingString:[self messageUidString]];
-}
-
-- (NSString *) msgIconReadImgID
-{
-  return [@"readdiv_" stringByAppendingString:[self messageUidString]];
-}
-
-- (NSString *) msgIconUnreadImgID
-{
-  return [@"unreaddiv_" stringByAppendingString:[self messageUidString]];
-}
-
 /* error redirects */
 
 /*
@@ -621,11 +644,12 @@
 - (NSDictionary *) getUIDsInFolder: (SOGoMailFolder *) folder
                        withHeaders: (BOOL) includeHeaders
 {
-  NSMutableDictionary *data;
   NSArray *uids, *threadedUids, *headers;
-  NSRange r;
+  NSMutableDictionary *data;
   SOGoMailAccount *account;
   id quota;
+
+  NSRange r;
   int count;
 
   data = [NSMutableDictionary dictionary];
@@ -643,10 +667,14 @@
   if (includeHeaders)
     {
       // Also retrieve the first headers, up to 'headersPrefetchMaxSize'
-      count = [[uids flattenedArray] count];
-      if (count > headersPrefetchMaxSize) count = headersPrefetchMaxSize;
+      NSArray *a;
+
+      a = [uids flattenedArray];
+      count = [a count];
+      if (count > headersPrefetchMaxSize)
+        count = headersPrefetchMaxSize;
       r = NSMakeRange(0, count);
-      headers = [self getHeadersForUIDs: [[uids flattenedArray] subarrayWithRange: r]
+      headers = [self getHeadersForUIDs: [a subarrayWithRange: r]
                                inFolder: folder];
 
       [data setObject: headers forKey: @"headers"];
@@ -665,6 +693,9 @@
     [data setObject: uids forKey: @"uids"];
   [data setObject: [NSNumber numberWithBool: sortByThread] forKey: @"threaded"];
 
+  // We get the unseen count
+  [data setObject: [NSNumber numberWithUnsignedInt: [folder unseenCount]]  forKey: @"unseenCount"];
+
   // We also return the inbox quota
   account = [folder mailAccountFolder];
   quota = [account getInboxQuota];
@@ -676,41 +707,81 @@
 
 /* Module actions */
 
+/**
+ * @api {get} /so/:username/Mail/:accountId/:mailboxPath/view List messages UIDs
+ * @apiVersion 1.0.0
+ * @apiName GetMailUIDsList
+ * @apiGroup Mail
+ * @apiExample {curl} Example usage:
+ *     curl -i http://localhost/SOGo/so/sogo1/Mail/0/folderINBOX/view
+ *          -H 'Content-Type: application/json' \
+ *          -d '{ "sortingAttributes": { "match": "AND", "asc": true, "sort": "subject" }, \
+ *                "filters": [{ "searchBy": "subject", "searchInput": "foo" }] }'
+ *
+ * @apiParam {Object} [sortingAttributes]                    Sorting preferences
+ * @apiParam {Boolean} [sortingAttributes.asc]               Descending sort when false. Defaults to true (ascending).
+ * @apiParam {String} [sortingAttributes.sort]               Sort field. Either c_cn, c_mail, c_screenname, c_o, or c_telephonenumber.
+ * @apiParam {String} [sortingAttributes.match]              Either OR or AND.
+ * @apiParam {String} [sortingAttributes.noHeaders]          Don't send the headers if true. Defaults to false.
+ * @apiParam {Object[]} [filters]                            The filters to apply.
+ * @apiParam {String} filters.searchBy                       Field criteria. Either subject, from, to, cc, or body.
+ * @apiParam {String} filters.searchInput                    String to match.
+ * @apiParam {String} [filters.negative]                     Reverse the condition when true. Defaults to false.
+ *
+ * @apiSuccess (Success 200) {Number} threaded               1 if threading is enabled for the user.
+ * @apiSuccess (Success 200) {Number} unseenCount            Number of unread messages
+ * @apiSuccess (Success 200) {Number[]} uids                 List of uids matching the filters, in the requested order.
+ * @apiSuccess (Success 200) {String[]} headers              The first entry are the fields names.
+ * @apiSuccess (Success 200) {Object[]} headers.To           Recipients
+ * @apiSuccess (Success 200) {String} headers.To.name        Recipient's name
+ * @apiSuccess (Success 200) {String} headers.To.email       Recipient's email address
+ * @apiSuccess (Success 200) {Number} headers.hasAttachment  1 when there is at least one attachment
+ * @apiSuccess (Success 200) {Number} headers.isFlagged      1 if the message is flagged
+ * @apiSuccess (Success 200) {String} headers.Subject        Subject
+ * @apiSuccess (Success 200) {Object[]} headers.From         Senders
+ * @apiSuccess (Success 200) {String} headers.From.name      Sender's name
+ * @apiSuccess (Success 200) {String} headers.From.email     Sender's email address
+ * @apiSuccess (Success 200) {Number} headers.isRead         1 if message is read
+ * @apiSuccess (Success 200) {String} headers.Priority       Priority
+ * @apiSuccess (Success 200) {String} headers.Priority.level Priority number
+ * @apiSuccess (Success 200) {String} headers.Priority.name  Priority description
+ * @apiSuccess (Success 200) {String} headers.RelativeDate   Message date relative to now
+ * @apiSuccess (Success 200) {String} headers.Size           Formatted message size
+ * @apiSuccess (Success 200) {String[]} headers.Flags        Flags, such as "answered" and "seen"
+ * @apiSuccess (Success 200) {Number} headers.uid            Message UID
+ * @apiSuccess (Success 200) {Object} [quotas]               Quota information
+ * @apiSuccess (Success 200) {Number} [quotas.usedSpace]     Used space
+ * @apiSuccess (Success 200) {Number} [quotas.maxQuota]      Mailbox maximum quota
+ */
 - (id <WOActionResults>) getUIDsAction
 {
+  BOOL noHeaders;
   NSDictionary *data, *requestContent;
-  NSString *noHeaders;
   SOGoMailFolder *folder;
   WORequest *request;
   WOResponse *response;
 
   request = [context request];
-  response = [context response];
   requestContent = [[request contentAsString] objectFromJSONString];
-  
-  [response setHeader: @"text/plain; charset=utf-8"
-                      forKey: @"content-type"];
 
   folder = [self clientObject];
   
-  noHeaders = [[requestContent objectForKey: @"sortingAttributes"] objectForKey:@"no_headers"];
+  noHeaders = [[[requestContent objectForKey: @"sortingAttributes"] objectForKey:@"noHeaders"] boolValue];
   data = [self getUIDsInFolder: folder
-                   withHeaders: ([noHeaders length] == 0)];
+                   withHeaders: !noHeaders];
 
-  [response appendContentString: [data jsonRepresentation]];
-
-  return response;
+  return [self responseWithStatus: 200 andJSONRepresentation: data];
 }
 
 - (NSArray *) getHeadersForUIDs: (NSArray *) uids
 		       inFolder: (SOGoMailFolder *) mailFolder
 {
+  UIxEnvelopeAddressFormatter *addressFormatter;
+  NSMutableArray *headers, *msg, *tags;
+  NSEnumerator *msgsList;
   NSArray *to, *from;
   NSDictionary *msgs;
-  NSMutableArray *headers, *msg;
-  NSEnumerator *msgsList;
-  NSString *msgIconStatus, *msgDate;
-  UIxEnvelopeAddressFormatter *addressFormatter;
+  NSString *msgDate;
   
   headers = [NSMutableArray arrayWithCapacity: [uids count]];
   addressFormatter = [context mailEnvelopeAddressFormatter];
@@ -722,7 +793,7 @@
   msgsList = [[msgs objectForKey: @"fetch"] objectEnumerator];
   [self setMessage: [msgsList nextObject]];
 
-  msg = [NSMutableArray arrayWithObjects: @"To", @"Attachment", @"Flagged", @"Subject", @"From", @"Unread", @"Priority", @"Date", @"Size", @"rowClasses", @"labels", @"rowID", @"uid", nil];
+  msg = [NSMutableArray arrayWithObjects: @"To", @"hasAttachment", @"isFlagged", @"Subject", @"From", @"isRead", @"Priority", @"RelativeDate", @"Size", @"Flags", @"uid", @"isAnswered", @"isForwarded", nil];
   [headers addObject: msg];
   while (message)
     {
@@ -753,53 +824,33 @@
       // To
       to = [[message objectForKey: @"envelope"] to];
       if ([to count] > 0)
-	[msg addObject: [[addressFormatter stringForArray: to] stringByEscapingHTMLString]];
+	[msg addObject: [addressFormatter dictionariesForArray: to]];
       else
 	[msg addObject: @""];
 
-      // Attachment
-      if ([self hasMessageAttachment])
-	[msg addObject: [NSString stringWithFormat: @"<img src=\"%@\"/>", [self urlForResourceFilename: @"title_attachment_14x14.png"]]];
-      else
-	[msg addObject: @""];
+      // hasAttachment
+      [msg addObject: [NSNumber numberWithBool: [self hasMessageAttachment]]];
 
-      // Flagged
-      if ([self isMessageFlagged])
-	[msg addObject: [NSString stringWithFormat: @"<img src=\"%@\" class=\"messageIsFlagged\">",
-				  [self urlForResourceFilename: @"flag.png"]]];
-      else
-	[msg addObject: [NSString stringWithFormat: @"<img src=\"%@\">",
-				  [self urlForResourceFilename: @"dot.png"]]];
+      // isFlagged
+      [msg addObject: [NSNumber numberWithBool: [self isMessageFlagged]]];
 
       // Subject
-      [msg addObject: [NSString stringWithFormat: @"<span>%@</span>",
-				[self messageSubject]]];
+      [msg addObject: [self messageSubject]];
       
       // From
       from = [[message objectForKey: @"envelope"] from];
       if ([from count] > 0)
-	[msg addObject: [[addressFormatter stringForArray: from] stringByEscapingHTMLString]];
+	[msg addObject: [addressFormatter dictionariesForArray: from]];
       else
 	[msg addObject: @""];
       
-
-      // Unread
-      if ([self isMessageRead])
-	msgIconStatus = @"dot.png";
-      else
-	msgIconStatus = @"unread.png";
-      
-      [msg addObject: [NSString stringWithFormat: @"<img src=\"%@\" class=\"mailerReadIcon\" title=\"%@\" title-markread=\"%@\" title-markunread=\"%@\" id=\"%@\"/>",
-				[self urlForResourceFilename: msgIconStatus],
- 			       [self labelForKey: @"Mark Unread"],
- 			       [self labelForKey: @"Mark Read"],
- 			       [self labelForKey: @"Mark Unread"],
- 				[self msgIconReadImgID]]];
+      // isRead
+      [msg addObject: [NSNumber numberWithBool: [self isMessageRead]]];
       
       // Priority
       [msg addObject: [self messagePriority]];
 
-      // Date
+      // Relative Date
       msgDate = [self messageDate];
       if (msgDate == nil)
 	msgDate = @"";
@@ -807,19 +858,27 @@
 
       // Size
       [msg addObject: [[self sizeFormatter] stringForObjectValue: [message objectForKey: @"size"]]];
-      
-      // rowClasses
-      [msg addObject: [self messageRowStyleClass]];
 
-      // labels
-      [msg addObject: [self msgLabels]];
+      // Mail labels / tags
+      tags = [NSMutableArray arrayWithArray: [message objectForKey: @"flags"]];
+      [tags removeObject: @"answered"];
+      [tags removeObject: @"deleted"];
+      [tags removeObject: @"draft"];
+      [tags removeObject: @"flagged"];
+      [tags removeObject: @"recent"];
+      [tags removeObject: @"seen"];
+      [tags removeObject: @"$forwarded"];
+      [msg addObject: tags];
 
-      // rowID
-      [msg addObject: [self msgRowID]];
-
-      // uid
+      // UID
       [msg addObject: [message objectForKey: @"uid"]];
       [headers addObject: msg];
+
+      // isAnswered
+      [msg addObject: [NSNumber numberWithBool: [self isMessageAnswered]]];
+
+      // isForwarded
+      [msg addObject: [NSNumber numberWithBool: [self isMessageForwarded]]];
       
       [self setMessage: [msgsList nextObject]];
     }
@@ -830,42 +889,31 @@
 - (id <WOActionResults>) getHeadersAction
 {
   NSArray *uids, *headers;
+  NSDictionary *data;
   WORequest *request;
   WOResponse *response;
 
   request = [context request];
-  if ([request formValueForKey: @"uids"] == nil)
+  data = [[request contentAsString] objectFromJSONString];
+  if (![[data objectForKey: @"uids"] isKindOfClass: [NSArray class]]
+      || [[data objectForKey: @"uids"] count] == 0)
     {
-      return [NSException exceptionWithHTTPStatus: 404
-					   reason: @"No UID specified"];
+      data = [NSDictionary dictionaryWithObjectsAndKeys:
+                             @"No UID specified", @"error", nil];
+      return [self responseWithStatus: 404 /* Not Found */
+                            andString: [data jsonRepresentation]];
     }
 
-  uids = [[request formValueForKey: @"uids"] componentsSeparatedByString: @","]; // Should we support ranges? ie "x-y"
+  uids = [data objectForKey: @"uids"];
   headers = [self getHeadersForUIDs: uids
 			   inFolder: [self clientObject]];
+
   response = [context response];
-  [response setHeader: @"text/plain; charset=utf-8"
+  [response setHeader: @"application/json; charset=utf-8"
 	    forKey: @"content-type"];
   [response appendContentString: [headers jsonRepresentation]];
 
   return response;
-}
-
-- (NSString *) msgLabels
-{
-  NSMutableArray *labels;
-  NSEnumerator *flags;
-  NSString *currentFlag;
-
-  labels = [NSMutableArray array];
-
-  flags = [[message objectForKey: @"flags"] objectEnumerator];
-  while ((currentFlag = [flags nextObject]))
-    {
-      [labels addObject: currentFlag];
-    }
-  
-  return [labels componentsJoinedByString: @" "];
 }
 
 @end

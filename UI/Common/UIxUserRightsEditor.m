@@ -24,6 +24,9 @@
 #import <NGObjWeb/WOApplication.h>
 #import <NGObjWeb/WOResponse.h>
 #import <NGObjWeb/WORequest.h>
+
+#import <SOGo/NSDictionary+Utilities.h>
+#import <SOGo/NSString+Utilities.h>
 #import <SOGo/SOGoDomainDefaults.h>
 #import <SOGo/SOGoGroup.h>
 #import <SOGo/SOGoObject.h>
@@ -31,6 +34,7 @@
 #import <SOGo/SOGoUser.h>
 #import <SOGo/SOGoUserDefaults.h>
 #import <SOGo/SOGoUserManager.h>
+
 #import <UI/SOGoUI/SOGoACLAdvisory.h>
 
 #import "UIxUserRightsEditor.h"
@@ -126,45 +130,102 @@
   if ([newUID length] > 0)
     {
       if (!defaultUserID)
-	ASSIGN (defaultUserID, [[self clientObject] defaultUserID]);
+        ASSIGN (defaultUserID, [[self clientObject] defaultUserID]);
 
       um = [SOGoUserManager sharedUserManager];
-      if ([newUID isEqualToString: defaultUserID]
-	  || [newUID isEqualToString: @"anonymous"]
-	  || [[um getEmailForUID: newUID] length] > 0)
-	{
-	  if (![newUID hasPrefix: @"@"])
-	    {
+      if ([newUID isEqualToString: defaultUserID] 
+          || [newUID isEqualToString: @"anonymous"]
+          || [[um getEmailForUID: newUID] length] > 0)
+        {
+          if (![newUID hasPrefix: @"@"])
+            {
               domain = [[context activeUser] domain];
-	      group = [SOGoGroup groupWithIdentifier: newUID inDomain: domain];
-	      if (group)
-		newUID = [NSString stringWithFormat: @"@%@", newUID];
-	    }
+              group = [SOGoGroup groupWithIdentifier: newUID inDomain: domain];
+              if (group)
+                newUID = [NSString stringWithFormat: @"@%@", newUID];
+            }
+          ASSIGN (uid, newUID);
+          clientObject = [self clientObject];
+          [userRights addObjectsFromArray: [clientObject aclsForUser: uid]];
 
-	  ASSIGN (uid, newUID);
-	  clientObject = [self clientObject];
-	  [userRights addObjectsFromArray: [clientObject aclsForUser: uid]];
-
-	  response = YES;
-	}
+          response = YES;
+        }
     }
 
   return response;
 }
+- (BOOL) _initRightsForUserID:(NSString *) newUID
+{
+  BOOL response;
+  NSString *domain;
+  SOGoUserManager *um;
+  SOGoObject *clientObject;
+  SOGoGroup *group;
 
-- (id <WOActionResults>) defaultAction
+  response = NO;
+
+  if ([newUID length] > 0)
+    {
+      if (!defaultUserID)
+        ASSIGN (defaultUserID, [[self clientObject] defaultUserID]);
+
+      um = [SOGoUserManager sharedUserManager];
+      if ([newUID isEqualToString: defaultUserID] || [newUID isEqualToString: @"anonymous"]
+                                                  || [[um getEmailForUID: newUID] length] > 0)
+        {
+          if (![newUID hasPrefix: @"@"])
+            {
+              domain = [[context activeUser] domain];
+              group = [SOGoGroup groupWithIdentifier: newUID inDomain: domain];
+              if (group)
+                newUID = [NSString stringWithFormat: @"@%@", newUID];
+            }
+          ASSIGN (uid, newUID);
+          clientObject = [self clientObject];
+          [userRights addObjectsFromArray: [clientObject aclsForUser: uid]];
+
+          response = YES;
+        }
+    }
+  return response;
+}
+
+/**
+ * @api {get} /so/:username/:folderPath/userRights?uid=:uid Get user's rights
+ * @apiVersion 1.0.0
+ * @apiName GetUserRights
+ * @apiGroup Common
+ * @apiExample {curl} Example usage:
+ *     curl -i http://localhost/SOGo/so/sogo1/Calendar/personal/userRights?uid=sogo2
+ *
+ * @apiSuccess (Success 200) {String} [Public]            Calendar: either None, DAndTViewer, Viewer, Responder, or Modifier
+ * @apiSuccess (Success 200) {String} [Confidential]      Calendar: either None, DAndTViewer, Viewer, Responder, or Modifier
+ * @apiSuccess (Success 200) {Number} [Private]           Calendar: either None, DAndTViewer, Viewer, Responder, or Modifier
+ * @apiSuccess (Success 200) {Number} [canCreateObjects]  Calendar: can create events and tasks
+ * @apiSuccess (Success 200) {Number} [canEraseObjects]   Calendar: can erase events and tasks
+ * @apiSuccess (Success 200) {Number} [canCreateObjects]  Address Book: can create cards
+ * @apiSuccess (Success 200) {Number} [canEraseObjects]   Address Book: can erase cards
+ * @apiSuccess (Success 200) {Number} [canViewObjects]    Address Book: can view cards
+ * @apiSuccess (Success 200) {Number} [canEditObjects]    Address Book: can modify cards
+ */
+- (id <WOActionResults>) userRightsAction
 {
   id <WOActionResults> response;
+  NSDictionary *jsonResponse;
 
   if (![self _initRights])
-    response = [NSException exceptionWithHTTPStatus: 403
-			    reason: @"No such user."];
+    {
+      jsonResponse = [NSDictionary dictionaryWithObject: [self labelForKey: @"No such user."]
+                                                 forKey: @"error"];
+      response = [self responseWithStatus: 403
+                                andString: [jsonResponse jsonRepresentation]];
+    }
   else
     {
-      [self prepareRightsForm];
-      response = self;
+      jsonResponse = [self userRightsForObject];
+      response = [self responseWithStatus: 200
+                                andString: [jsonResponse jsonRepresentation]];
     }
-
   return response;
 }
 
@@ -193,27 +254,41 @@
 - (id <WOActionResults>) saveUserRightsAction
 {
   id <WOActionResults> response;
+  WORequest *request;
   SOGoDomainDefaults *dd;
+  NSArray *users;
+  NSDictionary *currentUser, *jsonResponse;;
+  NSEnumerator *usersList;
+  NSString *currentUid;
+  NSArray *o;
 
-  if (![self _initRights])
-    response = [NSException exceptionWithHTTPStatus: 403
-			    reason: @"No such user."];
-  else
+  request = [[self context] request];
+  response = [self responseWithStatus: 200];
+  users = [[request contentAsString] objectFromJSONString];
+  usersList = [users objectEnumerator];
+
+  while ((currentUser = [usersList nextObject]))
     {
-      NSArray *o;
+      currentUid = [currentUser objectForKey: @"uid"];
+      if (!([self _initRightsForUserID: currentUid]))
+        {
+          jsonResponse = [NSDictionary dictionaryWithObject: [self labelForKey: @"No such user."]
+                                                     forKey: @"error"];
+          response = [self responseWithStatus: 403
+                                    andString: [jsonResponse jsonRepresentation]];
+          break;
+        }
+      else
+        {
+          o = [NSArray arrayWithArray: userRights];
+          [self updateRights: [currentUser objectForKey: @"rights"]];
+          [[self clientObject] setRoles: userRights forUser: currentUid];
 
-      o = [NSArray arrayWithArray: userRights];
-
-      [self updateRights];
-      [[self clientObject] setRoles: userRights forUser: uid];
-
-      dd = [[context activeUser] domainDefaults];
-      if (![o isEqualToArray: userRights] && [dd aclSendEMailNotifications])
-        [self sendACLAdvisoryTemplateForObject: [self clientObject]];
-
-      response = [self jsCloseWithRefreshMethod: nil];
+          dd = [[context activeUser] domainDefaults];
+          if (![o isEqualToArray: userRights] && [dd aclSendEMailNotifications])
+            [self sendACLAdvisoryTemplateForObject: [self clientObject]];
+        }
     }
-
   return response;
 }
 
@@ -241,11 +316,12 @@
   [userRights removeObjectsInArray: list];
 }
 
-- (void) prepareRightsForm
+- (NSDictionary *) userRightsForObject
 {
+  return [self subclassResponsibility: _cmd];
 }
 
-- (void) updateRights
+- (void) updateRights: (NSDictionary *) newRights
 {
   [self subclassResponsibility: _cmd];
 }

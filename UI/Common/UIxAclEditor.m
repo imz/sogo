@@ -19,21 +19,24 @@
  */
 
 #import <Foundation/NSArray.h>
+#import <Foundation/NSValue.h>
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSEnumerator.h>
 #import <Foundation/NSKeyValueCoding.h>
 
+#import <NGObjWeb/SoSecurityManager.h>
 #import <NGObjWeb/SoUser.h>
 #import <NGObjWeb/WORequest.h>
-#import <NGObjWeb/SoSecurityManager.h>
+#import <NGObjWeb/WOResponse.h>
 #import <NGCards/iCalPerson.h>
 #import <SOGo/NSArray+Utilities.h>
+#import <SOGo/NSDictionary+Utilities.h>
 #import <SOGo/SOGoContentObject.h>
 #import <SOGo/SOGoGCSFolder.h>
 #import <SOGo/SOGoPermissions.h>
 #import <SOGo/SOGoSystemDefaults.h>
-#import <SOGo/SOGoUserManager.h>
 #import <SOGo/SOGoUser.h>
+#import <SOGo/SOGoUserManager.h>
 
 #import "UIxAclEditor.h"
 
@@ -46,7 +49,7 @@
       aclUsers = nil;
       prepared = NO;
       publishInFreeBusy = NO;
-      users = [NSMutableArray new];
+      users = [NSMutableDictionary new];
       currentUser = nil;
       defaultUserID = nil;
       savedUIDs = nil;
@@ -80,10 +83,34 @@
   return defaultUserID;
 }
 
-- (NSArray *) usersForObject
+- (BOOL) canSubscribeUsers
 {
+  return [[self clientObject]
+           respondsToSelector: @selector (subscribeUserOrGroup:reallyDo:response:)];
+}
+
+/**
+ * @api {get} /so/:username/:folderPath/acls List users with rights
+ * @apiVersion 1.0.0
+ * @apiName GetAcls
+ * @apiGroup Common
+ * @apiExample {curl} Example usage:
+ *     curl -i http://localhost/SOGo/so/sogo1/Calendar/personal/acls
+ *
+ * @apiSuccess (Success 200) {Object[]} users             List of users with ACL for the folder
+ * @apiSuccess (Success 200) {String} users.uid           User ID
+ * @apiSuccess (Success 200) {String} users.userClass     Either 'normal-user', 'normal-group' or 'public-access'
+ * @apiSuccess (Success 200) {Number} users.isSubscribed  1 if the user is subscribed to the folder
+ * @apiSuccess (Success 200) {String} [users.cn]          User fullname
+ * @apiSuccess (Success 200) {String} [users.c_email]     User main email address
+ */
+- (id <WOActionResults>) aclsAction
+{
+  NSString *currentUID, *ownerLogin, *info;
+  NSDictionary *currentUserInfos;
+  NSMutableDictionary *userData;
+  id <WOActionResults> result;
   NSEnumerator *aclsEnum;
-  NSString *currentUID, *ownerLogin;
 
   if (!prepared)
     {
@@ -96,13 +123,55 @@
         {
           if (!([currentUID isEqualToString: ownerLogin]
                 || [currentUID isEqualToString: defaultUserID]
-                || [currentUID isEqualToString: @"anonymous"]))
-            [users addObjectUniquely: currentUID];
+                || [currentUID isEqualToString: @"anonymous"])) 
+            {
+                  // Set the current user in order to get information associated with it
+                  [self setCurrentUser: currentUID];
+
+                  // Build the object associated to the current UID
+                  currentUserInfos = [self currentUserInfos];
+                  userData = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                                             currentUser, @"uid",
+                                           [self currentUserClass], @"userClass",
+                                           [NSNumber numberWithBool: [self currentUserIsSubscribed]], @"isSubscribed",
+                                           nil];
+                  if ((info = [currentUserInfos objectForKey: @"cn"]) && [info length])
+                    [userData setObject: info forKey: @"cn"];
+                  if ((info = [currentUserInfos objectForKey: @"c_email"]) && [info length])
+                    [userData setObject: info forKey: @"c_email"];
+                  [users setObject: userData forKey: currentUID];
+            }
         }
+
+      // Add the 'Any authenticated' user
+      if ([self canSubscribeUsers])
+        {
+          userData = [NSDictionary dictionaryWithObjectsAndKeys:
+                                     @"<default>", @"uid",
+                                              [self labelForKey: @"Any Authenticated User"], @"cn",
+                                   @"public-user", @"userClass",
+                                   nil];
+          [users setObject: userData forKey: @"<default>"];
+        }
+
+      if ([self canSubscribeUsers] && [self isPublicAccessEnabled])
+        {
+          // Add the 'public access' user
+          userData = [NSDictionary dictionaryWithObjectsAndKeys:
+                                     @"anonymous", @"uid",
+                                   [self labelForKey: @"Public Access"], @"cn",
+                                   @"public-user", @"userClass",
+                                   nil];
+          [users setObject: userData forKey: @"anonymous"];
+        }
+
       prepared = YES;
     }
 
-  return users;
+  result = [self responseWithStatus: 200
+              andJSONRepresentation: [NSDictionary dictionaryWithObject: users forKey: @"users"]];
+
+  return result;
 }
 
 - (void) setCurrentUser: (NSString *) newCurrentUser
@@ -143,10 +212,13 @@
     return uid;
 }
 
-- (BOOL) canSubscribeUsers
+- (NSDictionary *) currentUserInfos
 {
-  return [[self clientObject]
-           respondsToSelector: @selector (subscribeUserOrGroup:reallyDo:response:)];
+  SOGoUserManager *um;
+
+  um = [SOGoUserManager sharedUserManager];
+
+  return [um contactInfosForUserWithUIDorEmail: [self currentUser]];
 }
 
 - (BOOL) currentUserIsSubscribed
@@ -193,16 +265,15 @@
   while ((currentUID = [[aclsEnum nextObject] objectForKey: @"c_uid"]))
     if ([currentUID isEqualToString: ownerLogin]
         || [savedUIDs containsObject: currentUID])
-      [users removeObject: currentUID];
-  [clientObject removeAclsForUsers: users];
+      [users removeObjectForKey: currentUID];
+  [clientObject removeAclsForUsers: [users allKeys]];
 
   return [self jsCloseWithRefreshMethod: nil];
 }
 
 - (BOOL) isPublicAccessEnabled
 {
-  return [[SOGoSystemDefaults sharedSystemDefaults]
-           enablePublicAccess];
+  return [[SOGoSystemDefaults sharedSystemDefaults] enablePublicAccess];
 }
 
 @end

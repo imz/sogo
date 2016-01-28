@@ -1,0 +1,43 @@
+@import "extends";
+
+// sgColorPicker directive
+.sg-color-picker {
+  md-grid-tile {
+    border-radius: 25%;
+    &:hover:not(.selected),
+    &:active:not(.selected) {
+      cursor: pointer;
+      transform: scale(1.5);
+    }
+    &.selected {
+      background-color: transparent !important;
+      md-icon {
+        display: inline-block;
+        font-size: 32px;
+        margin: 0;
+      }
+    }
+    md-icon {
+      display: none;
+    }
+  }
+}
+
+// sgToggleGrid directive
+[sg-toggle-grid] {
+  md-grid-tile {
+    &.sg-icon-button {
+      @extend .md-button;
+      // Overwrite some styles of .md-button
+      border: 1px solid sg-color($sogoBlue, 300);
+      border-radius: 5%;
+      color: sg-color($sogoBlue, 600);
+      min-height: auto;
+      position: absolute;
+    }
+    &.sg-active {
+      background-color: sg-color($sogoBlue, 300);
+      color: #fff;
+    }
+  }
+}

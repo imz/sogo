@@ -1,6 +1,6 @@
 /* UIxMailUserRightsEditor.m - this file is part of SOGo
  *
- * Copyright (C) 2007-2013 Inverse inc.
+ * Copyright (C) 2007-2015 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,9 @@
  */
 
 #import <Foundation/NSArray.h>
+#import <Foundation/NSDictionary.h>
 #import <Foundation/NSEnumerator.h>
+#import <Foundation/NSValue.h>
 #import <NGObjWeb/WORequest.h>
 #import <Mailer/SOGoMailAccount.h>
 #import <Mailer/SOGoMailFolder.h>
@@ -31,11 +33,10 @@
 
 - (BOOL) conformsToRFC4314
 {
-  SOGoMailAccount *mailAccount;
+  if ([[self clientObject] respondsToSelector: @selector(mailAccountFolder)])
+    return ([[[self clientObject] mailAccountFolder] imapAclStyle] == rfc4314);
 
-  mailAccount = [[self clientObject] mailAccountFolder];
-
-  return ([mailAccount imapAclStyle] == rfc4314);
+  return NO;
 }
 
 - (void) setUserCanReadMails: (BOOL) userCanReadMails
@@ -168,58 +169,70 @@
   return [userRights containsObject: SOGoMailRole_Administrator];
 }
 
-- (void) updateRights
+- (NSDictionary *) userRightsForObject
 {
-  WORequest *request;
+  return [NSDictionary dictionaryWithObjectsAndKeys:
+                           [NSNumber numberWithBool:[self userCanReadMails]], @"userCanReadMails",
+                           [NSNumber numberWithBool:[self userCanMarkMailsRead]], @"userCanMarkMailsRead",
+                           [NSNumber numberWithBool:[self userCanWriteMails]], @"userCanWriteMails",
+                           [NSNumber numberWithBool:[self userCanInsertMails]], @"userCanInsertMails",
+                           [NSNumber numberWithBool:[self userCanPostMails]], @"userCanPostMails",
+                           [NSNumber numberWithBool:[self userCanCreateSubfolders]], @"userCanCreateSubfolders",
+                           [NSNumber numberWithBool:[self userCanEraseMails]], @"userCanEraseMails",
+                           [NSNumber numberWithBool:[self userCanRemoveFolder]], @"userCanRemoveFolder",
+                           [NSNumber numberWithBool:[self userCanExpungeFolder]], @"userCanExpungeFolder",
+                           [NSNumber numberWithBool:[self userIsAdministrator]], @"userIsAdministrator",
+                       nil];
+}
 
-  request = [context request];
-
-  if ([[request formValueForKey: SOGoRole_ObjectViewer] length] > 0)
+- (void) updateRights: (NSDictionary *) newRights
+{
+  if ([[newRights objectForKey: @"userCanReadMails"] boolValue])
     [self appendRight: SOGoRole_ObjectViewer];
   else
     [self removeRight: SOGoRole_ObjectViewer];
 
-  if ([[request formValueForKey: SOGoMailRole_SeenKeeper] length] > 0)
+  if ([[newRights objectForKey: @"userCanMarkMailsRead"] boolValue])
     [self appendRight: SOGoMailRole_SeenKeeper];
   else
     [self removeRight: SOGoMailRole_SeenKeeper];
 
-  if ([[request formValueForKey: SOGoMailRole_Writer] length] > 0)
+  if ([[newRights objectForKey: @"userCanWriteMails"] boolValue])
     [self appendRight: SOGoMailRole_Writer];
   else
     [self removeRight: SOGoMailRole_Writer];
 
-  if ([[request formValueForKey: SOGoRole_ObjectCreator] length] > 0)
+  if ([[newRights objectForKey: @"userCanInsertMails"] boolValue])
     [self appendRight: SOGoRole_ObjectCreator];
   else
     [self removeRight: SOGoRole_ObjectCreator];
 
-  if ([[request formValueForKey: SOGoMailRole_Poster] length] > 0)
+  if ([[newRights objectForKey: @"userCanPostMails"] boolValue])
     [self appendRight: SOGoMailRole_Poster];
   else
     [self removeRight: SOGoMailRole_Poster];
 
-  if ([[request formValueForKey: SOGoRole_FolderCreator] length] > 0)
+  if ([[newRights objectForKey: @"userCanCreateSubfolders"] boolValue])
     [self appendRight: SOGoRole_FolderCreator];
   else
     [self removeRight: SOGoRole_FolderCreator];
 
-  if ([[request formValueForKey: SOGoRole_FolderEraser] length] > 0)
+  if ([[newRights objectForKey: @"userCanRemoveFolder"] boolValue])
     [self appendRight: SOGoRole_FolderEraser];
   else
     [self removeRight: SOGoRole_FolderEraser];
 
-  if ([[request formValueForKey: SOGoRole_ObjectEraser] length] > 0)
+  if ([[newRights objectForKey: @"userCanEraseMails"] boolValue])
     [self appendRight: SOGoRole_ObjectEraser];
   else
     [self removeRight: SOGoRole_ObjectEraser];
 
-  if ([[request formValueForKey: SOGoMailRole_Expunger] length] > 0)
+  if ([[newRights objectForKey: @"userCanExpungeFolder"] boolValue])
     [self appendRight: SOGoMailRole_Expunger];
   else
     [self removeRight: SOGoMailRole_Expunger];
 
-  if ([[request formValueForKey: SOGoMailRole_Administrator] length] > 0)
+  if ([[newRights objectForKey: @"userIsAdministrator"] boolValue])
     [self appendRight: SOGoMailRole_Administrator];
   else
     [self removeRight: SOGoMailRole_Administrator];

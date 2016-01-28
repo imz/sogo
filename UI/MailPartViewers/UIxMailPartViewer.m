@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2007-2013 Inverse inc.
+  Copyright (C) 2007-2015 Inverse inc.
   Copyright (C) 2004-2005 SKYRIX Software AG
 
   This file is part of SOGo.
@@ -15,7 +15,7 @@
   License for more details.
 
   You should have received a copy of the GNU Lesser General Public
-  License along with OGo; see the file COPYING.  If not, write to the
+  License along with SOGo; see the file COPYING.  If not, write to the
   Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
   02111-1307, USA.
 */
@@ -30,6 +30,8 @@
 #import <NGExtensions/NGQuotedPrintableCoding.h>
 #import <NGExtensions/NSString+Encoding.h>
 #import <NGExtensions/NSString+misc.h>
+
+#import <NGObjWeb/WOResponse.h>
 
 #import <SOGo/NSString+Utilities.h>
 #import <Mailer/NSData+Mail.h>
@@ -139,6 +141,21 @@
 				   acquire: NO];
 
   return currentObject;
+}
+
+- (id) renderedPart
+{
+  NSString *type;
+
+  type = [NSString stringWithFormat: @"%@/%@",
+                            [bodyInfo objectForKey: @"type"],
+                            [bodyInfo objectForKey: @"subtype"]];
+
+  return [NSDictionary dictionaryWithObjectsAndKeys:
+                         [self className], @"type",
+                       type, @"contentType",
+                       [[self generateResponse] contentAsString], @"content",
+                       nil];
 }
 
 - (NSData *) content
@@ -286,7 +303,7 @@
   return [filename stringByEscapingURL];
 }
 
-- (NSString *) pathToAttachment
+- (NSString *) _pathForAttachmentOrDownload: (BOOL) forDownload
 {
   NSMutableString *url;
   NSString *s, *attachment;
@@ -298,14 +315,36 @@
   if (![url hasSuffix: @"/"])
     [url appendString: @"/"];
 
-//   s = [[self partPath] componentsJoinedByString: @"/"];
   if ([bodyPart isKindOfClass: [SOGoMailBodyPart class]])
     attachment = [self _filenameForAttachment: bodyPart];
   else
     attachment = @"0";
+
+  if (forDownload)
+    [url appendString: @"asAttachment/"];
+    
   [url appendString: attachment];
 
   return url;
+}
+
+- (NSString *) pathToAttachmentFromMessage
+{
+  SOGoMailBodyPart *bodyPart;
+
+  bodyPart = [self clientPart];
+
+  return [NSString stringWithFormat: @"%@/%@", [bodyPart nameInContainer], [self _filenameForAttachment: bodyPart]];
+}
+
+- (NSString *) pathToAttachment
+{
+  return [self _pathForAttachmentOrDownload: NO];
+}
+
+- (NSString *) pathForDownload
+{
+  return [self _pathForAttachmentOrDownload: YES];
 }
 
 - (NSString *) mimeImageURL

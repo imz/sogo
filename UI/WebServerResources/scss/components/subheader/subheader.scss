@@ -1,0 +1,37 @@
+/// subheader.scss -*- Mode: scss; indent-tabs-mode: nil; basic-offset: 2 -*-
+@import 'extends';
+
+.md-subheader {
+  margin-right: 0;
+  line-height: $touch-zone-width;
+}
+
+.md-subheader {
+  .md-subheader-inner {
+    padding: 0 0 0 $layout-gutter-width;
+  }
+}
+md-tab-content {
+  .md-subheader {
+    .md-subheader-inner {
+      padding-left: $layout-gutter-width/2;
+    }
+  }
+}
+
+.sg-md-subheader {
+  &--fixed {
+    position: fixed;
+    z-index: auto;
+    padding: $baseline-grid $baseline-grid $baseline-grid $layout-gutter-width;
+    background-color: transparent;
+  }
+  &--static {
+    position: static;
+    z-index: auto;
+    padding: $baseline-grid $baseline-grid $baseline-grid $layout-gutter-width;
+    background-color: transparent;
+    font-size: $sg-font-size-2;
+    font-weight: $sg-font-medium;
+  }
+}

@@ -87,6 +87,11 @@
   [super dealloc];
 }
 
+- (NSString *) modulePath
+{
+  return @"Mail";
+}
+
 - (void) _setupContext
 {
   SOGoUser *activeUser;
@@ -111,12 +116,23 @@
 
 - (NSString *) mailAccounts
 {
-  NSArray *accounts, *names;
+  NSArray *accounts;
 
   accounts = [[self clientObject] mailAccounts];
-  names = [accounts objectsForKey: @"name" notFoundMarker: nil];
 
-  return [names jsonRepresentation];
+  return [accounts jsonRepresentation];
+}
+
+- (WOResponse *) mailAccountsAction
+{
+  WOResponse *response;
+  NSString *s;
+
+  s = [self mailAccounts];
+  response = [self responseWithStatus: 200
+                            andString: s];
+
+  return response;
 }
 
 - (NSString *) userNames
@@ -127,7 +143,6 @@
   userNames = [accounts objectsForKey: @"userName" notFoundMarker: nil];
   
   return [userNames jsonRepresentation];
-  
 }
 
 - (NSString *) pageFormURL
@@ -173,28 +188,6 @@
     return u;
   }
   return [u hasSuffix:@"/"] ? @"view" : @"#";
-}
-
-- (NSString *) inboxData
-{
-  SOGoMailAccounts *accounts;
-  SOGoMailAccount *account;
-  SOGoMailFolder *inbox;
-  NSDictionary *data;
-  UIxMailListActions *actions;
-
-  [self _setupContext];
-  
-#warning this code is dirty: we should not invoke UIxMailListActions from here!
-  actions = [[[UIxMailListActions new] initWithRequest: [context request]] autorelease];
-  accounts = [self clientObject];
-  
-  account = [accounts lookupName: @"0" inContext: context acquire: NO];
-  inbox = [account inboxFolderInContext: context];
-
-  data = [actions getUIDsInFolder: inbox withHeaders: YES];
-
-  return [data jsonRepresentation];
 }
 
 - (id <WOActionResults>) composeAction
@@ -404,17 +397,15 @@
 {
   WORequest *request;
   NSArray *expandedFolders;
-  NSString *json;
   
   [self _setupContext];
   request = [context request];
-  json = [request formValueForKey: @"expandedFolders"];
-  if ([json length])
-    {
-      expandedFolders = [json objectFromJSONString];
-      [moduleSettings setObject: expandedFolders forKey: @"ExpandedFolders"];
-      [us synchronize];
-    }
+  expandedFolders = [[request contentAsString] objectFromJSONString];
+
+  [moduleSettings setObject: expandedFolders
+                     forKey: @"ExpandedFolders"];
+
+  [us synchronize];
 
   return [self responseWithStatus: 204];
 }
@@ -652,6 +643,51 @@
   return [self labelForKey: [currentColumn objectForKey: @"value"]];
 }
 
+- (unsigned int) _unseenCountForFolder: (NSString *) theFolder
+{
+  NSArray *pathComponents;
+  SOGoMailAccount *account;
+  SOGoMailFolder *folder;
+
+  pathComponents = [theFolder pathComponents];
+  account = [[self clientObject] lookupName: [pathComponents objectAtIndex: 0]
+                                  inContext: context
+                                    acquire: YES];
+
+  folder = [account lookupName: [NSString pathWithComponents: [pathComponents subarrayWithRange: NSMakeRange(1, [pathComponents count]-1)]]
+                     inContext: context
+                       acquire: YES];
+
+  return [folder unseenCount];
+}
+
+- (WOResponse *) unseenCountAction
+{
+  NSMutableDictionary *data;
+  WOResponse *response;
+  NSArray *folders;
+  NSString *folder;
+  int i;
+
+  folders = [[[[context request] contentAsString] objectFromJSONString] objectForKey: @"mailboxes"];
+  data = [NSMutableDictionary dictionary];
+
+  for (i = 0; i < [folders count]; i++)
+    {
+      folder = [folders objectAtIndex: i];
+      [data setObject: [NSNumber numberWithUnsignedInt: [self _unseenCountForFolder: folder]]
+               forKey: folder];
+    }
+
+  response = [self responseWithStatus: 200];
+
+  [response setHeader: @"text/plain; charset=utf-8"
+	    forKey: @"content-type"];
+  [response appendContentString: [data jsonRepresentation]];
+
+  return response;
+}
+
 - (NSString *) unseenCountFolders
 {
   NSArray *pathComponents, *filters, *actions;
@@ -701,7 +737,7 @@
 			[path appendString: @"/"];
 		    }
 		  
-		  [folders addObject: [NSString stringWithFormat: @"/0/%@", path]];
+		  [folders addObject: [NSString stringWithFormat: @"0/%@", path]];
 		}
 	    }
 	}
@@ -739,3 +775,15 @@
 }
 
 @end /* UIxMailMainFrame */
+
+@interface UIxMailFolderTemplate : UIxComponent
+@end
+
+@implementation UIxMailFolderTemplate
+@end
+
+@interface UIxMailViewTemplate : UIxComponent
+@end
+
+@implementation UIxMailViewTemplate
+@end

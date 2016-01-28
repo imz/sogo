@@ -1,6 +1,6 @@
 /* UIxMailAccountActions.m - this file is part of SOGo
  *
- * Copyright (C) 2007-2013 Inverse inc.
+ * Copyright (C) 2007-2014 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,28 +53,28 @@
   SOGoMailAccount *co;
   NSArray *folders;
   NSDictionary *data;
-  WOResponse *response;
 
   co = [self clientObject];
 
   folders = [co allFoldersMetadata];
 
-  data = [NSDictionary dictionaryWithObjectsAndKeys: folders, @"mailboxes", nil];
-  response = [self responseWithStatus: 200
-                            andString: [data jsonRepresentation]];
-  [response setHeader: @"application/json"
-               forKey: @"content-type"];
+  data = [NSDictionary dictionaryWithObjectsAndKeys:
+                         folders, @"mailboxes",
+                       [co getInboxQuota], @"quotas",
+                       nil];
 
-  return response;
+  return [self responseWithStatus: 200 andJSONRepresentation: data];
 }
 
 /* compose */
 
 - (WOResponse *) composeAction
 {
-  NSString *urlBase, *url, *value, *signature, *nl;
+  NSString *value, *signature, *nl;
   SOGoDraftObject *newDraftMessage;
   NSMutableDictionary *headers;
+  NSDictionary *data;
+  NSString *accountName, *mailboxName, *messageName;
   SOGoDraftsFolder *drafts;
   id mailTo;
   BOOL save;
@@ -118,12 +118,17 @@
   if (save)
     [newDraftMessage storeInfo];
 
-  urlBase = [newDraftMessage baseURLInContext: context];
-  url = [urlBase composeURLWithAction: @"edit"
-                           parameters: nil
-                              andHash: NO];
+  accountName = [[self clientObject] nameInContainer];
+  mailboxName = [drafts absoluteImap4Name]; // Ex: /INBOX/Drafts/
+  mailboxName = [mailboxName substringWithRange: NSMakeRange(1, [mailboxName length] -2)];
+  messageName = [newDraftMessage nameInContainer];
+  data = [NSDictionary dictionaryWithObjectsAndKeys:
+                         accountName, @"accountId",
+                       mailboxName, @"mailboxPath",
+                       messageName, @"draftId", nil];
 
-  return [self redirectToLocation: url];  
+  return [self responseWithStatus: 201
+                        andString: [data jsonRepresentation]];
 }
 
 - (WOResponse *) _performDelegationAction: (SEL) action

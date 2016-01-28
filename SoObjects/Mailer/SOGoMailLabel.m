@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2007-2013 Inverse inc.
+  Copyright (C) 2007-2015 Inverse inc.
 
   This file is part of SOGo.
 
@@ -65,7 +65,7 @@
 
 
 + (NSArray *) labelsFromDefaults: (NSDictionary *) theDefaults
-                       component: (UIxComponent *) theComponent
+                       component: (id) theComponent
 {
   NSMutableArray *allLabels, *allKeys;
   NSString *key, *name;
@@ -81,7 +81,6 @@
       key = [allKeys objectAtIndex: i];
       values = [theDefaults objectForKey: key];
       name = [theComponent commonLabelForKey: [values objectAtIndex: 0]];
-
       label = [[self alloc] initWithName: key
                                    label: name
                                    color: [values objectAtIndex: 1]];

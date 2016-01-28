@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2013 Inverse inc.
+  Copyright (C) 2013-2015 Inverse inc.
 
   This file is part of SOGo.
 
@@ -43,7 +43,7 @@
 - (NSString *) color;
 
 + (NSArray *) labelsFromDefaults: (NSDictionary *) theDefaults
-                       component: (UIxComponent *) theComponent;
+                       component: (id) theComponent;
 
 @end
 

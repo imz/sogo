@@ -1,131 +1,253 @@
-<?xml version='1.0' standalone='yes'?>
-<!DOCTYPE var:component>
-<var:component
-  xmlns="http://www.w3.org/1999/xhtml"
-  xmlns:var="http://www.skyrix.com/od/binding"
-  xmlns:const="http://www.skyrix.com/od/constant"
-  xmlns:uix="OGo:uix"
-  xmlns:rsrc="OGo:url"
-  xmlns:label="OGo:label"
-  className="UIxPageFrame"
-  title="panelTitle"
-  const:popup="YES"
-  const:userDefaultsKeys="SOGoMailComposeMessageType,SOGoMailReplyPlacement,SOGoMailSignature,SOGoMailAutoSave,SOGoDraftsFolderName"
-  const:jsFiles="UIxMailToSelection.js,ckeditor/ckeditor.js,SOGoAutoCompletion.js,ContactsUI.js,jquery-ui.js,jquery.fileupload.js,jquery.iframe-transport.js"
-  const:cssFiles="jquery.fileupload.css">
-  <script type="text/javascript">
-    var mailIsReply = <var:string value="isMailReply"/>;
-    var sourceUID = <var:string value="sourceUID"/>;
-    var sourceFolder = '<var:string value="sourceFolder" const:escapeHTML="NO"/>';
-    var localeCode = '<var:string value="localeCode"/>';
-  </script>
+<?xml version="1.0" standalone="yes"?>
+<container
+    xmlns="http://www.w3.org/1999/xhtml"
+    xmlns:var="http://www.skyrix.com/od/binding"
+    xmlns:const="http://www.skyrix.com/od/constant"
+    xmlns:label="OGo:label">
 
-  <div class="popupMenu" id="contactsMenu">
-    <ul><!-- space --></ul>
-  </div>
+  <md-dialog class="sg-mail-editor" flex="80" flex-sm="90" flex-xs="100"
+             nv-file-drop="nv-file-drop"
+             nv-file-over="nv-file-over"
+             over-class="sg-over-dropzone"
+             uploader="editor.uploader">
+    <md-toolbar>
+      <div class="md-toolbar-tools">
+        <md-icon class="sg-icon-toolbar-bg">edit</md-icon>
+        <!-- from -->
+        <sg-avatar-image hide-sm="hide-sm"
+                         sg-email="editor.message.editable.from"
+                         size="32"><!-- avatar --></sg-avatar-image>
+        <md-input-container flex="flex">
+          <label><var:string label:value="From"/></label>
+          <md-select class="sg-no-wrap" name="from"
+                     ng-model="editor.message.editable.from">
+            <md-option ng-value="identity" ng-repeat="identity in editor.identities">{{identity}}</md-option>
+          </md-select>
+        </md-input-container>
+        <div flex-gt-sm="flex-gt-sm"><!-- spacer --></div>
+        <md-button class="sg-icon-button" ng-click="editor.send()"
+                   ng-disabled="!(editor.message.editable.to.length > 0 || editor.message.editable.cc.length > 0 || editor.message.editable.bcc.length > 0)">
+          <md-icon>send</md-icon>
+        </md-button>
+        <md-button class="sg-icon-button" ng-click="editor.save()">
+          <md-icon>save</md-icon>
+        </md-button>
+        <md-button class="sg-icon-button" ng-click="editor.cancel()">
+          <md-icon>close</md-icon>
+        </md-button>
+      </div>
+    </md-toolbar>
 
-  <div class="menu" id="optionsMenu">
-    <ul class="choiceMenu">
-      <li><var:string label:value="Return Receipt"/></li>
-      <li><!-- separator --></li>
-      <li><var:string label:value="Priority"/></li>
-    </ul>
-  </div>
-
-  <div class="menu" id="priorityMenu">
-    <ul id="itemPriorityList" class="choiceMenu">
-      <var:foreach list="priorityClasses" item="item">
-	<li var:priority="item"><var:string
-	    var:value="itemPriorityText" /></li>
-      </var:foreach>
-    </ul>
-  </div>
-
-  <div id="contacts" style="display: none;">
-  <div id="leftPanel">
-    <div id="contactsSearch">
-      <label><var:string label:value="Address Book" /></label>
-      <var:popup const:name="contactFolder" const:id="contactFolder"
-	list="contactFolders"
-	item="currentFolder"
-        string="currentContactFolderName"
-        value="currentContactFolderId"
-	/>
-      <label><var:string label:value="Search For"/></label>
-      <var:component className="UIxContactsFilterPanel" qualifier="qualifier" />
-      <div id="contactsListContent">
-      <table id="contactsList" cellspacing="0">
-	<thead>
-	  <tr class="tableview">
-	    <!-- localize -->
-	    <td class="tbtv_headercell sortableTableHeader" id="nameHeader"
-		><img id="messageSortImage" class="sortImage" rsrc:src="arrow-up.png"
-		/><var:string label:value="Name"
-	    /></td
-	    ><td class="tbtv_headercell sortableTableHeader" id="mailHeader"
-	    ><var:string label:value="Email"/></td
-	    ></tr>
-	</thead>
-	<tbody id="contactsListTbody">
-
-      <var:foreach list="personalContactInfos" item="currentContact">
-        <tr var:class="currentContactClasses"
-          var:categories="currentContact.c_categories"
-          var:id="currentContact.c_name"
-          var:contactname="currentContact.c_cn">
-          <td class="displayName" var:title="currentContact.c_cn"><var:string value="currentContact.c_cn" const:escapeHTML="YES" /></td>
-          <td var:title="currentContact.c_mail"><var:string value="currentContact.c_mail"/></td>
-        </tr>
-      </var:foreach>
-
-	</tbody>
-      </table>
+    <div class="sg-dropzone">
+      <div layout="column" layout-align="center center" layout-fill="layout-fill">
+        <md-icon>file_upload</md-icon>
+      </div>
     </div>
 
-    <div class="contactSelection">
-      <var:component className="UIxContactsMailerSelection" />
-    </div>
+    <md-dialog-content>
+      <header class="md-padding">
+        <div class="msg-header-content">
 
-    </div>
-  </div>
-    
-  <div class="dragHandle" id="hiddenDragHandle"><!-- space --></div>
-  </div>
+          <!-- to -->
+          <div class="pseudo-input-container">
+            <label class="pseudo-input-label">
+              <var:string label:value="To"/>
+            </label>
+            <md-chips ng-model="editor.message.editable.to"
+                      md-separator-keys="editor.recipientSeparatorKeys"
+                      md-transform-chip="editor.addRecipient($chip, 'to')">
+              <md-autocomplete
+                  class="sg-chips-autocomplete"
+                  md-autofocus="true"
+                  md-search-text="editor.autocomplete.to.searchText"
+                  md-selected-item="editor.autocomplete.to.selected"
+                  md-items="user in editor.contactFilter(editor.autocomplete.to.searchText)"
+                  md-min-length="3"
+                  md-delay="300"
+                  md-no-cache="true"
+                  label:placeholder="Add a recipient">
+                <md-item-template>
+                  <span class="md-contact-suggestion">
+                    <span class="md-contact-name"
+                          md-highlight-text="editor.autocomplete.to.searchText"
+                          md-highlight-flags="^i">{{user.$$fullname}}</span>
+                    <span class="md-contact-email"
+                          md-highlight-text="editor.autocomplete.to.searchText"
+                          md-highlight-flags="^i">{{user.$$email}}</span>
+                  </span>
+                </md-item-template>
+              </md-autocomplete>
+              <md-chip-template>{{$chip}}</md-chip-template>
+            </md-chips>
+          </div>
 
-  <div id="rightPanel">
-  <form href="save" name="pageform" enctype="multipart/form-data" autocomplete="off">
-    <input type="hidden" name="priority" id="priority" var:value="priority"/>
-    <input type="hidden" name="receipt" id="receipt" var:value="receipt"/>
-    <input type="hidden" name="isHTML" id="isHTML" var:value="isHTML"/>
+          <!-- cc -->
+          <div class="pseudo-input-container" ng-hide="editor.hideCc">
+            <label class="pseudo-input-label">
+              <var:string label:value="Cc"/>
+            </label>
+            <md-chips ng-model="editor.message.editable.cc"
+                      md-separator-keys="editor.recipientSeparatorKeys"
+                      md-transform-chip="editor.addRecipient($chip, 'cc')">
+              <md-autocomplete
+                  class="sg-chips-autocomplete"
+                  md-search-text="editor.autocomplete.cc.searchText"
+                  md-selected-item="editor.autocomplete.cc.selected"
+                  md-items="user in editor.contactFilter(editor.autocomplete.cc.searchText)"
+                  md-min-length="3"
+                  md-delay="300"
+                  md-no-cache="true"
+                  label:placeholder="Add a recipient">
+                <md-item-template>
+                  <span class="md-contact-suggestion">
+                    <span class="md-contact-name"
+                          md-highlight-text="editor.autocomplete.to.searchText"
+                          md-highlight-flags="^i">{{user.$$fullname}}</span>
+                    <span class="md-contact-email"
+                          md-highlight-text="editor.autocomplete.to.searchText"
+                          md-highlight-flags="^i">{{user.$$email}}</span>
+                  </span>
+                </md-item-template>
+              </md-autocomplete>
+              <md-chip-template>{{$chip}}</md-chip-template>
+            </md-chips>
+          </div>
 
-    <div id="headerArea">
-      <span class="headerField" const:id="fromField"><var:string label:value="From" />:</span>
-      <var:popup const:name="from" const:id="fromSelect"
-	list="fromEMails"
-	item="item"
-	selection="from"
-	/><br />
-      <div>
-	<var:component className="UIxMailToSelection"
-	  to="to" cc="cc" bcc="bcc" />
+          <!-- bcc -->
+          <div class="pseudo-input-container" ng-hide="editor.hideBcc">
+            <label class="pseudo-input-label">
+              <var:string label:value="Bcc"/>
+            </label>
+            <md-chips ng-model="editor.message.editable.bcc"
+                      md-separator-keys="editor.recipientSeparatorKeys"
+                      md-transform-chip="editor.addRecipient($chip, 'bcc')">
+              <md-autocomplete
+                  class="sg-chips-autocomplete"
+                  md-selected-item="editor.autocomplete.bcc.selected"
+                  md-search-text="editor.autocomplete.bcc.searchText"
+                  md-items="user in editor.contactFilter(editor.autocomplete.bcc.searchText)"
+                  md-min-length="3"
+                  md-delay="300"
+                  md-no-cache="true"
+                  label:placeholder="Add a recipient">
+                <md-item-template>
+                  <span class="md-contact-suggestion">
+                    <span class="md-contact-name"
+                          md-highlight-text="editor.autocomplete.to.searchText"
+                          md-highlight-flags="^i">{{user.$$fullname}}</span>
+                    <span class="md-contact-email"
+                          md-highlight-text="editor.autocomplete.to.searchText"
+                          md-highlight-flags="^i">{{user.$$email}}</span>
+                  </span>
+                </md-item-template>
+              </md-autocomplete>
+              <md-chip-template>{{$chip}}</md-chip-template>
+            </md-chips>
+          </div>
+
+          <!-- subject -->
+          <md-input-container>
+            <label>
+              <var:string label:value="Subject"/>
+            </label>
+            <input type="text" name="subject" ng-model="editor.message.editable.subject"/>
+          </md-input-container>
+        </div>
+
+        <!-- toolbar to show cc/bcc/attachment fields -->
+        <div layout="column" layout-align="start end">
+          <md-button class="sg-icon-button " ng-show="editor.hideCc" ng-click="editor.hideCc = false">Cc</md-button>
+          <md-button class="sg-icon-button " ng-show="editor.hideBcc" ng-click="editor.hideBcc = false">Bcc</md-button>
+          <md-menu>
+            <md-button label:aria-label="More mail options" class="sg-icon-button" ng-click="$mdOpenMenu($event)">
+              <md-icon>more_vert</md-icon>
+            </md-button>
+            <md-menu-content width="4">
+              <md-menu-item>
+                <md-button>
+                  <md-checkbox ng-model="editor.message.editable.receipt">
+                    <var:string label:value="Return Receipt"/>
+                  </md-checkbox>
+                </md-button>
+              </md-menu-item>
+              <md-menu-item>
+                <md-button class="md-primary" ng-disabled="true"><var:string label:value="Priority"/></md-button>
+              </md-menu-item>
+              <md-menu-item>
+                <md-button ng-click="editor.message.editable.priority = 1">
+                  <md-icon ng-class="{ 'icon-check': editor.message.editable.priority == 1}"><!-- highest --></md-icon>
+                  <var:string label:value="highest"/>
+                </md-button>
+              </md-menu-item>
+              <md-menu-item>
+                <md-button ng-click="editor.message.editable.priority = 2">
+                  <md-icon ng-class="{ 'icon-check': editor.message.editable.priority == 2}"><!-- high --></md-icon>
+                  <var:string label:value="high"/>
+                </md-button>
+              </md-menu-item>
+              <md-menu-item>
+                <md-button ng-click="editor.message.editable.priority = 3">
+                  <md-icon ng-class="{ 'icon-check':
+                                     !editor.message.editable.priority
+                                     || editor.message.editable.priority == 3}"><!-- normal --></md-icon>
+                  <var:string label:value="normal"/>
+                </md-button>
+              </md-menu-item>
+              <md-menu-item>
+                <md-button ng-click="editor.message.editable.priority = 4">
+                  <md-icon ng-class="{ 'icon-check': editor.message.editable.priority == 4}"><!-- low --></md-icon>
+                  <var:string label:value="low"/>
+                </md-button>
+              </md-menu-item>
+              <md-menu-item>
+                <md-button ng-click="editor.message.editable.priority = 5">
+                  <md-icon ng-class="{ 'icon-check': editor.message.editable.priority == 5}"><!-- lowest --></md-icon>
+                  <var:string label:value="lowest"/>
+                </md-button>
+              </md-menu-item>
+            </md-menu-content>
+          </md-menu>
+
+        </div>
+      </header>
+
+      <!-- MESSAGE CONTENT -->
+      <div var:class="editorClass">
+        <textarea name="content" var:class="editorClass"
+                  ck-locale="editor.localeCode"
+                  ng-model="editor.message.editable.text"/>
       </div>
-      <div id="subjectRow">
-        <span class="headerField"><var:string label:value="Subject"/>:</span>
-        <input name="subject" type="text" class="textField" var:value="subject"/>
-      </div>
-      <div id="fileupload">
-        <ul id="attachments">
-          <li class="attachButton"><span class="button fileinput-button"><span><img rsrc:src="title_attachment_14x14.png" /> <var:string label:value="Attach"/></span><input id="fileUpload" type="file" name="attachments" tabindex="-1" multiple="multiple"/></span></li>
-          <var:foreach list="attachmentAttrs" item="attachment"
-          ><li class="progressDone" var:data-filename="attachment.filename">
-            <i class="icon-attachment"><!-- icon --></i><a var:href="attachment.url" target="_new"><var:string value="attachment.filename"/></a><span class="muted">(<var:string value="attachment.size" formatter="sizeFormatter" />)</span>
-          </li></var:foreach>
-        </ul>
-      </div>
-    </div><!-- #headerArea -->
-    <textarea id="text" name="text" rows="25" style="display:none" var:value="text"/>
-  </form>
-  </div>
+    </md-dialog-content>
 
-  <div id="dropZone" style="display: none;"><!-- dropzone --></div>
-</var:component>
+    <!-- ATTACHMENTS -->
+    <md-dialog-actions>
+      <div layout="row" layout-align="space-between center" layout-fill="layout-fill">
+          <!-- Attachments -->
+          <md-chips ng-model="editor.uploader.queue"
+                    class="md-flex sg-readonly" readonly="true">
+            <md-chip-template>
+              <span class="sg-chip-progress" ng-show="$chip.isUploading">
+                <span class="md-default-theme md-warn md-bg"
+                      ng-style="{ width: $chip.progress + '%'}"><!-- progress --></span>
+              </span>
+              <a ng-href="{{$chip.inlineUrl}}" target="_new">{{$chip.file.name}}</a>
+              <md-icon ng-class="{ 'md-warn': $chip.isUploading }"
+                       ng-click="editor.removeAttachment($chip)">close</md-icon>
+            </md-chip-template>
+          </md-chips>
+          <label class="md-button md-icon-button" for="file-input">
+            <md-icon>attach_file</md-icon>
+            <!-- <span><var:string label:value="Attach"/></span> -->
+          </label>
+          <input id="file-input" name="file-input" type="file" class="ng-hide"
+                 nv-file-select="nv-file-select"
+                 uploader="editor.uploader"/>
+          <!--
+              Disable multiple until this issue is resolved:
+              https://github.com/nervgh/angular-file-upload/issues/525
+          -->
+                 <!-- multiple="multiple" -->
+      </div>
+    </md-dialog-actions>
+  </md-dialog>
+</container>

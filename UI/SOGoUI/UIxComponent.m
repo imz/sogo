@@ -39,6 +39,7 @@
 #import <NGExtensions/NSURL+misc.h>
 
 #import <SOGo/NSCalendarDate+SOGo.h>
+#import <SOGo/NSDictionary+Utilities.h>
 #import <SOGo/NSObject+Utilities.h>
 #import <SOGo/NSString+Utilities.h>
 #import <SOGo/SOGoBuild.h>
@@ -49,6 +50,7 @@
 #import <SOGo/SOGoUser.h>
 #import <SOGo/SOGoUserFolder.h>
 #import <SOGo/SOGoUserDefaults.h>
+#import <SOGo/WOContext+SOGo.h>
 #import <SOGo/WOResourceManager+SOGo.h>
 
 #import "UIxJSClose.h"
@@ -149,6 +151,7 @@ static SoProduct      *commonProduct      = nil;
       if (!userDefaults)
         ASSIGN (userDefaults, [SOGoSystemDefaults sharedSystemDefaults]);
       language = [userDefaults language];
+      ASSIGN (languages, [context resourceLookupLanguages]);
       ASSIGN (locale,
               [[self resourceManager] localeForLanguageNamed: language]);
     }
@@ -357,40 +360,19 @@ static SoProduct      *commonProduct      = nil;
 
 - (NSString *) modulePath
 {
-  SOGoObject *currentClient, *parent;
-  BOOL found;
-  NSString *hostLessURL;
-  Class objectClass, userFolderClass;
-// , groupFolderClass
-
-  currentClient = [self clientObject];
-  if (currentClient
-      && [currentClient isKindOfClass: [SOGoObject class]])
+  if ([[self parent] respondsToSelector: @selector(modulePath)])
     {
-//       groupFolderClass = [SOGoCustomGroupFolder class];
-      userFolderClass = [SOGoUserFolder class];
+      NSString *baseURL;
 
-      objectClass = [currentClient class];
-//       found = (objectClass == groupFolderClass || objectClass == userFolderClass);
-      found = (objectClass == userFolderClass);
-      while (!found && currentClient)
-	{
-	  parent = [currentClient container];
-	  objectClass = [parent class];
-	  if (// objectClass == groupFolderClass
-// 	      || 
-	      objectClass == userFolderClass)
-	    found = YES;
-	  else
-	    currentClient = parent;
-	}
+      baseURL = [[self clientObject] baseURLInContext: context];
+
+      if ([baseURL hasSuffix: [NSString stringWithFormat: @"%@/", [[self parent] modulePath]]])
+        return baseURL;
+
+      return [NSString stringWithFormat: @"%@%@", baseURL, [[self parent] modulePath]];
     }
-  else
-    currentClient = [WOApplication application];
-  
-  hostLessURL = [[currentClient baseURLInContext: context] hostlessURL];
 
-  return [hostLessURL substringToIndex: [hostLessURL length] - 1];
+  return @"SOGo";
 }
 
 - (NSString *) ownPath
@@ -411,10 +393,14 @@ static SoProduct      *commonProduct      = nil;
 
 - (NSString *) relativePathToUserFolderSubPath: (NSString *) _sub
 {
-  NSString *dst, *rel;
+  NSString *dst, *rel, *theme;
 
   dst = [[self userFolderPath] stringByAppendingPathComponent: _sub];
   rel = [dst urlPathRelativeToPath:[self ownPath]];
+
+  theme = [[context request] formValueForKey: @"theme"];
+  if ([theme length])
+    rel = [NSString stringWithFormat: @"%@?theme=%@", rel, theme];
 
   return rel;
 }
@@ -432,6 +418,20 @@ static SoProduct      *commonProduct      = nil;
     }
 
   return _selectedDate;
+}
+
+- (NSString *) currentDayDescription
+{
+  NSDictionary *currentDay;
+  SOGoUser *user;
+
+  user = [context activeUser];
+  if (user)
+    currentDay = [user currentDay];
+  else
+    currentDay = [NSDictionary dictionary];
+
+  return [currentDay jsonRepresentation];
 }
 
 - (NSString *) dateStringForDate: (NSCalendarDate *) _date
@@ -536,7 +536,6 @@ static SoProduct      *commonProduct      = nil;
 - (NSString *) labelForKey: (NSString *) _str
        withResourceManager: (WOResourceManager *) rm
 {
-  NSArray *languages;
   NSString *lKey, *lTable, *lVal;
   NSRange r;
 
@@ -545,10 +544,6 @@ static SoProduct      *commonProduct      = nil;
 
   if (rm == nil)
     [self warnWithFormat:@"missing resource manager!"];
-
-  /* lookup languages */
-
-  languages = [context resourceLookupLanguages];
 
   /* get parameters */
     
@@ -710,9 +705,27 @@ static SoProduct      *commonProduct      = nil;
 - (WOResponse *) redirectToLocation: (NSString *) newLocation
 {
   WOResponse *response;
+  NSURL *url;
+  NSMutableString *location;
+  NSString *theme, *query;
+
+  location = [NSMutableString stringWithString: newLocation];
+  theme = [[context request] formValueForKey: @"theme"];
+  if ([theme length])
+    {
+      url = [NSURL URLWithString: newLocation];
+      query = [url query];
+      if ([query length])
+        {
+          if ([query rangeOfString: @"theme="].length == 0)
+            [location appendFormat: @"&theme=%@", theme];
+        }
+      else
+        [location appendFormat: @"?theme=%@", theme];
+    }
 
   response = [self responseWithStatus: 302];
-  [response setHeader: newLocation forKey: @"location"];
+  [response setHeader: location forKey: @"location"];
 
   return response;
 }

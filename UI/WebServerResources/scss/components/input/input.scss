@@ -1,0 +1,43 @@
+/// input.scss -*- Mode: scss; indent-tabs-mode: nil; basic-offset: 2 -*-
+@import 'extends';
+
+md-input-container {
+  &.md-input-number {
+    flex-grow: 0;
+    width: 4em;
+    input {
+      text-align: center;
+    }
+  }
+  &.md-no-flex {
+    flex: none !important;
+  }
+  .md-errors-spacer {
+    // Temporary fix for https://github.com/angular/material/issues/6214
+    min-height: 0 !important;
+  }
+}
+
+md-input-container .bgroup {
+  display: block;
+}
+.bgroup b {
+  left-margin: -1.25em;
+}
+
+.PseudoField input {
+  flex: 1;
+  order: 2;
+  display: block;
+
+  background: none;
+  padding-top: $input-padding-top;
+  padding-bottom: 0;
+  border-width: 0 0 $input-border-width-default 0;
+  line-height: $input-line-height;
+  -ms-flex-preferred-size: $input-line-height; //IE fix
+
+  &:focus {
+    outline: none;
+  }
+}

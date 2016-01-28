@@ -38,7 +38,6 @@
 - (NSDictionary *) simplifiedLDIFRecord;
 
 - (NSException *) save;
-- (NSException *) delete;
 
 @end
 

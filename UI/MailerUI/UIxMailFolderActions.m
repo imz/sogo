@@ -53,51 +53,86 @@
 
 @implementation UIxMailFolderActions
 
-- (WOResponse *) createFolderAction
+/**
+ * @api {post} /so/:username/Mail/:accountId/:parentMailboxPath/createFolder Create mailbox
+ * @apiVersion 1.0.0
+ * @apiName PostCreateMailbox
+ * @apiGroup Mail
+ * @apiExample {curl} Example usage:
+ *     curl -i http://localhost/SOGo/so/sogo1/Mail/0/folderINBOX/createFolder \
+ *          -H "Content-Type: application/json" \
+ *          -d '{ "name": "test" }'
+ *
+ * @apiParam {String} name Name of the mailbox
+ *
+ * @apiError (Error 500) {Object} error The error message
+ */
+- (id <WOActionResults>) createFolderAction
 {
   SOGoMailFolder *co, *newFolder;
+  WORequest *request;
   WOResponse *response;
-  NSString *folderName;
+  NSDictionary *params, *jsonResponse;
+  NSString *folderName, *encodedFolderName, *errorFormat;
 
   co = [self clientObject];
 
-  folderName = [[context request] formValueForKey: @"name"];
+  request = [context request];
+  params = [[request contentAsString] objectFromJSONString];
+  folderName = [params objectForKey: @"name"];
   if ([folderName length] > 0)
     {
-      folderName = [folderName stringByEncodingImap4FolderName];
-      newFolder
-        = [co lookupName: [NSString stringWithFormat: @"folder%@", folderName]
-               inContext: context
-                 acquire: NO];
+      encodedFolderName = [folderName stringByEncodingImap4FolderName];
+      newFolder = [co lookupName: [NSString stringWithFormat: @"folder%@", encodedFolderName]
+                       inContext: context
+                         acquire: NO];
       if ([newFolder create])
-        response = [self responseWith204];
+        {
+          response = [self responseWith204];
+        }
       else
         {
-          response = [self responseWithStatus: 500];
-          [response appendContentString: @"Unable to create folder."];
+          errorFormat = [self labelForKey: @"The folder with name \"%@\" could not be created." inContext: context];
+          jsonResponse = [NSDictionary dictionaryWithObject: [NSString stringWithFormat: errorFormat, folderName]
+                                                     forKey: @"error"];
+          response = [self responseWithStatus: 500 andJSONRepresentation: jsonResponse];
         }
     }
   else
     {
-      response = [self responseWithStatus: 500];
-      [response appendContentString: @"Missing 'name' parameter."];
+      jsonResponse = [NSDictionary dictionaryWithObject: [self labelForKey: @"Missing 'name' parameter."  inContext: context]
+                                                 forKey: @"error"];
+      response = [self responseWithStatus: 500 andJSONRepresentation: jsonResponse];
     }
 
   return response;  
 }
 
+/**
+ * @api {post} /so/:username/Mail/:accountId/:mailboxPath/renameFolder Rename mailbox
+ * @apiVersion 1.0.0
+ * @apiName PostRenameFolder
+ * @apiGroup Mail
+ *
+ * @apiParam {String} name Name of the mailbox
+ *
+ * @apiSuccess (Success 200) {String} path  New mailbox path relative to account
+ * @apiError   (Error 500) {Object} error   The error message
+ */
 - (WOResponse *) renameFolderAction
 {
   SOGoMailFolder *co;
   SOGoUserSettings *us;
+  WORequest *request;
   WOResponse *response;
   NSException *error;
-  NSString *newFolderName, *currentMailbox, *currentAccount, *keyForMsgUIDs, *newKeyForMsgUIDs;
-  NSMutableDictionary *moduleSettings, *threadsCollapsed;
+  NSString *newFolderName, *newFolderPath, *currentMailbox, *currentAccount, *keyForMsgUIDs, *newKeyForMsgUIDs;
+  NSMutableDictionary *params, *moduleSettings, *threadsCollapsed, *message;
   NSArray *values;
 
   co = [self clientObject];
-  //Prepare the variables need to verify if the current folder have any collapsed threads saved in userSettings
+
+  // Prepare the variables need to verify if the current folder have any collapsed threads saved in userSettings
   us = [[context activeUser] userSettings];
   moduleSettings = [us objectForKey: @"Mail"];
   threadsCollapsed = [moduleSettings objectForKey:@"threadsCollapsed"];
@@ -105,29 +140,47 @@
   currentAccount = [[co container] nameInContainer];
   keyForMsgUIDs = [NSString stringWithFormat:@"/%@/%@", currentAccount, currentMailbox];
 
-  newFolderName = [[context request] formValueForKey: @"name"];
-  newKeyForMsgUIDs = [NSString stringWithFormat:@"/%@/folder%@", [currentAccount asCSSIdentifier], [newFolderName asCSSIdentifier]];
-  error = [co renameTo: newFolderName];
-  if (error)
+  // Retrieve new folder name from JSON payload
+  request = [context request];
+  params = [[request contentAsString] objectFromJSONString];
+  newFolderName = [params objectForKey: @"name"];
+
+  if (!newFolderName || [newFolderName length] == 0)
     {
-      response = [self responseWithStatus: 500];
-      [response appendContentString: @"Unable to rename folder."];
+      message = [NSDictionary dictionaryWithObject: [self labelForKey: @"Missing name parameter" inContext: context]
+                                            forKey: @"message"];
+      response = [self responseWithStatus: 500 andJSONRepresentation: message];
     }
   else
     {
-      // Verify if the current folder have any collapsed threads save under it old name and adjust the folderName
-      if (threadsCollapsed)
+      newKeyForMsgUIDs = [NSString stringWithFormat:@"/%@/folder%@", [currentAccount asCSSIdentifier], [newFolderName asCSSIdentifier]];
+      error = [co renameTo: newFolderName];
+      if (error)
         {
-          if ([threadsCollapsed objectForKey:keyForMsgUIDs])
-            {
-              values = [NSArray arrayWithArray:[threadsCollapsed objectForKey:keyForMsgUIDs]];
-              [threadsCollapsed setObject:values forKey:newKeyForMsgUIDs];
-              [threadsCollapsed removeObjectForKey:keyForMsgUIDs];
-              [us synchronize];
-            }
+          message = [NSDictionary dictionaryWithObject: [self labelForKey: @"Unable to rename folder." inContext: context]
+                                                forKey: @"message"];
+          response = [self responseWithStatus: 500 andJSONRepresentation: message];
         }
-      response = [self responseWith204];
+      else
+        {
+          // Verify if the current folder have any collapsed threads save under it old name and adjust the folderName
+          if (threadsCollapsed)
+            {
+              if ([threadsCollapsed objectForKey:keyForMsgUIDs])
+                {
+                  values = [NSArray arrayWithArray:[threadsCollapsed objectForKey:keyForMsgUIDs]];
+                  [threadsCollapsed setObject:values forKey:newKeyForMsgUIDs];
+                  [threadsCollapsed removeObjectForKey:keyForMsgUIDs];
+                  [us synchronize];
+                }
+            }
+          newFolderPath = [[[co imap4URL] path] substringFromIndex: 1]; // remove slash at beginning of path
+          message = [NSDictionary dictionaryWithObject: newFolderPath
+                                                forKey: @"path"];
+          response = [self responseWithStatus: 200 andJSONRepresentation: message];
+        }
     }
+
   return response;
 }
 
@@ -177,6 +230,7 @@
   NGImap4Connection *connection;
   NSException *error;
   NSURL *srcURL, *destURL;
+  NSDictionary *jsonResponse;
   NSMutableDictionary *moduleSettings, *threadsCollapsed;
   NSString *currentMailbox, *currentAccount, *keyForMsgUIDs;
 
@@ -192,8 +246,9 @@
     error = [connection moveMailboxAtURL: srcURL toURL: destURL];
     if (error)
       {
-        response = [self responseWithStatus: 500];
-        [response appendContentString: @"Unable to move folder."];
+        jsonResponse = [NSDictionary dictionaryWithObject: [self labelForKey: @"Unable to move folder." inContext: context]
+                                                 forKey: @"error"];
+        response = [self responseWithStatus: 500 andJSONRepresentation: jsonResponse];
       }
     else
       {
@@ -222,8 +277,9 @@
   }
   else
   {
-    response = [self responseWithStatus: 500];
-    [response appendContentString: @"Unable to move folder."];
+    jsonResponse = [NSDictionary dictionaryWithObject: [self labelForKey: @"Unable to move folder." inContext: context]
+                                               forKey: @"message"];
+    response = [self responseWithStatus: 500 andJSONRepresentation: jsonResponse];
   }
 
   return response;
@@ -231,27 +287,29 @@
 
 - (WOResponse *) batchDeleteAction
 {
-  SOGoMailFolder *co;
-  SOGoMailAccount *account;
-  SOGoUserSettings *us;
-  WOResponse *response;
-  NSArray *uids;
-  NSString *value;
-  NSDictionary *data;
-  BOOL withTrash;
   NSMutableDictionary *moduleSettings, *threadsCollapsed;
   NSString *currentMailbox, *currentAccount, *keyForMsgUIDs;
   NSMutableArray *mailboxThreadsCollapsed;
+  SOGoMailAccount *account;
+  SOGoUserSettings *us;
+  WOResponse *response;
+  SOGoMailFolder *co;
+  NSDictionary *data;
+  WORequest *request;
+
+  id uids, quota;
+
+  BOOL withTrash;
   int i;
 
-  co = [self clientObject];
-  value = [[context request] formValueForKey: @"uid"];
-  withTrash = ![[[context request] formValueForKey: @"withoutTrash"] boolValue];
   response = nil;
+  request = [context request];
+  co = [self clientObject];
+  data = [[request contentAsString] objectFromJSONString];
+  withTrash = ![[data objectForKey: @"withoutTrash"] boolValue];
 
-  if ([value length] > 0)
+  if ((uids = [data objectForKey: @"uids"]) && [uids isKindOfClass: [NSArray class]] && [uids count] > 0)
     {
-      uids = [value componentsSeparatedByString: @","];
       response = (WOResponse *) [co deleteUIDs: uids useTrashFolder: &withTrash inContext: context];
       if (!response)
         {
@@ -259,9 +317,14 @@
             {
               // When not using a trash folder, return the quota
               account = [co mailAccountFolder];
-              data = [NSDictionary dictionaryWithObjectsAndKeys: [account getInboxQuota], @"quotas", nil];
-              response = [self responseWithStatus: 200
-                                        andString: [data jsonRepresentation]];
+              if ((quota = [account getInboxQuota]))
+                {
+                  data = [NSDictionary dictionaryWithObjectsAndKeys: quota, @"quotas", nil];
+                  response = [self responseWithStatus: 200
+                                            andString: [data jsonRepresentation]];
+                }
+              else
+                response = [self responseWithStatus: 200];
             }
           else
             {
@@ -288,8 +351,9 @@
     }
   else
     {
-      response = [self responseWithStatus: 500];
-      [response appendContentString: @"Missing 'uid' parameter."];
+      data = [NSDictionary dictionaryWithObject: [self labelForKey: @"Missing 'uids' parameter." inContext: context]
+                                         forKey: @"message"];
+      response = [self responseWithStatus: 500 andJSONRepresentation: data];
     }
 
   return response;
@@ -300,6 +364,7 @@
   SOGoMailFolder *co;
   WOResponse *response;
   NSArray *uids;
+  NSDictionary *jsonResponse;
   NSString *value;
 
   co = [self clientObject];
@@ -310,15 +375,16 @@
   {
     uids = [value componentsSeparatedByString: @","];
     response = [co archiveUIDs: uids
-                inArchiveNamed: [self labelForKey: @"Saved Messages.zip"]
+                inArchiveNamed: [self labelForKey: @"Saved Messages.zip" inContext: context]
                      inContext: context];
     if (!response)
       response = [self responseWith204];
   }
   else
   {
-    response = [self responseWithStatus: 500];
-    [response appendContentString: @"Missing 'uid' parameter."];
+    jsonResponse = [NSDictionary dictionaryWithObject: [self labelForKey: @"Missing 'uid' parameter." inContext: context]
+                                               forKey: @"message"];
+    response = [self responseWithStatus: 500 andJSONRepresentation: jsonResponse];
   }
 
   return response;
@@ -346,86 +412,98 @@
 
 - (WOResponse *) copyMessagesAction
 {
-  SOGoMailFolder *co;
+  NSString *destinationFolder;
   SOGoMailAccount *account;
   WOResponse *response;
-  NSArray *uids;
-  NSString *value, *destinationFolder;
+  SOGoMailFolder *co;
   NSDictionary *data;
+  NSArray *uids;
+
+  id quota;
 
   co = [self clientObject];
-  value = [[context request] formValueForKey: @"uid"];
-  destinationFolder = [[context request] formValueForKey: @"folder"];
+  data = [[[context request] contentAsString] objectFromJSONString];
+  uids = [data objectForKey: @"uids"];
+  destinationFolder = [data objectForKey: @"folder"];
   response = nil;
 
-  if ([value length] > 0)
-  {
-    uids = [value componentsSeparatedByString: @","];
-    response = [co copyUIDs: uids  toFolder: destinationFolder inContext: context];
-    if (!response)
-      {
-	// We return the inbox quota
-	account = [co mailAccountFolder];
-	data = [NSDictionary dictionaryWithObjectsAndKeys: [account getInboxQuota], @"quotas", nil];
-	response = [self responseWithStatus: 200
-				  andString: [data jsonRepresentation]];
-      }
-  }
+  if ([uids count] > 0)
+    {
+      response = [co copyUIDs: uids  toFolder: destinationFolder inContext: context];
+      if (!response)
+        {
+          // We return the inbox quota
+          account = [co mailAccountFolder];
+          if ((quota = [account getInboxQuota]))
+            {
+              data = [NSDictionary dictionaryWithObject: quota  forKey: @"quotas"];
+              response = [self responseWithStatus: 200 andJSONRepresentation: data];
+            }
+          else
+            response = [self responseWithStatus: 200];
+        }
+    }
   else
-  {
-    response = [self responseWithStatus: 500];
-    [response appendContentString: @"Missing 'uid' parameter."];
-  }
+    {
+      data = [NSDictionary dictionaryWithObject: [self labelForKey: @"Error copying messages." inContext: context]
+                                         forKey: @"message"];
+      response = [self responseWithStatus: 500 andJSONRepresentation: data];
+    }
 
   return response;
 }
 
 - (WOResponse *) moveMessagesAction
 {
-  SOGoMailFolder *co;
+  NSString *currentMailbox, *currentAccount, *keyForMsgUIDs;
+  NSMutableDictionary *moduleSettings, *threadsCollapsed;
+  NSMutableArray *mailboxThreadsCollapsed;
+  NSString *destinationFolder;
   SOGoUserSettings *us=nil;
   WOResponse *response;
+  NSDictionary *data;
+  SOGoMailFolder *co;
   NSArray *uids;
-  NSString *value, *destinationFolder;
-  NSMutableDictionary *moduleSettings, *threadsCollapsed;
-  NSString *currentMailbox, *currentAccount, *keyForMsgUIDs;
-  NSMutableArray *mailboxThreadsCollapsed;
+
   int i;
 
   co = [self clientObject];
-  value = [[context request] formValueForKey: @"uid"];
-  destinationFolder = [[context request] formValueForKey: @"folder"];
+  data = [[[context request] contentAsString] objectFromJSONString];
+  uids = [data objectForKey: @"uids"];
+  destinationFolder = [data objectForKey: @"folder"];
   response = nil;
 
-  if ([value length] > 0)
-  {
-    uids = [value componentsSeparatedByString: @","];
-    response = [co moveUIDs: uids  toFolder: destinationFolder inContext: context];
-    if (!response)
-      // Verify if the message beeing delete is saved as the root of a collapsed thread
-      us = [[context activeUser] userSettings];
-      moduleSettings = [us objectForKey: @"Mail"];
-      threadsCollapsed = [moduleSettings objectForKey:@"threadsCollapsed"];
-      currentMailbox = [co nameInContainer];
-      currentAccount = [[co container] nameInContainer];
-      keyForMsgUIDs = [NSString stringWithFormat:@"/%@/%@", currentAccount, currentMailbox];
-
-      if (threadsCollapsed)
+  if ([uids count] > 0)
+    {
+      response = [co moveUIDs: uids  toFolder: destinationFolder inContext: context];
+      if (!response)
         {
-          if ((mailboxThreadsCollapsed = [threadsCollapsed objectForKey:keyForMsgUIDs]))
+          // Verify if the message beeing delete is saved as the root of a collapsed thread
+          us = [[context activeUser] userSettings];
+          moduleSettings = [us objectForKey: @"Mail"];
+          threadsCollapsed = [moduleSettings objectForKey: @"threadsCollapsed"];
+          currentMailbox = [co nameInContainer];
+          currentAccount = [[co container] nameInContainer];
+          keyForMsgUIDs = [NSString stringWithFormat:@"/%@/%@", currentAccount, currentMailbox];
+
+          if (threadsCollapsed)
             {
-              for (i = 0; i < [uids count]; i++)
-                [mailboxThreadsCollapsed removeObject:[uids objectAtIndex:i]];
-              [us synchronize];
+              if ((mailboxThreadsCollapsed = [threadsCollapsed objectForKey: keyForMsgUIDs]))
+                {
+                  for (i = 0; i < [uids count]; i++)
+                    [mailboxThreadsCollapsed removeObject:[uids objectAtIndex:i]];
+                  [us synchronize];
+                }
             }
+          response = [self responseWith204];
         }
-      response = [self responseWith204];
-  }
+    }
   else
-  {
-    response = [self responseWithStatus: 500];
-    [response appendContentString: @"Missing 'uid' parameter."];
-  }
+    {
+      data = [NSDictionary dictionaryWithObject: [self labelForKey: @"Error moving messages." inContext: context]
+                                         forKey: @"error"];
+      response = [self responseWithStatus: 500 andJSONRepresentation: data];
+    }
 
   return response;
 }
@@ -449,6 +527,7 @@
 {
   NSArray *accounts;
   int realIdx;
+  NSDictionary *jsonResponse;
   NSMutableDictionary *account, *mailboxes;
   WOResponse *response;
 
@@ -471,14 +550,18 @@
           response = [self responseWith204];
         }
       else
-        response
-          = [self responseWithStatus: 500
-                           andString: @"You reached an impossible end."];
+         {
+           jsonResponse = [NSDictionary dictionaryWithObject: @"You reached an impossible end."
+                                                      forKey: @"message"];
+           response = [self responseWithStatus: 500 andJSONRepresentation: jsonResponse];
+        }
     }
   else
-    response
-      = [self responseWithStatus: 500
-                       andString: @"You reached an impossible end."];
+    {
+      jsonResponse = [NSDictionary dictionaryWithObject: @"You reached an impossible end."
+                                                 forKey: @"message"];
+      response = [self responseWithStatus: 500 andJSONRepresentation: jsonResponse];
+    }
 
   return response;
 }
@@ -489,6 +572,7 @@
   WOResponse *response;
   SOGoUser *owner;
   SOGoUserDefaults *ud;
+  NSDictionary *jsonResponse;
   NSString *accountIdx, *traversal;
 
   co = [self clientObject];
@@ -513,17 +597,20 @@
                             inUserDefaults: ud
                                         to: traversal];
       else
-        response
-          = [self responseWithStatus: 500
-                           andString: @"You reached an impossible end."];
+        {
+          jsonResponse = [NSDictionary dictionaryWithObject: @"You reached an impossible end."
+                                                     forKey: @"message"];
+          response = [self responseWithStatus: 500 andJSONRepresentation: jsonResponse];
+        }
+
       if ([response status] == 204)
         [ud synchronize];
     }
   else
     {
-      response = [self responseWithStatus: 500];
-      [response
-	appendContentString: @"Unable to change the purpose of this folder."];
+      jsonResponse = [NSDictionary dictionaryWithObject: [self labelForKey: @"Unable to change the purpose of this folder." inContext: context]
+                                                 forKey: @"message"];
+      response = [self responseWithStatus: 500 andJSONRepresentation: jsonResponse];
     }
 
   return response;
@@ -551,19 +638,22 @@
 
 - (WOResponse *) expungeAction 
 {
-  NSException *error;
-  SOGoTrashFolder *co;
   SOGoMailAccount *account;
-  NSDictionary *data;
   WOResponse *response;
+  SOGoTrashFolder *co;
+  NSException *error;
+  NSDictionary *data;
+
+  id quota;
 
   co = [self clientObject];
 
   error = [co expunge];
   if (error)
     {
-      response = [self responseWithStatus: 500];
-      [response appendContentString: @"Unable to expunge folder."];
+      data = [NSDictionary dictionaryWithObject: [self labelForKey: @"Unable to expunge folder." inContext: context]
+                                         forKey: @"message"];
+      response = [self responseWithStatus: 500 andJSONRepresentation: data];
     }
   else
     {
@@ -571,9 +661,13 @@
 
       // We return the inbox quota
       account = [co mailAccountFolder];
-      data = [NSDictionary dictionaryWithObjectsAndKeys: [account getInboxQuota], @"quotas", nil];
-      response = [self responseWithStatus: 200
-				andString: [data jsonRepresentation]];
+      if ((quota = [account getInboxQuota]))
+        {
+          data = [NSDictionary dictionaryWithObject: quota  forKey: @"quotas"];
+          response = [self responseWithStatus: 200 andJSONRepresentation: data];
+        }
+      else
+        response = [self responseWithStatus: 200];
     }
 
   return response;
@@ -610,16 +704,16 @@
     }
   if (error)
     {
-      response = [self responseWithStatus: 500];
-      [response appendContentString: @"Unable to empty the trash folder."];
+      data = [NSDictionary dictionaryWithObject: [self labelForKey: @"Unable to empty the trash folder." inContext: context]
+                                         forKey: @"message"];
+      response = [self responseWithStatus: 500 andJSONRepresentation: data];
     }
   else
     {
       // We return the inbox quota
       account = [co mailAccountFolder];
-      data = [NSDictionary dictionaryWithObjectsAndKeys: [account getInboxQuota], @"quotas", nil];
-      response = [self responseWithStatus: 200
-				andString: [data jsonRepresentation]];
+      data = [NSDictionary dictionaryWithObject: [account getInboxQuota] forKey: @"quotas"];
+      response = [self responseWithStatus: 200 andJSONRepresentation: data];
     }
 
   return response;
@@ -663,66 +757,18 @@
   return [self _subscriptionStubAction];
 }
 
-- (NSDictionary *) _unseenCount
-{
-  EOQualifier *searchQualifier;
-  NSArray *searchResult;
-  NSDictionary *imapResult;
-//  NSMutableDictionary *data;
-  NGImap4Connection *connection;
-  NGImap4Client *client;
-  int unseen;
-  SOGoMailFolder *folder;
-
-  folder = [self clientObject];
-
-  connection = [folder imap4Connection];
-  client = [connection client];
-
-  if ([connection selectFolder: [folder imap4URL]])
-    {
-      searchQualifier
-        = [EOQualifier qualifierWithQualifierFormat: @"flags = %@ AND not flags = %@",
-                       @"unseen", @"deleted"];
-      imapResult = [client searchWithQualifier: searchQualifier];
-      searchResult = [[imapResult objectForKey: @"RawResponse"] objectForKey: @"search"];
-      unseen = [searchResult count];
-    }
-  else
-    unseen = 0;
-
-  return [NSDictionary
-           dictionaryWithObject: [NSNumber numberWithInt: unseen]
-                         forKey: @"unseen"];
-}
-
-- (WOResponse *) unseenCountAction
-{
-  WOResponse *response;
-  NSDictionary *data;
-  
-  response = [self responseWithStatus: 200];
-  data = [self _unseenCount];
-
-  [response setHeader: @"text/plain; charset=utf-8"
-	    forKey: @"content-type"];
-  [response appendContentString: [data jsonRepresentation]];
-
-  return response;
-}
-
 - (WOResponse *) addOrRemoveLabelAction
 {
   WOResponse *response;
   WORequest *request;
   SOGoMailFolder *co;
-  NSException *error;
   NSArray *msgUIDs;
   NSMutableArray *flags;
   NSString *operation;
   NSDictionary *content, *result;
   BOOL addOrRemove;
   NGImap4Client *client;
+  id flag;
 
   int i;
 
@@ -735,7 +781,13 @@
 
   // We unescape our flags
   for (i = [flags count]-1; i >= 0; i--)
-    [flags replaceObjectAtIndex: i  withObject: [[flags objectAtIndex: i] fromCSSIdentifier]];
+    {
+      flag = [flags objectAtIndex: i];
+      if ([flag isKindOfClass: [NSString class]])
+        [flags replaceObjectAtIndex: i  withObject: [flag fromCSSIdentifier]];
+      else
+        [flags removeObjectAtIndex: i];
+    }
 
   co = [self clientObject];
   client = [[co imap4Connection] client];
@@ -744,7 +796,7 @@
   if ([[result valueForKey: @"result"] boolValue])
     response = [self responseWith204];
   else
-    response = [self responseWithStatus:500 andJSONRepresentation:result];
+    response = [self responseWithStatus: 500 andJSONRepresentation: result];
 
   return response;
 }

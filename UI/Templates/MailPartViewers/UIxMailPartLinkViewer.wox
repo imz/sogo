@@ -1,39 +1,48 @@
 <?xml version="1.0" standalone="yes"?>
 <!DOCTYPE div>
-<div xmlns="http://www.w3.org/1999/xhtml"
+<container xmlns="http://www.w3.org/1999/xhtml"
   xmlns:var="http://www.skyrix.com/od/binding"
   xmlns:const="http://www.skyrix.com/od/constant"
-  xmlns:label="OGo:label"
-  class="linked_attachment_frame file"
-  >
-  <div class="linked_attachment_body">
-    <a var:href="pathToAttachment"
-       var:title="filenameForDisplay"
-       const:absolute="YES"
-       ><img var:src="mimeImageURL"/>
-    <div class="linked_attachment_meta">
-      <var:string value="filenameForDisplay" 
-                  /> <span class="muted">(<var:string value="bodyInfo.size" formatter="sizeFormatter" />)</span>
-    </div>
-    </a>
-
-    <!-- debug
-    <pre><var:string value="bodyInfo"/></pre>
+  xmlns:label="OGo:label">
+  <md-card>
+    <md-card-content>
+      <p class="md-caption" var:title="filenameForDisplay">
+        <var:if condition="preferredPathExtension.length"><span class="sg-label-outline"><var:string value="preferredPathExtension"/></span></var:if>
+        <var:string value="filenameForDisplay"/>
+      </p>
+    </md-card-content>
+    <md-dialog-actions layout="row" layout-align="end center">
+      <div class="md-flex sg-attachment-size">
+        <var:string value="bodyInfo.size" formatter="sizeFormatter"/>
+      </div>
+      <md-button class="sg-icon-button" var:href="pathToAttachment" target="_blank">
+        <md-tooltip md-direction="left"><var:string label:value="View Attachment"/></md-tooltip>
+        <md-icon>open_in_new</md-icon>
+      </md-button>
+      <md-button class="sg-icon-button" var:href="pathForDownload">
+        <md-tooltip md-direction="left"><var:string label:value="Save Attachment"/></md-tooltip>
+        <md-icon>file_download</md-icon>
+      </md-button>
+    </md-dialog-actions>
     
-    <a var:href="pathToAttachment"
-    var:title="bodyInfo"
-    class="mailer_imagecontent"
-    >[<var:string value="pathToAttachment" />]</a>
-    <br />
-    Id:      <var:string value="bodyInfo.bodyId" /><br />
-    Desc:    <var:string value="bodyInfo.description" /><br />
-    Enc:     <var:string value="bodyInfo.encoding" /><br />
-    Par:     <var:string value="bodyInfo.parameterList" /><br />
-    Size:    <var:string value="bodyInfo.size" /><br />
-    Type:    <var:string value="bodyInfo.type" /><br />
-    Subtype: <var:string value="bodyInfo.subtype" /><br />
-    Path:    <var:string value="pathToAttachment" /><br />
-    PartPath: <var:string value="partPath" /><br />
+    <!-- DEBUG
+         <pre><var:string value="bodyInfo"/></pre>
+         
+         <a var:href="pathToAttachment"
+         var:title="bodyInfo"
+         class="mailer_imagecontent"
+         >[<var:string value="pathToAttachment" />]</a>
+         <br />
+         Id:      <var:string value="bodyInfo.bodyId" /><br />
+         Desc:    <var:string value="bodyInfo.description" /><br />
+         Enc:     <var:string value="bodyInfo.encoding" /><br />
+         Par:     <var:string value="bodyInfo.parameterList" /><br />
+         Size:    <var:string value="bodyInfo.size" /><br />
+         Type:    <var:string value="bodyInfo.type" /><br />
+         Subtype: <var:string value="bodyInfo.subtype" /><br />
+         Path:    <var:string value="pathToAttachment" /><br />
+         PartPath: <var:string value="partPath" /><br />
     -->
-  </div>
-</div>
+    
+  </md-card>
+</container>

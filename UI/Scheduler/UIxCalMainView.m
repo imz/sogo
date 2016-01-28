@@ -30,7 +30,10 @@
 #import <NGObjWeb/WORequest.h>
 #import <NGObjWeb/WOResponse.h>
 
+#import <NGCards/iCalPerson.h>
+
 #import <SOGo/NSArray+Utilities.h>
+#import <SOGo/NSString+Utilities.h>
 #import <SOGo/SOGoPermissions.h>
 #import <SOGo/SOGoUser.h>
 #import <SOGo/SOGoUserDefaults.h>
@@ -42,6 +45,11 @@
 #import "UIxCalMainView.h"
 
 @implementation UIxCalMainView
+
+- (NSString *) modulePath
+{
+  return @"Calendar";
+}
 
 - (void) checkDefaultModulePreference
 {
@@ -259,12 +267,14 @@
 - (WOResponse *) saveSelectedListAction
 {
   WORequest *request;
+  NSDictionary *params;
   NSString *selectedList;
   
   [self _setupContext];
   request = [context request];
+  params = [[request contentAsString] objectFromJSONString];
 
-  selectedList = [request formValueForKey: @"list"];
+  selectedList = [params objectForKey: @"list"];
   [moduleSettings setObject: selectedList
                      forKey: @"SelectedList"];
   [us synchronize];
@@ -325,6 +335,181 @@
   view = [moduleSettings objectForKey: @"View"];
 
   return (view ? view : @"weekview");
+}
+
+@end
+
+/* Component Viewer, parent class of Appointment Viewer and Task Viewer */
+
+@interface UIxComponentViewTemplate : UIxComponent
+{
+  id item;
+}
+@end
+
+@implementation UIxComponentViewTemplate
+
+- (id) init
+{
+  if ((self = [super init]))
+    {
+      item = nil;
+    }
+
+  return self;
+}
+
+- (void) dealloc
+{
+  [item release];
+  [super dealloc];
+}
+
+- (void) setItem: (id) _item
+{
+  ASSIGN (item, _item);
+}
+
+- (id) item
+{
+  return item;
+}
+
+- (NSArray *) replyList
+{
+  return [NSArray arrayWithObjects:
+                    [NSNumber numberWithInt: iCalPersonPartStatAccepted],
+	   [NSNumber numberWithInt: iCalPersonPartStatDeclined],
+	   [NSNumber numberWithInt: iCalPersonPartStatNeedsAction],
+	   [NSNumber numberWithInt: iCalPersonPartStatTentative],
+	   [NSNumber numberWithInt: iCalPersonPartStatDelegated],
+		  nil];
+}
+
+- (NSString *) itemReplyText
+{
+  NSString *word;
+
+  word = [iCalPerson descriptionForParticipationStatus: [item intValue]];
+
+  return [self labelForKey: [NSString stringWithFormat: @"partStat_%@", word]];
+}
+
+@end
+
+/* Appointment Viewer */
+
+@interface UIxAppointmentViewTemplate : UIxComponentViewTemplate
+@end
+
+@implementation UIxAppointmentViewTemplate
+@end
+
+/* Task Viewer */
+
+@interface UIxTaskViewTemplate : UIxComponentViewTemplate
+@end
+
+@implementation UIxTaskViewTemplate
+@end
+
+/* Component Editor, parent class of Appointment Editor and Task Editor */
+
+@interface UIxComponentEditorTemplate : UIxComponent
+{
+  id item;
+}
+@end
+
+@implementation UIxComponentEditorTemplate
+
+- (id) init
+{
+  if ((self = [super init]))
+    {
+      item = nil;
+    }
+
+  return self;
+}
+
+- (void) dealloc
+{
+  [item release];
+  [super dealloc];
+}
+
+- (void) setItem: (id) _item
+{
+  ASSIGN (item, _item);
+}
+
+- (id) item
+{
+  return item;
+}
+
+- (NSArray *) repeatList
+{
+  static NSArray *repeatItems = nil;
+
+  if (!repeatItems)
+    {
+      repeatItems = [NSArray arrayWithObjects: @"never",
+                             @"daily",
+                             @"weekly",
+                             @"monthly",
+                             @"yearly",
+                             nil];
+      [repeatItems retain];
+    }
+
+  return repeatItems;
+}
+
+- (NSString *) itemRepeatText
+{
+  return [self labelForKey: [NSString stringWithFormat: @"repeat_%@", [item uppercaseString]]];
+}
+
+@end
+
+/* Appointment Editor */
+
+@interface UIxAppointmentEditorTemplate : UIxComponentEditorTemplate
+@end
+
+@implementation UIxAppointmentEditorTemplate
+@end
+
+/* Task Editor */
+
+@interface UIxTaskEditorTemplate : UIxComponentEditorTemplate
+@end
+
+@implementation UIxTaskEditorTemplate
+
+- (NSArray *) statusList
+{
+  static NSArray *statusItems = nil;
+
+  if (!statusItems)
+    {
+      statusItems = [NSArray arrayWithObjects: @"not-specified",
+                             @"needs-action",
+                             @"in-process",
+                             @"completed",
+                             @"cancelled",
+                             nil];
+      [statusItems retain];
+    }
+
+  return statusItems;
+}
+
+- (NSString *) itemStatusText
+{
+  return [self labelForKey: [NSString stringWithFormat: @"status_%@", [item uppercaseString]]];
 }
 
 @end

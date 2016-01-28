@@ -1,52 +1,47 @@
-<?xml version="1.0" standalone="yes"?>
-<!DOCTYPE var:component>
-<var:component xmlns="http://www.w3.org/1999/xhtml"
-  xmlns:var="http://www.skyrix.com/od/binding"
-  xmlns:const="http://www.skyrix.com/od/constant"
-  xmlns:uix="OGo:uix"
-  xmlns:label="OGo:label"
-  xmlns:rsrc="OGo:url"
-  className="UIxPageFrame"
-  title="title"
-  const:toolbar="none"
-  const:popup="YES">
-  <form id="userRightsForm" const:href="saveUserRights">
-    <input id="uid" type="hidden" name="uid" var:value="uid"/>
-    <div class="title">
-      <label><var:string label:value="Access rights to"/><br/>
-      <span id="folderName" class="value"><var:string value="folderName"/></span></label>
-      <label><var:string label:value="For user"/><br/>
-      <span class="value"><var:string value="userDisplayName"/></span></label>
-    </div>
-    <div class="calendarUserRights">
-      <var:if condition="userIsAnonymousUser" const:negate="YES"
-        ><label><input type="checkbox" class="checkBox"
-            const:name="ObjectCreator"
-            var:checked="userCanCreateObjects"/><var:string
-            label:value="This person can add cards to this addressbook."/></label>
-        <br/></var:if>
-      <label><input type="checkbox" class="checkBox"
-	  const:name="ObjectViewer"
-	  var:checked="userCanViewObjects"/><var:string
-	  label:value="This person can read the cards of this addressbook."/></label>
-      <br/>
-      <var:if condition="userIsAnonymousUser" const:negate="YES"
-        ><label><input type="checkbox" class="checkBox"
-            const:name="ObjectEditor"
-            var:checked="userCanEditObjects"/><var:string
-            label:value="This person can edit the cards of this addressbook."/></label>
-      <br/>
-        <label><input type="checkbox" class="checkBox"
-            const:name="ObjectEraser"
-            var:checked="userCanEraseObjects"/><var:string
-            label:value="This person can erase cards from this addressbook."/></label></var:if>
-    </div>
-    <div class="buttons">
-      <a href="#" const:name="updateButton" id="updateButton" 
-        class="button actionButton">
-        <span><var:string label:value="Update" /></span></a>
-      <a href="#" const:name="cancelButton" id="cancelButton" class="button">
-        <span><var:string label:value="Cancel" /></span></a>
-    </div>
-  </form>
-</var:component>
+<?xml version='1.0' standalone='yes'?>
+<container
+   xmlns="http://www.w3.org/1999/xhtml"
+   xmlns:var="http://www.skyrix.com/od/binding"
+   xmlns:const="http://www.skyrix.com/od/constant"
+   xmlns:rsrc="OGo:url"
+   xmlns:label="OGo:label"
+   xmlns:uix="OGo:uix">
+  <div layout="column">
+    
+    <md-checkbox name="canViewObjects"
+                 ng-model="acl.selectedUser.rights.canViewObjects"
+                 ng-change="acl.confirmChange(acl.selectedUser)"
+                 ng-true-value="1"
+                 ng-false-value="0">
+      <var:string label:value="This person can read the cards of this addressbook." />
+    </md-checkbox>
+    
+    <md-checkbox name="canCreateObjects"
+                 ng-model="acl.selectedUser.rights.canCreateObjects"
+                 ng-change="acl.confirmChange(acl.selectedUser)"
+                 ng-hide="acl.selectedUser.$isAnonymous()"
+                 ng-true-value="1"
+                 ng-false-value="0">
+      <var:string label:value="This person can add cards to this addressbook." />
+    </md-checkbox>
+    
+    <md-checkbox name="canEditObjects"
+                 ng-model="acl.selectedUser.rights.canEditObjects"
+                 ng-change="acl.confirmChange(acl.selectedUser)"
+                 ng-hide="acl.selectedUser.$isAnonymous()"
+                 ng-true-value="1"
+                 ng-false-value="0">
+      <var:string label:value="This person can edit the cards of this addressbook." />
+    </md-checkbox>
+    
+    <md-checkbox name="canEraseObjects"
+                 ng-model="acl.selectedUser.rights.canEraseObjects"
+                 ng-change="acl.confirmChange(acl.selectedUser)"
+                 ng-hide="acl.selectedUser.$isAnonymous()"
+                 ng-true-value="1"
+                 ng-false-value="0">
+              <var:string label:value="This person can erase cards from this addressbook." />
+    </md-checkbox>
+    
+  </div>
+</container>

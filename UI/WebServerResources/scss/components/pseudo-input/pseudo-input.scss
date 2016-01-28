@@ -1,0 +1,105 @@
+/// pseudo-input.scss -*- Mode: scss; indent-tabs-mode: nil; basic-offset: 2 -*-
+
+/// Component: pseudo-input
+/// This component mimics the presentation of form fields according to Google's
+/// Material Design specs (www.google.com/design/spec/components/text-fields.html)
+/// It's used in message headers but could --and should-- be reused
+/// The pseudo-input-container element serves as a... container for it's two children:
+/// -label and -input-field
+///
+/// Typical use:
+/// <div class="pseudo-input-container">
+///   <label class="pseudo-input-label">Some text</label>
+///   <p class="pseudo-input-field">Other input-like text</p>
+/// </div>
+///
+/// ----------------------------------------------------------------------------
+
+.pseudo-input-container {
+  display: block; // Should be (reset to ?) a plain block element
+  padding: 0 2px;
+}
+.sg-search-field-container {
+  margin-bottom: 12px;
+  color: white;
+  label {
+    color: inherit;
+  }
+  input {
+    color: inherit;
+    border: none;
+  }
+}
+
+.pseudo-input-label,
+.button-label {
+  display: inline-block;
+  margin-top: $mg;
+  color: $colorGray;
+  font-weight: $sg-font-regular;
+  font-size: sg-size(caption);
+  line-height: $sg-line-height-1;
+}
+
+.pseudo-input-label--no-margin,
+.button-label {
+  margin-top: 0;
+}
+// md overqualifies so we are
+//.md-input-focused label.pseudo-input-label,
+//.md-input-has-value label.pseudo-input-label {
+//  transform: translate3d(0, 4px, 0) scale(1);
+//  margin-top: $mg;
+//}
+
+.pseudo-input-field {
+  display: block;
+}
+
+.pseudo-input-field--underline {
+  @extend .pseudo-input-field;
+  border-bottom: 1px solid $colorGrayLighter;
+  &:focus,
+  &:active,
+  &:hover {
+    margin-bottom: ($line - 1);
+    border-bottom: 2px solid sg-color($sogoBlue, 500);
+  }
+}
+
+// The specs dimensions are too large to fit with angular-material
+// Here's a modifier
+.pseudo-input-container--compact {
+  .pseudo-input-label {
+    margin-top: 0;
+  }
+}
+
+input #inner-editor {
+  color: $colorGrayLight;
+  line-height: inherit;
+}
+
+md-input-container .bgroup {
+  display: block;
+}
+.bgroup b {
+  left-margin: -1.25em;
+}
+
+.PseudoField input {
+  flex: 1;
+  order: 2;
+  display: block;
+
+  background: none;
+  padding-top: $input-padding-top;
+  padding-bottom: 0;
+  border-width: 0 0 $input-border-width-default 0;
+  line-height: $input-line-height;
+  -ms-flex-preferred-size: $input-line-height; //IE fix
+
+  &:focus {
+    outline: none;
+  }
+}

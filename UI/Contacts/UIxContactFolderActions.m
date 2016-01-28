@@ -40,6 +40,7 @@
 #import <Contacts/SOGoContactObject.h>
 #import <Contacts/SOGoContactFolder.h>
 #import <Contacts/SOGoContactFolders.h>
+#import <Contacts/SOGoContactGCSFolder.h>
 #import <Contacts/NSDictionary+LDIF.h>
 
 #import <SoObjects/Contacts/NGVCard+SOGo.h>
@@ -49,6 +50,8 @@
 #import <SoObjects/Contacts/SOGoContactGCSList.h>
 #import <SoObjects/Contacts/SOGoContactGCSFolder.h>
 #import <GDLContentStore/GCSFolder.h>
+
+#import <SOGo/NSString+Utilities.h>
 
 #import "UIxContactFolderActions.h"
 
@@ -113,15 +116,11 @@
 
   request = [context request];
   rc = [NSMutableDictionary dictionary];
-  data = [request formValueForKey: @"contactsFile"];
-  if ([data respondsToSelector: @selector(isEqualToString:)])
-    fileContent = (NSString *) data;
-  else
-    {
-      fileContent = [[NSString alloc] initWithData: (NSData *) data 
-                                          encoding: NSUTF8StringEncoding];
-      [fileContent autorelease];
-    }
+  data = [[[[[request httpRequest] body] parts] lastObject] body];
+
+  fileContent = [[NSString alloc] initWithData: (NSData *) data 
+                                      encoding: NSUTF8StringEncoding];
+  [fileContent autorelease];
 
   if (fileContent && [fileContent length])
     {
@@ -133,12 +132,10 @@
         imported = 0;
     }
 
-  [rc setObject: [NSNumber numberWithInt: imported]
-         forKey: @"imported"];
+  [rc setObject: [NSNumber numberWithInt: imported]  forKey: @"imported"];
 
   response = [self responseWithStatus: 200];
-  [response setHeader: @"text/html" 
-               forKey: @"content-type"];
+  [response setHeader: @"text/html"  forKey: @"content-type"];
   [(WOResponse*)response appendContentString: [rc jsonRepresentation]];
 
   return response;
@@ -280,6 +277,7 @@
       uid = [folder globallyUniqueObjectId];
 
       [card setUid: uid];
+      // TODO: shall we add .vcf as in [SOGoContactGCSEntry copyToFolder:]
       contact = [SOGoContactGCSEntry objectWithName: uid
                                         inContainer: folder];
       [contact setIsNew: YES];

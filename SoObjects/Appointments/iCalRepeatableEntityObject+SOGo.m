@@ -1,6 +1,6 @@
 /* iCalRepeatableEntityObject+SOGo.m - this file is part of SOGo
  *
- * Copyright (C) 2007-2014 Inverse inc.
+ * Copyright (C) 2007-2015 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,8 +25,10 @@
 #import <Foundation/NSTimeZone.h>
 #import <Foundation/NSValue.h>
 
+#import <NGCards/iCalByDayMask.h>
 #import <NGCards/iCalDateTime.h>
 #import <NGCards/iCalEvent.h>
+#import <NGCards/iCalPerson.h>
 #import <NGCards/iCalRecurrenceRule.h>
 #import <NGCards/iCalRecurrenceCalculator.h>
 #import <NGCards/iCalTimeZone.h>
@@ -34,6 +36,12 @@
 #import <NGCards/NSDictionary+NGCards.h>
 
 #import <NGExtensions/NGCalendarDateRange.h>
+
+#import <SoObjects/SOGo/SOGoUser.h>
+#import <SoObjects/SOGo/SOGoUserDefaults.h>
+#import <SoObjects/SOGo/WOContext+SOGo.h>
+
+#import <SOGo/NSCalendarDate+SOGo.h>
 
 #import "iCalRepeatableEntityObject+SOGo.h"
 #import "iCalCalendar+SOGo.h"
@@ -70,6 +78,165 @@
   return ma;
 }
 
+/**
+ * @see [iCalEntityObject+SOGo attributes]
+ * @see [iCalEvent+SOGo attributes]
+ * @see [UIxAppointmentEditor viewAction]
+ */
+- (NSDictionary *) attributesInContext: (WOContext *) context
+{
+  NSArray *allEvents, *rules;
+  NSCalendarDate *untilDate;
+  NSMutableDictionary *data, *repeat;
+  NSString *frequency;
+  NSTimeZone *timeZone;
+  SOGoUserDefaults *ud;
+  iCalEvent *masterComponent;
+  iCalRecurrenceRule *rule;
+
+  data = [NSMutableDictionary dictionaryWithDictionary: [super attributesInContext: context]];
+
+  if ([self recurrenceId])
+    {
+      // If the component is an occurrence of a recurrent component,
+      // consider the recurrence rules of the master component.
+      allEvents = [[self parent] events];
+      masterComponent = [allEvents objectAtIndex: 0];
+      rules = [masterComponent recurrenceRules];
+    }
+  else
+    {
+      rules = [self recurrenceRules];
+    }
+
+  if ([rules count] > 0)
+    {
+      rule = [rules objectAtIndex: 0];
+      frequency = [rule frequencyForValue: [rule frequency]];
+
+      repeat = [NSMutableDictionary dictionary];
+      [repeat setObject: [frequency lowercaseString] forKey: @"frequency"];
+      [repeat setObject: [NSNumber numberWithInt: [rule repeatInterval]] forKey: @"interval"];
+      if ([rule repeatCount])
+        [repeat setObject: [NSNumber numberWithInt: [rule repeatCount]] forKey: @"count"];
+      if ((untilDate = [rule untilDate]))
+        {
+          ud = [[context activeUser] userDefaults];
+          timeZone = [ud timeZone];
+          [untilDate setTimeZone: timeZone];
+          [repeat setObject: [untilDate iso8601DateString] forKey: @"until"];
+        }
+      if ([[rule byDay] length])
+        [repeat setObject: [[rule byDayMask] asRuleArray] forKey: @"days"];
+      if ([[rule byMonthDay] count])
+        [repeat setObject: [rule byMonthDay] forKey: @"monthdays"];
+      if ([[rule byMonth] count])
+        [repeat setObject: [rule byMonth] forKey: @"months"];
+      [data setObject: repeat forKey: @"repeat"];
+    }
+
+  return data;
+}
+
+/**
+ * @see [iCalEntityObject+SOGo setAttributes:inContext:]
+ * @see [UIxAppointmentEditor saveAction]
+ */
+- (void) setAttributes: (NSDictionary *) data
+             inContext: (WOContext *) context
+{
+  iCalRecurrenceRule *rule;
+  iCalRecurrenceFrequency frequency;
+  NSCalendarDate *date;
+  SOGoUserDefaults *ud;
+  id repeat, o;
+
+  [super setAttributes: data inContext: context];
+
+  if ([self recurrenceId])
+    // Occurrence of a recurrent object can't have a recurrence rule
+    return;
+
+  repeat = [data objectForKey: @"repeat"];
+  if ([repeat isKindOfClass: [NSDictionary class]])
+    {
+      rule = [iCalRecurrenceRule new];
+      [rule setInterval: @"1"];
+
+      frequency = (int)NSNotFound;
+      o = [repeat objectForKey: @"frequency"];
+      if ([o isKindOfClass: [NSString class]])
+        {
+          frequency = [rule valueForFrequency: o];
+          if ((NSUInteger) frequency == NSNotFound)
+            {
+              if ([o caseInsensitiveCompare: @"BI-WEEKLY"] == NSOrderedSame)
+                {
+                  frequency = iCalRecurrenceFrequenceWeekly;
+                  [rule setInterval: @"2"];
+                }
+              else if ([o caseInsensitiveCompare: @"EVERY WEEKDAY"] == NSOrderedSame)
+                {
+                  frequency = iCalRecurrenceFrequenceDaily;
+                  [rule setByDayMask: [iCalByDayMask byDayMaskWithWeekDays]];
+                }
+	    }
+          else
+            {
+              o = [repeat objectForKey: @"interval"];
+              if ([o isKindOfClass: [NSNumber class]])
+                [rule setInterval: [NSString stringWithFormat: @"%i", [o intValue]]];
+
+              o = [repeat objectForKey: @"count"];
+              if ([o isKindOfClass: [NSNumber class]])
+                [rule setRepeatCount: [o intValue]];
+
+              o = [repeat objectForKey: @"until"];
+              if ([o isKindOfClass: [NSString class]])
+                {
+                  date = [NSCalendarDate dateWithString: o
+                                         calendarFormat: @"%Y-%m-%d"];
+                  if (date)
+                    {
+                      // Adjust timezone
+                      ud = [[context activeUser] userDefaults];
+                      date = [NSCalendarDate dateWithYear: [date yearOfCommonEra]
+                                                    month: [date monthOfYear]
+                                                      day: [date dayOfMonth]
+                                                     hour: 0 minute: 0 second: 0
+                                                 timeZone: [ud timeZone]];
+                      [rule setUntilDate: date];
+                    }
+                }
+
+              o = [repeat objectForKey: @"days"];
+              if ([o isKindOfClass: [NSArray class]])
+                [rule setByDayMask: [iCalByDayMask byDayMaskWithDaysAndOccurrences: o]];
+
+              o = [repeat objectForKey: @"monthdays"];
+              if ([o isKindOfClass: [NSArray class]])
+                [rule setValues: o atIndex: 0 forKey: @"bymonthday"];
+
+              o = [repeat objectForKey: @"months"];
+              if ([o isKindOfClass: [NSArray class]])
+                [rule setValues: o atIndex: 0 forKey: @"bymonth"];
+            }
+
+          if ((NSUInteger) frequency != NSNotFound)
+            {
+              [rule setFrequency: frequency];
+              [self setRecurrenceRules: [NSArray arrayWithObject: rule]];
+            }
+
+	  [rule release];
+        }
+    }
+  else if ([self hasRecurrenceRules])
+    {
+      [self removeAllRecurrenceRules];
+    }
+}
+
 - (NSString *) cycleInfo
 {
   NSArray *rules;
@@ -84,7 +251,7 @@
       rules = [self _indexedRules: [self recurrenceRules]];
       if (rules)
 	[cycleInfo setObject: rules forKey: @"rules"];
-      
+
       rules = [self _indexedRules: [self exceptionRules]];
       if (rules)
 	[cycleInfo setObject: rules forKey: @"exRules"];
@@ -123,7 +290,7 @@
       firstRange = [NGCalendarDateRange calendarDateRangeWithStartDate: start
                                                                endDate: end];
     }
-  
+
   return firstRange;
 }
 

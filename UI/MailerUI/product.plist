@@ -77,7 +77,7 @@
         };
       };
       methods = {
-        uids = {
+        view = {
           protectedBy = "<public>";
           actionClass = "UIxMailListActions";
           actionName  = "getUIDs";
@@ -112,7 +112,7 @@
           actionClass = "UIxMailFolderActions";
           actionName = "createFolder";
         };
-        renameFolder = {
+        save = {
           protectedBy = "View";
           actionClass = "UIxMailFolderActions";
           actionName = "renameFolder";
@@ -182,14 +182,14 @@
           actionClass = "UIxMailFolderActions";
           actionName = "markMessagesAsNotJunk";
         };
-        userRights = {
+        UIxMailUserRightsEditor = {
           protectedBy = "ReadAcls";
           pageName    = "UIxMailUserRightsEditor";
         };
-        unseenCount = {
-          protectedBy = "View";
-          actionClass = "UIxMailFolderActions";
-          actionName = "unseenCount";
+        userRights = {
+          protectedBy = "ReadAcls";
+          pageName    = "UIxMailUserRightsEditor";
+          actionName  = "userRights";
         };
         saveUserRights = {
           protectedBy = "Change Permissions";
@@ -237,6 +237,7 @@
         view = {
           protectedBy = "View";
           pageName    = "UIxMailView";
+          actionName = "default";
         };
         sendMDN = {
           protectedBy = "View";
@@ -351,6 +352,28 @@
           protectedBy = "View";
           pageName    = "UIxMailSearch";
         };
+        unseenCount = {
+          protectedBy = "View";
+          actionClass = "UIxMailMainFrame";
+          actionName = "unseenCount";
+        };
+        mailAccounts = {
+          protectedBy = "View";
+          actionClass = "UIxMailMainFrame";
+          actionName = "mailAccounts";
+        };
+        // viewerTemplate = {
+        //   protectedBy = "View";
+        //   pageName    = "UIxMailViewTemplate";
+        // };
+        UIxMailPopupView = {
+          protectedBy = "View";
+          pageName    = "UIxMailPopupView";
+        };
+        UIxMailEditor = {
+          protectedBy = "View";
+          pageName    = "UIxMailEditor";
+        };
       };
     };
 
@@ -367,7 +390,7 @@
           actionClass = "UIxMailAccountActions";
           actionName  = "compose";
         };
-        mailboxes = {
+        view = {
           protectedBy = "View";
           actionClass = "UIxMailAccountActions";
           actionName = "listMailboxes";
@@ -402,13 +425,10 @@
         };
       };
       methods = {
-        view = {
-          protectedBy = "View";
-          pageName    = "UIxMailEditor";
-        };
         edit = {
           protectedBy = "View";
           pageName    = "UIxMailEditor";
+          actionName = "edit";
         };
         save = {
           protectedBy = "View";

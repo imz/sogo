@@ -51,11 +51,14 @@
     SOGoTimeFormat = "%H:%M";
     SOGoFirstDayOfWeek = 0;
     SOGoFirstWeekOfYear = "January1";
+    SOGoShortDateFormat = "%d-%b-%y";
+    SOGoLongDateFormat = "%A, %B %d, %Y";
 
     SOGoIMAPServer = "localhost";
     SOGoMailDomain = "localhost";
     SOGoSelectedAddressBook = "collected";
     SOGoRefreshViewCheck = "manually";
+    SOGoAlternateAvatar = "none";
     SOGoMailMessageForwarding = "inline";
     SOGoMailReplyPlacement = "below";
     SOGoMailSignaturePlacement = "below";
@@ -68,6 +71,8 @@
     SOGoDraftsFolderName = "Drafts";
     SOGoTrashFolderName = "Trash";
     SOGoJunkFolderName = "Junk";
+    SOGoMailComposeMessageType = "html";
+    SOGoMailDisplayRemoteInlineImages = "never";
 
     SOGoMailAutoSave = "5";
 
@@ -75,8 +80,10 @@
     SOGoCalendarEventsDefaultClassification = "PUBLIC";
     SOGoCalendarTasksDefaultClassification = "PUBLIC";
     SOGoCalendarDefaultReminder = "NONE";
-
+    SOGoDefaultCalendar = "selected";
     SOGoFreeBusyDefaultInterval = ( 7, 7 );
+
+    SOGoSelectedAddressBook = "personal";
 
     SOGoSearchMinimumWordLength = 2;
 
@@ -88,7 +95,32 @@
         $label5 = ("Later", "#993399");
     };
 
-    SOGoCalendarCategoriesColors = { "Customer" = "#F0F0F0"; "Calls" = "#F0F0F0"; "Favorites" = "#F0F0F0"; "Meeting" = "#F0F0F0"; "Ideas" = "#F0F0F0"; "Miscellaneous" = "#F0F0F0"; "Birthday" = "#F0F0F0"; "Anniversary" = "#F0F0F0"; "Vacation" = "#F0F0F0"; "Travel" = "#F0F0F0"; "Projects" = "#F0F0F0"; "Suppliers" = "#F0F0F0"; "Gifts" = "#F0F0F0"; "Clients" = "#F0F0F0"; "Issues" = "#F0F0F0"; "Business" = "#F0F0F0"; "Holidays" = "#F0F0F0"; "Personal" = "#F0F0F0"; "Status" = "#F0F0F0"; "Competition" = "#F0F0F0"; "Follow up" = "#F0F0F0"; "Public Holiday" = "#F0F0F0"; };
+    SOGoCalendarCategories = ("Customer", "Calls", "Favorites", "Meeting", "Ideas", "Miscellaneous", "Birthday", "Anniversary", "Vacation", "Travel", "Projects", "Suppliers", "Gifts", "Clients", "Issues", "Business", "Holidays", "Personal", "Status", "Competition", "Follow up", "Public Holiday");
+
+    SOGoCalendarCategoriesColors = {
+      "Customer" = "#F0F0F0";
+      "Calls" = "#F0F0F0";
+      "Favorites" = "#F0F0F0";
+      "Meeting" = "#F0F0F0";
+      "Ideas" = "#F0F0F0";
+      "Miscellaneous" = "#F0F0F0";
+      "Birthday" = "#F0F0F0";
+      "Anniversary" = "#F0F0F0";
+      "Vacation" = "#F0F0F0";
+      "Travel" = "#F0F0F0";
+      "Projects" = "#F0F0F0";
+      "Suppliers" = "#F0F0F0";
+      "Gifts" = "#F0F0F0";
+      "Clients" = "#F0F0F0";
+      "Issues" = "#F0F0F0";
+      "Business" = "#F0F0F0";
+      "Holidays" = "#F0F0F0";
+      "Personal" = "#F0F0F0";
+      "Status" = "#F0F0F0";
+      "Competition" = "#F0F0F0";
+      "Follow up" = "#F0F0F0";
+      "Public Holiday" = "#F0F0F0";
+    };
 
     SOGoSubscriptionFolderFormat = "%{FolderName} (%{UserName} <%{Email}>)";
 }

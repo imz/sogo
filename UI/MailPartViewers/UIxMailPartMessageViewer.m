@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2007-2009 Inverse inc.
+  Copyright (C) 2007-2015 Inverse inc.
   Copyright (C) 2004-2005 SKYRIX Software AG
 
   This file is part of SOGo.
@@ -25,11 +25,15 @@
 
 #import <NGExtensions/NSString+Encoding.h>
 
+#import <NGObjWeb/WOResponse.h>
+
 #import <SoObjects/Mailer/NSData+Mail.h>
 #import <SoObjects/Mailer/NSString+Mail.h>
 
 #import <UI/MailerUI/WOContext+UIxMailer.h>
 #import "UIxMailRenderingContext.h"
+
+#import <Foundation/NSDictionary.h>
 
 #import "UIxMailPartViewer.h"
 
@@ -203,6 +207,50 @@
 {
   // TODO: make some web-link, eg open a new compose panel?
   return [@"mailto:" stringByAppendingString:[_address baseEMail]];
+}
+
+- (id) renderedPart
+{
+  id info, viewer;
+  NSArray *parts;
+  NSMutableArray *renderedParts;
+  NSUInteger i, max;
+
+  parts = [[self contentInfo] objectForKey: @"parts"];
+  renderedParts = [NSMutableArray array];
+  max = [parts count];
+
+  // Might get a multipart/*
+  if (max)
+    {
+      for (i = 0; i < max; i++)
+        {
+          info = [parts objectAtIndex: i];
+          viewer = [[[self context] mailRenderingContext] viewerForBodyInfo: info];
+          [viewer setBodyInfo: info];
+          [viewer setPartPath: [[self contentPartPath] arrayByAddingObject: [NSString stringWithFormat: @"%d", (int)i+1]]];
+          [renderedParts addObject: [viewer renderedPart]];
+        }
+    }
+  else
+    {
+      info = [self contentInfo];
+      viewer = [[[self context] mailRenderingContext] viewerForBodyInfo: info];
+      [viewer setBodyInfo: info];
+      [viewer setPartPath: [self contentPartPath]];
+      [renderedParts addObject: [viewer renderedPart]];
+    }
+
+  // We inject the output of our UIxMailPartMessageViewer template
+  // in order to pretty-format the parts following it.
+  info = [NSDictionary dictionaryWithObjectsAndKeys: @"text/plain", @"contentType", @"UIxMailPartTextViewer", @"type",
+                       [[self generateResponse] contentAsString], @"content", nil];
+  [renderedParts insertObject: info  atIndex: 0];
+
+  return [NSDictionary dictionaryWithObjectsAndKeys:
+                         [self className], @"type",
+                       renderedParts, @"content",
+                       nil];
 }
 
 @end /* UIxMailPartMessageViewer */

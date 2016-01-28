@@ -1,35 +1,64 @@
 <?xml version="1.0" standalone="yes"?>
-<!DOCTYPE var:component>
-<var:component xmlns="http://www.w3.org/1999/xhtml"
-  xmlns:var="http://www.skyrix.com/od/binding"
-  xmlns:const="http://www.skyrix.com/od/constant"
-  xmlns:uix="OGo:uix"
-  xmlns:label="OGo:label"
-  xmlns:rsrc="OGo:url"
-  className="UIxPageFrame"
-  title="title"
-  const:toolbar="none"
-  const:popup="YES">
-
-  <form id="delegationForm" const:href="saveDelegation">
-    <div class="delegation">
-      <div class="delegateSelector" id="delegates">
-        <div id="delegateSelectorButtons">
-          <a href="#" id="addDelegate" class="smallToolbarButton"><span>
-              <img rsrc:src="add-contact.gif" label:title="Add..." /></span></a>
-          <a href="#" id="deleteDelegate" class="smallToolbarButton"><span>
-              <img rsrc:src="remove-contact.gif" label:title="Remove" /></span></a>
+<!DOCTYPE container>
+<container
+    xmlns="http://www.w3.org/1999/xhtml"
+    xmlns:var="http://www.skyrix.com/od/binding"
+    xmlns:const="http://www.skyrix.com/od/constant"
+    xmlns:label="OGo:label"
+    >
+  <md-dialog flex="30" flex-sm="80" flex-xs="100">
+    <md-toolbar>
+      <div class="md-toolbar-tools">
+        <md-icon class="material-icons sg-icon-toolbar-bg">folder_shared</md-icon>
+        <div class="pseudo-input-container md-flex">
+          <label class="pseudo-input-label"><var:string label:value="Delegation"/></label>
+          <div class="sg-md-title">{{delegate.account.name}}</div>
         </div>
-	<ul id="delegateList">
-	  <var:foreach list="delegates" item="currentDelegate"
-            ><li var:id="currentDelegate" class="normal-user">
-              <span class="userFullName"
-                ><var:string value="currentDelegateDisplayName"
-                  /></span
-                ></li>
-          </var:foreach>
-	</ul>
+        <md-button class="md-icon-button" ng-click="delegate.closeModal()">
+          <md-icon aria-label="Close dialog">close</md-icon>
+        </md-button>
       </div>
-    </div>
-  </form>
-</var:component>
+    </md-toolbar>
+
+    <md-dialog-content class="md-padding">
+      <div>
+        <md-autocomplete
+            class="md-flex"
+            md-input-name="addUser"
+            md-search-text="delegate.searchText"
+            md-selected-item="delegate.userToAdd"
+            md-selected-item-change="delegate.addUser(user)"
+            md-items="user in delegate.userFilter(delegate.searchText)"
+            md-item-text="user.empty"
+            md-min-length="3"
+            md-no-cache="true"
+            label:md-floating-label="Add User">
+          <span class="md-contact-suggestion" layout="row" layout-align="space-between center">
+            <span class="md-contact-name"
+                  md-highlight-text="delegate.searchText"
+                  md-highlight-flags="^i">{{user.cn}}</span> <span class="md-contact-email"
+                  md-highlight-text="delegate.searchText"
+                  md-highlight-flags="^i">{{user.c_email}}</span>
+          </span>
+        </md-autocomplete>
+      </div>
+
+      <md-list>
+        <md-list-item ng-repeat="user in delegate.users | orderBy:['userClass', 'displayName']">
+          <div layout="row" layout-align="start center" class="md-flex card-picture">
+            <sg-avatar-image class="md-avatar"
+                             sg-email="user.c_email"
+                             size="40"><!-- avatar --></sg-avatar-image>
+            <div class="sg-tile-content">
+              <div class="sg-md-subhead"><div>{{user.cn}}</div></div>
+              <div class="sg-md-body"><div>{{user.c_email}}</div></div>
+            </div>
+            <md-button class="sg-icon-button" ng-click="delegate.removeUser(user)">
+              <md-icon>delete</md-icon>
+            </md-button>
+          </div>
+        </md-list-item>
+      </md-list>
+    </md-dialog-content>
+  </md-dialog>
+</container>

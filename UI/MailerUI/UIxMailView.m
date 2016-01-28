@@ -1,6 +1,5 @@
 /*
-  Copyright (C) 2004-2005 SKYRIX Software AG
-  Copyright (C) 2005-2013 Inverse inc.
+  Copyright (C) 2005-2015 Inverse inc.
 
   This file is part of SOGo.
 
@@ -15,13 +14,15 @@
   License for more details.
 
   You should have received a copy of the GNU Lesser General Public
-  License along with OGo; see the file COPYING.  If not, write to the
+  License along with SOGo; see the file COPYING.  If not, write to the
   Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
   02111-1307, USA.
 */
 
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSException.h>
+#import <Foundation/NSValue.h>
+
 #import <NGObjWeb/NSException+HTTP.h>
 #import <NGObjWeb/WORequest.h>
 #import <NGObjWeb/WOResponse.h>
@@ -41,6 +42,7 @@
 #import <NGImap4/NGImap4Envelope.h>
 #import <NGImap4/NGImap4EnvelopeAddress.h>
 
+#import <SOGo/NSDictionary+Utilities.h>
 #import <SOGo/NSString+Utilities.h>
 #import <SOGo/SOGoBuild.h>
 #import <SOGo/SOGoMailer.h>
@@ -49,6 +51,8 @@
 #import <SOGo/SOGoUserManager.h>
 #import <SOGoUI/UIxComponent.h>
 #import <Mailer/SOGoMailObject.h>
+#import <Mailer/SOGoDraftObject.h>
+#import <Mailer/SOGoDraftsFolder.h>
 #import <Mailer/SOGoMailAccount.h>
 #import <Mailer/SOGoMailFolder.h>
 #import <MailPartViewers/UIxMailRenderingContext.h> // cyclic
@@ -56,15 +60,20 @@
 #import <MailPartViewers/UIxMailPartViewer.h>
 
 #import "WOContext+UIxMailer.h"
+#import "UIxMailFormatter.h"
 
 @interface UIxMailView : UIxComponent
 {
   id currentAddress;
-  NSString *shouldAskReceipt;
+  NSNumber *shouldAskReceipt;
   NSString *matchingIdentityEMail;
   NSDictionary *attachment;
   NSArray *attachmentAttrs;
 }
+
+- (BOOL) mailIsDraft;
+- (NSNumber *) shouldAskReceipt;
+- (NSString *) formattedDate;
 
 @end
 
@@ -184,6 +193,15 @@ static NSString *mailETag = nil;
   return [UIxMailSizeFormatter sharedMailSizeFormatter];
 }
 
+- (NSString *) formattedDate
+{
+  NSFormatter *formatter;
+
+  formatter = [[self context] mailDateFormatter];
+
+  return [formatter stringForObjectValue: [[self clientObject] date]];
+}
+
 - (NSString *) attachmentsText
 {
   if ([[self attachmentAttrs] count] > 1)
@@ -198,19 +216,34 @@ static NSString *mailETag = nil;
 {
   // TODO: I would prefer to flatten the body structure prior rendering,
   //       using some delegate to decide which parts to select for alternative.
-  id info;
+  id info, viewer;
   
   info = [[self clientObject] bodyStructure];
 
-  return [[context mailRenderingContext] viewerForBodyInfo:info];
+  viewer = [[context mailRenderingContext] viewerForBodyInfo: info];
+  [viewer setBodyInfo: info];
+
+  return viewer;
 }
 
 /* actions */
 
-- (id) defaultAction
+- (id <WOActionResults>) defaultAction
 {
   WOResponse *response;
   NSString *s;
+  NSMutableDictionary *data;
+  NSArray *addresses;
+  SOGoMailObject *co;
+  UIxEnvelopeAddressFormatter *addressFormatter;
+  UIxMailRenderingContext *mctx;
+
+  co = [self clientObject];
+  addressFormatter = [context mailEnvelopeAddressFormatter];
+
+  mctx = [[UIxMailRenderingContext alloc] initWithViewer: self context: context];
+  [context pushMailRenderingContext: mctx];
+  [mctx release];
 
   /* check etag to see whether we really must rerender */
   /*
@@ -218,32 +251,71 @@ static NSString *mailETag = nil;
     those are the IMAP4 flags (and annotations, which we do not use).
     Since we don't render the flags, it should be OK, if this changes
     we must embed the flagging into the etag.
+
+    2015-12-09: We disable caching for now. Let's do this right soon
+    by taking into account IMAP flags and the Accepted/Declined/etc.
+    state of an even with an IMIP invitation. We should perhaps even
+    store the state as an IMAP flag.
   */
   s = [[context request] headerForKey: @"if-none-match"];
-  if (s)
+  //if (s)
+  if (0)
     {
       if ([s rangeOfString:mailETag].length > 0) /* not perfectly correct */
         { 
           /* client already has the proper entity */
           // [self logWithFormat:@"MATCH: %@ (tag %@)", s, mailETag];
 	  
-          if (![[self clientObject] doesMailExist]) {
-            return [NSException exceptionWithHTTPStatus:404 /* Not Found */
-                                                 reason:@"message got deleted"];
-          }
+          if (![co doesMailExist])
+            {
+              data = [NSDictionary dictionaryWithObject: [self labelForKey: @"Message got deleted"]
+                                                 forKey: @"message"];
+              return [self responseWithStatus: 404 /* Not Found */
+                        andJSONRepresentation: data];
+            }
           
-          response = [context response];
-          [response setStatus: 304 /* Not Modified */];
+          response = [self responseWithStatus: 304];
 
           return response;
         }
     }
   
   if (![self message]) // TODO: redirect to proper error
-    return [NSException exceptionWithHTTPStatus:404 /* Not Found */
-			reason:@"did not find specified message!"];
+    {
+      data = [NSDictionary dictionaryWithObject: [self labelForKey: @"Did not find specified message"]
+                                         forKey: @"message"];
+      return [self responseWithStatus: 404 /* Not Found */
+                            andJSONRepresentation: data];
+    }
 
-  return self;
+  data = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                       [self formattedDate], @"date",
+                       [self attachmentAttrs], @"attachmentAttrs",
+                       [self shouldAskReceipt], @"shouldAskReceipt",
+                       [NSNumber numberWithBool: [self mailIsDraft]], @"isDraft",
+                       [[self contentViewerComponent] renderedPart], @"parts",
+                       nil];
+  if ([self messageSubject])
+    [data setObject: [self messageSubject] forKey: @"subject"];
+  if ((addresses = [addressFormatter dictionariesForArray: [co fromEnvelopeAddresses]]))
+    [data setObject: addresses forKey: @"from"];
+  if ((addresses = [addressFormatter dictionariesForArray: [co toEnvelopeAddresses]]))
+    [data setObject: addresses forKey: @"to"];
+  if ((addresses = [addressFormatter dictionariesForArray: [co ccEnvelopeAddresses]]))
+    [data setObject: addresses forKey: @"cc"];
+  if ((addresses = [addressFormatter dictionariesForArray: [co bccEnvelopeAddresses]]))
+    [data setObject: addresses forKey: @"bcc"];
+  if ((addresses = [addressFormatter dictionariesForArray: [co replyToEnvelopeAddresses]]))
+    [data setObject: addresses forKey: @"reply-to"];
+
+  response = [self responseWithStatus: 200
+                andJSONRepresentation: data];
+
+  [response setHeader: mailETag forKey: @"etag"];
+
+  [[context popMailRenderingContext] reset];
+
+  return response;
 }
 
 /* MDN */
@@ -550,7 +622,7 @@ static NSString *mailETag = nil;
     [self _flagMessageWithMDNSent];
 }
 
-- (NSString *) shouldAskReceipt
+- (NSNumber *) shouldAskReceipt
 {
   NGMailAddress *mailAddress;
   NSDictionary *mailHeaders;
@@ -558,7 +630,7 @@ static NSString *mailETag = nil;
 
   if (!shouldAskReceipt)
     {
-      shouldAskReceipt = @"false";
+      shouldAskReceipt = [NSNumber numberWithBool: NO];
       mailHeaders = [[self clientObject] mailHeaders];
       email = [mailHeaders objectForKey: @"disposition-notification-to"];
       if (!email)
@@ -585,7 +657,7 @@ static NSString *mailETag = nil;
               action = [self _receiptAction];
               if ([action isEqualToString: @"ask"])
                 {
-                  shouldAskReceipt = @"true";
+                  shouldAskReceipt = [NSNumber numberWithBool: YES];
                   [self _flagMessageWithMDNSent];
                 }
               else if ([action isEqualToString: @"send"])
@@ -600,7 +672,7 @@ static NSString *mailETag = nil;
 - (WOResponse *) sendMDNAction
 {
   WOResponse *response;
-  NSDictionary *mailHeaders;
+  NSDictionary *mailHeaders, *jsonResponse;
   NSString *email, *action;
 
   mailHeaders = [[self clientObject] mailHeaders];
@@ -617,9 +689,11 @@ static NSString *mailETag = nil;
   if (email)
     {
       if ([self _userHasEMail: email])
-        response = [self responseWithStatus: 403
-                                  andString: (@"One cannot send an MDN to"
-                                              @" oneself.")];
+        {
+          jsonResponse = [NSDictionary dictionaryWithObject: [self labelForKey: @"One cannot send an MDN to oneself."]
+                                                     forKey: @"message"];
+          response = [self responseWithStatus: 403 andJSONRepresentation: jsonResponse];
+        }
       else
         {
           action = [self _receiptAction];
@@ -629,16 +703,20 @@ static NSString *mailETag = nil;
               response = [self responseWithStatus: 204];
             }
           else
-            response = [self responseWithStatus: 403
-                                      andString: (@"No notification header found in"
-                                                  @" original message.")];
+            {
+              jsonResponse = [NSDictionary dictionaryWithObject: [self labelForKey: @"No notification header found in original message."]
+                                                         forKey: @"message"];
+              response = [self responseWithStatus: 403 andJSONRepresentation: jsonResponse];
+            }
         }
     }
   else
-    response = [self responseWithStatus: 403
-                              andString: (@"No notification header found in"
-                                          @" original message.")];
-  
+    {
+      jsonResponse = [NSDictionary dictionaryWithObject: [self labelForKey: @"No notification header found in original message."]
+                                                 forKey: @"message"];
+      response = [self responseWithStatus: 403 andJSONRepresentation: jsonResponse];
+    }
+
   return response;
 }
 

@@ -1,6 +1,6 @@
 /* UIxMailActions.m - this file is part of SOGo
  *
- * Copyright (C) 2007-2013 Inverse inc.
+ * Copyright (C) 2007-2014 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #import <Foundation/NSArray.h>
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSString.h>
+#import <Foundation/NSValue.h>
 
 #import <NGObjWeb/WOContext.h>
 #import <NGObjWeb/WOContext+SoObjects.h>
@@ -32,6 +33,7 @@
 #import <SoObjects/Mailer/SOGoDraftsFolder.h>
 #import <SoObjects/Mailer/SOGoMailAccount.h>
 #import <SoObjects/Mailer/SOGoMailObject.h>
+#import <SoObjects/SOGo/NSDictionary+Utilities.h>
 #import <SoObjects/SOGo/NSString+Utilities.h>
 #import <SoObjects/SOGo/SOGoUser.h>
 #import <SoObjects/SOGo/SOGoUserSettings.h>
@@ -47,20 +49,29 @@
 {
   SOGoMailAccount *account;
   SOGoMailObject *co;
-  SOGoDraftsFolder *folder;
+  SOGoDraftsFolder *drafts;
   SOGoDraftObject *newMail;
-  NSString *newLocation;
+  NSString *accountName, *mailboxName, *messageName;
+  NSDictionary *data;
 
   co = [self clientObject];
   account = [co mailAccountFolder];
-  folder = [account draftsFolderInContext: context];
-  newMail = [folder newDraft];
+  drafts = [account draftsFolderInContext: context];
+  newMail = [drafts newDraft];
   [newMail fetchMailForReplying: co toAll: toAll];
 
-  newLocation = [NSString stringWithFormat: @"%@/edit",
-			  [newMail baseURLInContext: context]];
+  accountName = [account nameInContainer];
+  mailboxName = [drafts absoluteImap4Name];
+  mailboxName = [mailboxName substringWithRange: NSMakeRange(1, [mailboxName length] -2)];
+  messageName = [newMail nameInContainer];
 
-  return [self redirectToLocation: newLocation];
+  data = [NSDictionary dictionaryWithObjectsAndKeys:
+                         accountName, @"accountId",
+                       mailboxName, @"mailboxPath",
+                       messageName, @"draftId", nil];
+
+  return [self responseWithStatus: 201
+                        andString: [data jsonRepresentation]];
 }
 
 - (WOResponse *) replyAction
@@ -77,26 +88,37 @@
 {
   SOGoMailAccount *account;
   SOGoMailObject *co;
-  SOGoDraftsFolder *folder;
+  SOGoDraftsFolder *drafts;
   SOGoDraftObject *newMail;
   SOGoUserDefaults *ud;
-  NSString *newLocation;
+  NSString *accountName, *mailboxName, *messageName;
+  NSDictionary *data;
   BOOL htmlComposition;
 
   co = [self clientObject];
   account = [co mailAccountFolder];
-  folder = [account draftsFolderInContext: context];
-  newMail = [folder newDraft];
+  drafts = [account draftsFolderInContext: context];
+  newMail = [drafts newDraft];
   ud = [[context activeUser] userDefaults];
   htmlComposition = [[ud mailComposeMessageType] isEqualToString: @"html"];
 
   [newMail setIsHTML: htmlComposition];
   [newMail fetchMailForForwarding: co];
 
-  newLocation = [NSString stringWithFormat: @"%@/edit",
-			  [newMail baseURLInContext: context]];
+  accountName = [account nameInContainer];
+  mailboxName = [drafts absoluteImap4Name];
+  mailboxName = [mailboxName substringWithRange: NSMakeRange(1, [mailboxName length] -2)];
+  messageName = [newMail nameInContainer];
 
-  return [self redirectToLocation: newLocation];
+  data = [NSDictionary dictionaryWithObjectsAndKeys:
+                         accountName, @"accountId",
+                       mailboxName, @"mailboxPath",
+                       messageName, @"draftId",
+                       // Message was saved ([SOGoDraftObject fetchMailForForwarding:]) so IMAP ID exists
+                       [NSNumber numberWithInt: [newMail IMAP4ID]], @"uid", nil];
+
+  return [self responseWithStatus: 201
+                        andString: [data jsonRepresentation]];
 }
 
 /* active message */
@@ -148,7 +170,6 @@
 
 - (void) collapseAction: (BOOL) isCollapsing
 {
-  SOGoMailObject *co;
   WORequest *request;
   NSMutableDictionary *moduleSettings, *threadsCollapsed, *content;
   NSMutableArray *mailboxThreadsCollapsed;
@@ -160,7 +181,6 @@
   keyForMsgUIDs = [content objectForKey:@"currentMailbox"];
   msguid = [content objectForKey:@"msguid"];
 
-  co = [self clientObject];
   us = [[context activeUser] userSettings];
   if (!(moduleSettings = [us objectForKey: @"Mail"]))
     [us setObject:[NSMutableDictionary dictionary] forKey: @"Mail"];
@@ -223,13 +243,14 @@
 }
 
 /* SOGoDraftObject */
-- (WOResponse *) editAction
+- (id <WOActionResults>) editAction
 {
+  id <WOActionResults> response;
   SOGoMailAccount *account;
   SOGoMailObject *co;
   SOGoDraftsFolder *folder;
   SOGoDraftObject *newMail;
-  NSString *newLocation;
+  NSDictionary *data;
 
   co = [self clientObject];
   account = [co mailAccountFolder];
@@ -238,10 +259,13 @@
   [newMail fetchMailForEditing: co];
   [newMail storeInfo];
 
-  newLocation = [NSString stringWithFormat: @"%@/edit",
-			  [newMail baseURLInContext: context]];
+  data = [NSDictionary dictionaryWithObject: [newMail nameInContainer]
+                                     forKey: @"draftId"];
 
-  return [self redirectToLocation: newLocation];
+  response = [self responseWithStatus: 200
+                            andString: [data jsonRepresentation]];
+
+  return response;
 }
 
 - (id) deleteAction

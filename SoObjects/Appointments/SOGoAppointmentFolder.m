@@ -333,13 +333,15 @@ static Class iCalEventK = nil;
       memset (userCanAccessObjectsClassifiedAs, NO,
               iCalAccessClassCount * sizeof (BOOL));
 
-      davCalendarStartTimeLimit
-        = [[user domainDefaults] davCalendarStartTimeLimit];
+      davCalendarStartTimeLimit = [[user domainDefaults] davCalendarStartTimeLimit];
       davTimeLimitSeconds = davCalendarStartTimeLimit * 86400;
       /* 86400 / 2 = 43200. We hardcode that value in order to avoid
          integer and float confusion. */
       davTimeHalfLimitSeconds = davCalendarStartTimeLimit * 43200;
       componentSet = nil;
+
+      baseCalDAVURL = nil;
+      basePublicCalDAVURL = nil;
     }
 
   return self;
@@ -351,6 +353,8 @@ static Class iCalEventK = nil;
   [stripFields release];
   [uidToFilename release];
   [componentSet release];
+  [baseCalDAVURL release];
+  [basePublicCalDAVURL release];
   [super dealloc];
 }
 
@@ -2346,7 +2350,7 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
   request = [context request];
   if (!([request isIPhone] || [request isICal4]))
     {
-      gdRT = (NSArray *)[self groupDavResourceType];
+      gdRT = (NSArray *) [self groupDavResourceType];
       gdVEventCol = [NSArray arrayWithObjects: [gdRT objectAtIndex: 0],
                   XMLNS_GROUPDAV, nil];
       [colType addObject: gdVEventCol];
@@ -2828,6 +2832,70 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
   return [url stringByAppendingString:_uid];
 }
 
+- (NSString *) _baseCalDAVURL
+{
+  NSString *davURL;
+
+  if (!baseCalDAVURL)
+    {
+      davURL = [[self realDavURL] absoluteString];
+      if ([davURL hasSuffix: @"/"])
+        baseCalDAVURL = [davURL substringToIndex: [davURL length] - 1];
+      else
+        baseCalDAVURL = davURL;
+      [baseCalDAVURL retain];
+    }
+
+  return baseCalDAVURL;
+}
+
+- (NSString *) _basePublicCalDAVURL
+{
+  NSString *davURL;
+
+  if (!basePublicCalDAVURL)
+    {
+      davURL = [[self publicDavURL] absoluteString];
+      if ([davURL hasSuffix: @"/"])
+	basePublicCalDAVURL = [davURL substringToIndex: [davURL length] - 1];
+      else
+        basePublicCalDAVURL = davURL;
+      [basePublicCalDAVURL retain];
+    }
+
+  return basePublicCalDAVURL;
+}
+
+- (NSString *) calDavURL
+{
+  return [NSString stringWithFormat: @"%@/", [self _baseCalDAVURL]];
+}
+
+- (NSString *) webDavICSURL
+{
+  return [NSString stringWithFormat: @"%@.ics", [self _baseCalDAVURL]];
+}
+
+- (NSString *) webDavXMLURL
+{
+  return [NSString stringWithFormat: @"%@.xml", [self _baseCalDAVURL]];
+}
+
+- (NSString *) publicCalDavURL
+{
+  return [NSString stringWithFormat: @"%@/", [self _basePublicCalDAVURL]];
+}
+
+- (NSString *) publicWebDavICSURL
+{
+  return [NSString stringWithFormat: @"%@.ics", [self _basePublicCalDAVURL]];
+}
+
+- (NSString *) publicWebDavXMLURL
+{
+  return [NSString stringWithFormat: @"%@.xml", [self _basePublicCalDAVURL]];
+}
+
 /* folder management */
 - (BOOL) create
 {
@@ -2873,12 +2941,6 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
 
   refArray = [moduleSettings objectForKey: @"InactiveFolders"];
   [refArray removeObject: nameInContainer];
-            
-  refDict = [moduleSettings objectForKey: @"FolderSyncTags"];
-  [refDict removeObjectForKey: reference];
-
-  refDict = [moduleSettings objectForKey: @"FolderSynchronize"];
-  [refDict removeObjectForKey: reference];
 
   [super removeFolderSettings: moduleSettings
                 withReference: reference];
@@ -3092,6 +3154,11 @@ firstInstanceCalendarDateRange: (NGCalendarDateRange *) fir
     = [[settings objectForKey: @"Calendar"] objectForKey: @"InactiveFolders"];
 
   return (![inactiveFolders containsObject: nameInContainer]);
+}
+
+- (BOOL) isWebCalendar
+{
+  return ([self isKindOfClass: [SOGoWebAppointmentFolder class]]);
 }
 
 - (NSString *) importComponent: (iCalEntityObject *) event

@@ -1,6 +1,5 @@
 /*
-  Copyright (C) 2006-2013 Inverse inc.
-  Copyright (C) 2004-2005 SKYRIX Software AG
+  Copyright (C) 2006-2013-2015 Inverse inc.
 
   This file is part of SOGo.
 
@@ -65,6 +64,24 @@ static NSArray *folderListingFields = nil;
                                            @"c_mail", @"c_telephonenumber",
                                            @"c_categories",
                                            @"c_component", nil];
+}
+
+- (id) init
+{
+  if ((self = [super init]))
+    {
+      baseCardDAVURL = nil;
+      basePublicCardDAVURL = nil;
+    }
+
+  return self;
+}
+
+- (void) dealloc
+{
+  [baseCardDAVURL release];
+  [basePublicCardDAVURL release];
+  [super dealloc];
 }
 
 - (Class) objectClassForContent: (NSString *) content
@@ -209,10 +226,26 @@ static NSArray *folderListingFields = nil;
   return qualifier;
 }
 
+/**
+ * Normalize keys of dictionary representing a contact.
+ * @param contactRecord a dictionary with pairs from the quick table
+ * @see [UIxContactView dataAction]
+ */
 - (void) fixupContactRecord: (NSMutableDictionary *) contactRecord
 {
   NSString *data;
 
+  // c_categories => categories
+  data = [contactRecord objectForKey: @"c_categories"];
+  if ([data length])
+    [contactRecord setObject: data forKey: @"categories"];
+
+  // c_name => id
+  data = [contactRecord objectForKey: @"c_name"];
+  if ([data length])
+    [contactRecord setObject: data forKey: @"id"];
+
+  // c_cn => fn
   data = [contactRecord objectForKey: @"c_cn"];
   if (![data length])
     {
@@ -224,17 +257,34 @@ static NSArray *folderListingFields = nil;
       else
         {
           data = [contactRecord objectForKey: @"c_o"];
-          [contactRecord setObject: data forKey: @"c_cn"];          
+          [contactRecord setObject: data forKey: @"c_cn"];
         }
     }
 
-  if (![contactRecord objectForKey: @"c_mail"])
-    [contactRecord setObject: @"" forKey: @"c_mail"];
+  // c_screenname => X-AIM
   if (![contactRecord objectForKey: @"c_screenname"])
     [contactRecord setObject: @"" forKey: @"c_screenname"];
-  if (![contactRecord objectForKey: @"c_o"])
-    [contactRecord setObject: @"" forKey: @"c_o"];
-  if (![contactRecord objectForKey: @"c_telephonenumber"])
+
+  // c_mail => emails[]
+  data = [contactRecord objectForKey: @"c_mail"];
+  if ([data length])
+    {
+      NSDictionary *email;
+      email = [NSDictionary dictionaryWithObjectsAndKeys: @"pref", @"type", data, @"value", nil];
+      [contactRecord setObject: [NSArray arrayWithObject: email] forKey: @"emails"];
+    }
+  else
+    [contactRecord setObject: @"" forKey: @"c_mail"];
+
+  // c_telephonenumber => phones
+  data = [contactRecord objectForKey: @"c_telephonenumber"];
+  if ([data length])
+    {
+      NSDictionary *phonenumber;
+      phonenumber = [NSDictionary dictionaryWithObjectsAndKeys: @"pref", @"type", data, @"value", nil];
+      [contactRecord setObject: [NSArray arrayWithObject: phonenumber] forKey: @"phones"];
+    }
+  else
     [contactRecord setObject: @"" forKey: @"c_telephonenumber"];
 }
 
@@ -401,6 +451,50 @@ static NSArray *folderListingFields = nil;
     nsRep = @"D";
 
   return [NSString stringWithFormat: @"%@:%@", nsRep, nodeName];
+}
+
+- (NSString *) _baseCardDAVURL
+{
+  NSString *davURL;
+
+  if (!baseCardDAVURL)
+    {
+      davURL = [[self realDavURL] absoluteString];
+      if ([davURL hasSuffix: @"/"])
+        baseCardDAVURL = [davURL substringToIndex: [davURL length] - 1];
+      else
+        baseCardDAVURL = davURL;
+      [baseCardDAVURL retain];
+    }
+
+  return baseCardDAVURL;
+}
+
+- (NSString *) cardDavURL
+{
+  return [NSString stringWithFormat: @"%@/", [self _baseCardDAVURL]];
+}
+
+- (NSString *) _basePublicCardDAVURL
+{
+  NSString *davURL;
+
+  if (!basePublicCardDAVURL)
+    {
+      davURL = [[self publicDavURL] absoluteString];
+      if ([davURL hasSuffix: @"/"])
+        basePublicCardDAVURL = [davURL substringToIndex: [davURL length] - 1];
+      else
+        basePublicCardDAVURL = davURL;
+      [basePublicCardDAVURL retain];
+    }
+
+  return basePublicCardDAVURL;
+}
+
+- (NSString *) publicCardDavURL
+{
+  return [NSString stringWithFormat: @"%@/", [self _basePublicCardDAVURL]];
 }
 
 @end /* SOGoContactGCSFolder */

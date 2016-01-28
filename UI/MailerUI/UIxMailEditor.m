@@ -1,5 +1,4 @@
 /*
-  Copyright (C) 2004-2005 SKYRIX Software AG
   Copyright (C) 2008-2015 Inverse inc.
 
   This file is part of SOGo.
@@ -54,6 +53,7 @@
 #import <SOGo/SOGoUserFolder.h>
 #import <SOGo/NSArray+Utilities.h>
 #import <SOGo/NSDictionary+Utilities.h>
+#import <SOGo/NSString+Utilities.h>
 #import <SOGo/WOResourceManager+SOGo.h>
 #import <SOGoUI/UIxComponent.h>
 #import <Mailer/SOGoDraftObject.h>
@@ -112,7 +112,8 @@ static NSArray *infoKeys = nil;
                                   @"subject", @"to", @"cc", @"bcc", 
                                 @"from", @"inReplyTo",
                                 @"replyTo",
-                                @"priority", @"receipt", nil];
+                                @"priority", @"receipt", @"isHTML",
+                                @"text", nil];
 }
 
 - (id) init
@@ -215,6 +216,11 @@ static NSArray *infoKeys = nil;
   ud = [[context activeUser] userDefaults];
 
   return [[ud mailComposeMessageType] isEqualToString: @"html"];
+}
+
+- (NSString *) editorClass
+{
+  return ([self isHTML]? @"ck-editor" : @"plain-text");
 }
 
 - (NSString *) itemPriorityText
@@ -423,8 +429,7 @@ static NSArray *infoKeys = nil;
       fromEMails = [[NSMutableArray alloc] initWithCapacity: max];
       for (count = 0; count < max; count++)
         {
-          email
-            = [self _emailFromIdentity: [identities objectAtIndex: count]];
+          email = [self _emailFromIdentity: [identities objectAtIndex: count]];
           [fromEMails addObjectUniquely: email];
         }
     }
@@ -441,81 +446,94 @@ static NSArray *infoKeys = nil;
   [self setValuesForKeysWithDictionary:_info];
 }
 
-- (NSDictionary *) storeInfo
+- (NSDictionary *) infoFromRequest
 {
-  [self debugWithFormat:@"storing info ..."];
-  return [self dictionaryWithValuesForKeys: infoKeys];
+  WORequest *request;
+  NSDictionary *params, *filteredParams;
+
+  request = [context request];
+  params = [[request contentAsString] objectFromJSONString];
+  filteredParams = [NSDictionary dictionaryWithObjects: [params objectsForKeys: infoKeys notFoundMarker: [NSNull null]]
+                                               forKeys: infoKeys];
+
+  [self setTo: [filteredParams objectForKey: @"to"]];
+  [self setCc: [filteredParams objectForKey: @"cc"]];
+  [self setBcc: [filteredParams objectForKey: @"bcc"]];
+  [self setIsHTML: [[filteredParams objectForKey: @"isHTML"] boolValue]];
+  [self setText: [filteredParams objectForKey: @"text"]];
+
+  return filteredParams;
 }
 
 /* contacts search */
-- (NSArray *) contactFolders
-{
-  SOGoContactFolders *folderContainer;
+// - (NSArray *) contactFolders
+// {
+//   SOGoContactFolders *folderContainer;
 
-  folderContainer = (SOGoContactFolders *) [[[self clientObject] lookupUserFolder] privateContacts: @"Contacts"
-                                                                                        inContext: nil];
+//   folderContainer = (SOGoContactFolders *) [[[self clientObject] lookupUserFolder] privateContacts: @"Contacts"
+//                                                                                         inContext: nil];
   
-  return [folderContainer subFolders];
-}
+//   return [folderContainer subFolders];
+// }
 
-- (NSArray *) personalContactInfos
-{
-  SOGoContactFolders *folderContainer;
-  id <SOGoContactFolder> folder;
-  NSArray *contactInfos;
+// - (NSArray *) personalContactInfos
+// {
+//   SOGoContactFolders *folderContainer;
+//   id <SOGoContactFolder> folder;
+//   NSArray *contactInfos;
 
-  folderContainer = (SOGoContactFolders *) [[[self clientObject] lookupUserFolder] privateContacts: @"Contacts"
-                                                                                           inContext: nil];
+//   folderContainer = (SOGoContactFolders *) [[[self clientObject] lookupUserFolder] privateContacts: @"Contacts"
+//                                                                                            inContext: nil];
   
-  folder = [folderContainer lookupPersonalFolder: @"personal" ignoringRights: YES];
+//   folder = [folderContainer lookupPersonalFolder: @"personal" ignoringRights: YES];
 
-  // If the folder doesn't exist anymore or if the database is down, we
-  // return an empty array.
-  if ([folder isKindOfClass: [NSException class]])
-      return [NSArray array];
+//   // If the folder doesn't exist anymore or if the database is down, we
+//   // return an empty array.
+//   if ([folder isKindOfClass: [NSException class]])
+//       return [NSArray array];
 
-  contactInfos = [folder lookupContactsWithFilter: nil
-				       onCriteria: nil
-					   sortBy: @"c_cn"
-					 ordering: NSOrderedAscending
-                                         inDomain: nil];
+//   contactInfos = [folder lookupContactsWithFilter: nil
+// 				       onCriteria: nil
+// 					   sortBy: @"c_cn"
+// 					 ordering: NSOrderedAscending
+//                                          inDomain: nil];
   
-  return contactInfos;
-}
+//   return contactInfos;
+// }
 
-- (void) setCurrentFolder: (id) _currentFolder
-{
-  ASSIGN (currentFolder, _currentFolder);
-}
+// - (void) setCurrentFolder: (id) _currentFolder
+// {
+//   ASSIGN (currentFolder, _currentFolder);
+// }
 
-- (NSString *) currentContactFolderId
-{
-  return [NSString stringWithFormat: @"/%@", [currentFolder nameInContainer]];
-}
+// - (NSString *) currentContactFolderId
+// {
+//   return [NSString stringWithFormat: @"/%@", [currentFolder nameInContainer]];
+// }
 
-- (NSString *) currentContactFolderName
-{
-  return [currentFolder displayName];
-}
+// - (NSString *) currentContactFolderName
+// {
+//   return [currentFolder displayName];
+// }
 
-- (NSString *) currentContactFolderOwner
-{
-  return [currentFolder ownerInContext: context];
-}
+// - (NSString *) currentContactFolderOwner
+// {
+//   return [currentFolder ownerInContext: context];
+// }
 
-- (NSString *) currentContactFolderClass
-{
-  return ([currentFolder isKindOfClass: [SOGoContactSourceFolder class]]
-          ? @"remote" : @"local");
-}
+// - (NSString *) currentContactFolderClass
+// {
+//   return ([currentFolder isKindOfClass: [SOGoContactSourceFolder class]]
+//           ? @"remote" : @"local");
+// }
 
 /* requests */
 
-- (BOOL) shouldTakeValuesFromRequest: (WORequest *) request
-			   inContext: (WOContext*) localContext
-{
-  return YES;
-}
+// - (BOOL) shouldTakeValuesFromRequest: (WORequest *) request
+// 			   inContext: (WOContext*) localContext
+// {
+//   return YES;
+// }
 
 /* actions */
 - (NSString *) _fixedFilename: (NSString *) filename
@@ -582,46 +600,53 @@ static NSArray *infoKeys = nil;
   WORequest *request;
   NSEnumerator *allAttachments;
   NSDictionary *attrs, *filenames;
-  NGMimeType *mimeType;
   id httpBody;
   SOGoDraftObject *co;
 
   error = nil;
   request = [context request];
 
-  mimeType = [[request httpRequest] contentType];
-  if ([[mimeType type] isEqualToString: @"multipart"])
-    {
-      httpBody = [[request httpRequest] body];
-      filenames = [self _scanAttachmentFilenamesInRequest: httpBody];
+  httpBody = [[request httpRequest] body];
+  filenames = [self _scanAttachmentFilenamesInRequest: httpBody];
 
-      co = [self clientObject];
-      allAttachments = [filenames objectEnumerator];
-      while ((attrs = [allAttachments nextObject]) && !error)
-        {
-          error = [co saveAttachment: (NSData *) [attrs objectForKey: @"body"]
-                        withMetadata: attrs];
-          // Keep the name of the last attachment saved
-          ASSIGN(currentAttachment, [attrs objectForKey: @"filename"]);
-        }
+  co = [self clientObject];
+  allAttachments = [filenames objectEnumerator];
+  while ((attrs = [allAttachments nextObject]) && !error)
+    {
+      error = [co saveAttachment: (NSData *) [attrs objectForKey: @"body"]
+                    withMetadata: attrs];
+      // Keep the name of the last attachment saved
+      ASSIGN(currentAttachment, [attrs objectForKey: @"filename"]);
     }
 
   return error;
 }
 
-- (NSException *) _saveFormInfo
+/**
+ * Save received data to the filesystem, either the attached files or the message itself.
+ */
+- (NSException *) _saveRequestInfo
 {
   NSDictionary *info;
   NSException *error;
+  NGMimeType *mimeType;
+  WORequest *request;
   SOGoDraftObject *co;
+
+  error = nil;
+  request = [context request];
+  mimeType = [[request httpRequest] contentType];
 
   co = [self clientObject];
   [co fetchInfo];
 
-  error = [self _saveAttachments];
-  if (!error)
+  if ([[mimeType type] isEqualToString: @"multipart"])
     {
-      info = [self storeInfo];
+      error = [self _saveAttachments];
+    }
+  else if ([[mimeType subType] isEqualToString: @"json"])
+    {
+      info = [self infoFromRequest];
       [co setHeaders: info];
       [co setIsHTML: isHTML];
       [co setText: (isHTML ? [NSString stringWithFormat: @"<html>%@</html>", text] : text)];;
@@ -687,9 +712,12 @@ static NSArray *infoKeys = nil;
   return [[self attachmentAttrs] count] > 0 ? YES : NO;
 }
 
-- (id) defaultAction
+- (id <WOActionResults>) editAction
 {
+  id <WOActionResults> response;
   SOGoDraftObject *co;
+  NSMutableDictionary *data;
+  id value;
 
   co = [self clientObject];
   [co fetchInfo];
@@ -698,24 +726,63 @@ static NSArray *infoKeys = nil;
   [self setSourceUID: [co IMAP4ID]];
   [self setSourceFolder: [co sourceFolder]];
 
-  return self;
+  data = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                              [self from], @"from",
+                              [self localeCode], @"locale",
+                              [NSNumber numberWithBool: [self isHTML]], @"isHTML",
+                              text, @"text",
+                              nil];
+  if ((value = [self replyTo]))
+    [data setObject: value forKey: @"replyTo"];
+  if ((value = [self to]))
+    [data setObject: value forKey: @"to"];
+  if ((value = [self cc]))
+    [data setObject: value forKey: @"cc"];
+  if ((value = [self bcc]))
+    [data setObject: value forKey: @"bcc"];
+  if ((value = [self subject]))
+    [data setObject: value forKey: @"subject"];
+  if ((value = [self attachmentAttrs]))
+    [data setObject: value forKey: @"attachmentAttrs"];
+  // [self shouldAskReceipt], @"shouldAskReceipt",
+  // [NSNumber numberWithBool: [self mailIsDraft]], @"isDraft",
+  response = [self responseWithStatus: 200
+                            andString: [data jsonRepresentation]];
+
+  return response;
 }
 
-- (id <WOActionResults>) saveAction
+- (WOResponse *) saveAction
 {
   id result;
+  NSArray *attrs;
+  NSDictionary *data;
+  SOGoDraftObject *co;
 
-  result = [self _saveFormInfo];
+  co = [self clientObject];
+  [self setIsHTML: [self isHTML]];
+
+  result = [self _saveRequestInfo];
   if (!result)
     {
-      result = [[self clientObject] save];
+      // Save message to IMAP server
+      result = [co save];
     }
   if (!result)
     {
+      // Save new UID to plist
+      [self setSourceUID: [co IMAP4ID]];
+      [co storeInfo];
+
+      // Prepare response
       attachmentAttrs = nil;
-      NSArray *attrs = [self attachmentAttrs];
+      attrs = [self attachmentAttrs];
+      data = [NSDictionary dictionaryWithObjectsAndKeys:
+                             [self sourceUID], @"uid",
+                           attrs, @"lastAttachmentAttrs",
+                           nil];
       result = [self responseWithStatus: 200
-                              andString: [attrs jsonRepresentation]];
+                              andString: [data jsonRepresentation]];
     }
   else
     result = [self failedToSaveFormResponse: [result reason]];
@@ -747,6 +814,7 @@ static NSArray *infoKeys = nil;
   NSMutableArray *errorMsg;
   NSDictionary *messageSubmissions;
   SOGoSystemDefaults *dd;
+  id <WOActionResults> response;
 
   int messages_count, recipients_count;
 
@@ -789,11 +857,11 @@ static NSArray *infoKeys = nil;
 
   co = [self clientObject];
 
-  /* first, save form data */
-  error = [self validateForSend];
+  // First, save form data to filesystem
+  error = [self _saveRequestInfo];
   if (!error)
     {
-      error = [self _saveFormInfo];
+      error = [self validateForSend];
       if (!error)
         error = [co sendMail];
       else
@@ -811,6 +879,8 @@ static NSArray *infoKeys = nil;
 			           [errorMsg componentsJoinedByString: @"\n"],
 				   @"message",
 				   nil];
+      response = [self responseWithStatus: 405
+                    andJSONRepresentation: jsonResponse];
     }
   else
     {
@@ -819,6 +889,8 @@ static NSArray *infoKeys = nil;
                                    [co sourceFolder], @"sourceFolder",
                                         [NSNumber numberWithInt: [co sourceIMAP4ID]], @"sourceMessageID",
                                    nil];
+      response = [self responseWithStatus: 200
+                    andJSONRepresentation: jsonResponse];
      
       recipients_count += [[co allRecipients] count];
       messages_count += 1;
@@ -831,8 +903,7 @@ static NSArray *infoKeys = nil;
         }
     }
 
-  return [self responseWithStatus: 200
-                        andString: [jsonResponse jsonRepresentation]];
+  return response;
 }
 
 @end /* UIxMailEditor */

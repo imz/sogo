@@ -1,23 +1,99 @@
-<?xml version='1.0' standalone='yes'?>
-<!DOCTYPE var:component>
-<var:component
-  xmlns="http://www.w3.org/1999/xhtml"
-  xmlns:var="http://www.skyrix.com/od/binding"
-  xmlns:const="http://www.skyrix.com/od/constant"
-  xmlns:rsrc="OGo:url"
-  xmlns:uix="OGo:uix"
-  xmlns:label="OGo:label"
-  className="UIxPageFrame"
-  title="name"
-  const:toolbar="none"
-  const:popup="YES"
-  const:jsFiles="dtree.js">
-  <var:component className="UIxContactsFilterPanel" qualifier="qualifier" />
-  <div id="folders"><!-- space --></div>
-  <div id="buttons">
-    <a id="addButton" class="button actionButton disabled" href="#">
-      <span><var:string label:value="Add" /></span></a>
-    <a id="doneButton" class="button" name="done">
-      <span><var:string label:value="Done"/></span></a>
-  </div>
-</var:component>
+<?xml version="1.0" standalone="yes"?>
+<!DOCTYPE container>
+<container
+    xmlns="http://www.w3.org/1999/xhtml"
+    xmlns:var="http://www.skyrix.com/od/binding"
+    xmlns:const="http://www.skyrix.com/od/constant"
+    xmlns:label="OGo:label"
+    xmlns:uix="OGo:uix">
+  <md-dialog flex="50" flex-sm="80" flex-xs="100">
+    <md-toolbar>
+      <div class="md-toolbar-tools">
+        <div class="sg-md-title md-flex"><var:string label:value="Subscribe to a shared folder"/></div>
+        <md-button class="md-icon-button" ng-click="subscribe.close()">
+          <md-icon label:aria-label="Close">close</md-icon>
+        </md-button>
+      </div>
+    </md-toolbar>
+    <md-dialog-content class="md-dialog-content">
+      <md-input-container class="md-block md-flex">
+        <md-icon>search</md-icon>
+        <label><var:string label:value="Search User"/></label>
+        <input type="input"
+               autocomplete="off"
+               ng-model="subscribe.searchText"
+               ng-model-options="subscribe.searchTextOptions"
+               ng-change="subscribe.onChange()"/>
+      </md-input-container>
+      <md-card ng-repeat="user in subscribe.users"
+               ng-class="{ 'sg-collapsed': user.uid != subscribe.selectedUser.uid,
+                           'sg-expanded': user.uid == subscribe.selectedUser.uid }">
+        <md-button ng-click="subscribe.selectUser($index)">
+          <div layout="row" layout-align="start center" class="md-flex">
+            <span class="card-picture" ng-switch="user.isGroup">
+              <div ng-switch-when="0">
+                <sg-avatar-image class="md-avatar"
+                                 sg-email="user.c_email"
+                                 size="40"><!-- avatar --></sg-avatar-image>
+              </div>
+              <div ng-switch-when="1" class="sg-list-avatar"><!-- normal-group --></div>
+            </span>
+            <div class="sg-tile-content">
+              <div class="sg-md-subhead"><div>{{user.cn}}</div></div>
+              <div class="sg-md-body"><div>{{user.c_email}}</div></div>
+            </div>
+            <md-icon ng-class="{'md-rotate-180': user.uid == subscribe.selectedUser.uid}">expand_more</md-icon>
+          </div>
+        </md-button>
+        <md-card-content ng-show="user == subscribe.selectedUser">
+          <div ng-show="user.$$folders.length == 0">
+            <md-icon>warning</md-icon>
+            <var:string label:value="No possible subscription"/>
+          </div>
+          <div layout="row" layout-align="start center" layout-fill="true"
+               ng-repeat="folder in user.$$folders">
+            <md-icon ng-class="{'icon-contacts': folder.type == 'Contact',
+                               'icon-event': folder.type == 'Appointment'}"><!--icon--></md-icon>
+            <p class="sg-padded--left md-flex">{{folder.displayName}}</p>
+            <md-button class="md-raised"
+                       ng-click="subscribe.selectFolder(folder)"><var:string label:value="Subscribe"/></md-button>
+          </div>
+        </md-card-content>
+      </md-card>
+
+      <md-list class="ng-hide">
+        <md-list-item layout="column"
+                      ng-repeat="user in subscribe.users">
+          <md-button class="sg-expandable" ng-click="subscribe.selectUser($index)">
+            <div layout="row" layout-align="start center"
+                 layout-fill="true">
+              <div class="sg-avatar"><!-- normal-user --></div>
+              <span class="sg-item-name">{{user.$shortFormat()}}</span>
+              <span class="md-secondary md-display-1">
+                <md-icon ng-class="{ 'icon-expand-more': user.uid != subscribe.selectedUser.uid,
+                                     'icon-expand-less': user.uid == subscribe.selectedUser.uid }"><!--icon--></md-icon>
+              </span>
+            </div>
+          </md-button>
+          <md-list layout-fill="true"
+                   ng-show="user == subscribe.selectedUser">
+            <md-list-item ng-show="user.$$folders.length == 0">
+              <md-icon>warning</md-icon>
+              <var:string label:value="No possible subscription"/>
+            </md-list-item>
+            <md-list-item layout="row" layout-fill="true"
+                          ng-repeat="folder in user.$$folders">
+              <md-icon ng-class="{'icon-contacts': folder.type == 'Contact',
+                                  'icon-event': folder.type == 'Appointment'}"><!--icon--></md-icon>
+                <p class="md-flex sg-item-name">{{folder.displayName}}</p>
+              <md-button
+                  class="md-raised"
+                  ng-click="subscribe.selectFolder(folder)"><var:string label:value="Subscribe"/></md-button>
+            </md-list-item>
+          </md-list>
+          <md-divider ng-if="!$last"><!-- divider --></md-divider>
+        </md-list-item>
+      </md-list>
+    </md-dialog-content>
+  </md-dialog>
+</container>

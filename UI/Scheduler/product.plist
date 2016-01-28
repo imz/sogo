@@ -123,11 +123,28 @@
         userRights = {
           protectedBy = "ReadAcls";
           pageName    = "UIxCalUserRightsEditor";
+          actionName  = "userRights";
         };
         saveUserRights = {
           protectedBy = "Change Permissions";
           pageName    = "UIxCalUserRightsEditor";
           actionName  = "saveUserRights";
+        };
+        UIxAppointmentViewTemplate = {
+          protectedBy = "View";
+          pageName    = "UIxAppointmentViewTemplate";
+        };
+        UIxTaskViewTemplate = {
+          protectedBy = "View";
+          pageName    = "UIxTaskViewTemplate";
+        };
+        UIxAppointmentEditorTemplate = {
+          protectedBy = "View";
+          pageName    = "UIxAppointmentEditorTemplate";
+        };
+        UIxTaskEditorTemplate = {
+          protectedBy = "View";
+          pageName    = "UIxTaskEditorTemplate";
         };
         editAttendees = {
           protectedBy = "View";
@@ -150,7 +167,7 @@
           protectedBy = "Access Contents Information";
           pageName    = "UIxCalendarProperties"; 
         };
-        saveProperties = { 
+        save = {
           protectedBy = "Access Contents Information";
           pageName = "UIxCalendarProperties";
           actionName = "saveProperties";
@@ -165,24 +182,23 @@
           actionClass = "UIxCalFolderActions";
           actionName  = "import";
         };
+        UIxCalUserRightsEditor = {
+          protectedBy = "ReadAcls";
+          pageName    = "UIxCalUserRightsEditor";
+        };
         userRights = {
           protectedBy = "ReadAcls";
           pageName    = "UIxCalUserRightsEditor";
+          actionName  = "userRights";
         };
         saveUserRights = {
           protectedBy = "Change Permissions";
           pageName    = "UIxCalUserRightsEditor";
           actionName  = "saveUserRights";
         };
-        newevent = {
-          protectedBy = "<public>";
-          pageName    = "UIxAppointmentEditor"; 
-          actionName  = "new";
-        };
-        newtask = { 
-          protectedBy = "<public>";
-          pageName    = "UIxTaskEditor"; 
-          actionName  = "new";
+        links = {
+          protectedBy = "Access Contents Information";
+          pageName = "UIxCalendarFolderLinksTemplate";
         };
       };
     };
@@ -258,7 +274,7 @@
         };
         raw = {
           protectedBy = "ViewAllComponent";
-          actionClass = "UIxComponentEditor";
+          actionClass = "UIxAppointmentEditor";
           actionName  = "raw";
         };
         adjust = {
@@ -307,7 +323,7 @@
         };
         raw = {
           protectedBy = "ViewAllComponent";
-          pageName    = "UIxComponentEditor"; 
+          pageName    = "UIxTaskEditor";
           actionName  = "raw";
         };
       };

@@ -1,6 +1,5 @@
 /*
-  Copyright (C) 2004-2005 SKYRIX Software AG
-  Copyright (C) 2006-2013 Inverse inc.
+  Copyright (C) 2006-2015 Inverse inc.
 
   This file is part of SOGo.
 
@@ -60,8 +59,6 @@
 {
   [storedEventObject release];
   [storedEvent release];
-  [attendee release];
-  [item release];
   [inCalendar release];
   [dateFormatter release];
   [super dealloc];
@@ -76,10 +73,6 @@
   [inCalendar release]; inCalendar = nil;
   [storedEventObject release]; storedEventObject = nil;
   [storedEvent release]; storedEvent = nil;
- 
-  /* not strictly path-related, but useless without it anyway: */
-  [attendee release]; attendee = nil;
-  [item release]; item = nil;
 }
 
 /* accessors */
@@ -128,18 +121,6 @@
   return dateFormatter;
 }
 
-/* below is copied from UIxAppointmentView, can we avoid that? */
-
-- (void) setAttendee: (id) _attendee
-{
-  ASSIGN (attendee, _attendee);
-}
-
-- (id) attendee
-{
-  return attendee;
-}
-
 - (NSString *) _personForDisplay: (iCalPerson *) person
 {
   NSString *fn, *email, *result;
@@ -148,26 +129,11 @@
   email = [person rfc822Email];
   if ([fn length])
     result = [NSString stringWithFormat: @"%@ <%@>",
-		       fn, email];
+                       fn, email];
   else
     result = email;
 
   return result;
-}
-
-- (NSString *) attendeeForDisplay
-{
-  return [self _personForDisplay: attendee];
-}
-
-- (void) setItem: (id) _item
-{
-  ASSIGN(item, _item);
-}
-
-- (id) item
-{
-  return item;
 }
 
 - (NSCalendarDate *) startCalendarDate
@@ -180,6 +146,59 @@
   [date setTimeZone: [ud timeZone]];
   
   return date;
+}
+
+/*
+  In v3.0, we moved the template's logic here to format
+  the event's start/end date-time. The previous logic was:
+
+          <dd><var:string value="startDate" />
+            <var:if condition="inEvent.isAllDay" const:negate="YES">
+              <var:string value="startTime" />
+            </var:if>
+            <var:if condition="isEndDateOnSameDay">
+              <var:if condition="inEvent.isAllDay" const:negate="YES">
+                <var:string label:value="to" />
+                <var:string value="endTime" />
+              </var:if>
+            </var:if>
+            <var:if condition="isEndDateOnSameDay" const:negate="YES">
+              <var:string label:value="to" />
+              <var:string value="endDate" />
+              <var:if condition="inEvent.isAllDay" const:negate="YES">
+                <var:string value="endTime" />
+              </var:if>
+            </var:if>
+          </dd>
+
+*/
+- (NSString *) formattedDateTime
+{
+  NSMutableString *s;
+
+  s = [NSMutableString string];
+
+  [s appendString: [self startDate]];
+
+  if (![[self inEvent] isAllDay])
+    [s appendFormat: @" %@", [self startTime]];
+
+  if ([self isEndDateOnSameDay] &&
+      ![[self inEvent] isAllDay])
+    {
+      [s appendFormat: @" %@", [self labelForKey: @"to"]];
+      [s appendFormat: @" %@", [self endTime]];
+    }
+  else if (![self isEndDateOnSameDay])
+    {
+      [s appendFormat: @" %@", [self labelForKey: @"to"]];
+      [s appendFormat: @" %@", [self endDate]];
+
+      if (![[self inEvent] isAllDay])
+        [s appendFormat: @" %@", [self endTime]];
+    }
+
+  return s;
 }
 
 - (NSString *) startDate
@@ -382,18 +401,6 @@
   return [[self authorativeEvent] userIsAttendee: [context activeUser]];
 }
 
-- (NSString *) currentAttendeeClass
-{
-  NSString *cssClass;
-
-  cssClass = [[attendee partStatWithDefault] lowercaseString];
-
-  if ([[attendee rfc822Email] isEqualToString: [self loggedInUserEMail]])
-    cssClass = [cssClass stringByAppendingString: @" attendeeUser"];
-
-  return cssClass;
-}
-
 /* derived fields */
 
 - (NSString *) organizerDisplayName
@@ -520,6 +527,35 @@
 	  && [self hasSenderStatusChanged]
 	  && ([[inEvent sequence] compare: [storedEvent sequence]]
 	      != NSOrderedAscending));
+}
+
+- (id) renderedPart
+{
+  NSMutableDictionary *d;
+  NSArray *participants;
+  iCalPerson *person;
+  NSMutableArray *a;
+  int i;
+
+  d = [NSMutableDictionary dictionaryWithDictionary: [super renderedPart]];
+
+  // We also add our participants
+  participants = [[self authorativeEvent] participants];
+  a = [NSMutableArray array];
+
+  for (i = 0; i < [participants count]; i++)
+    {
+      person = [participants objectAtIndex: i];
+
+      if (![[person delegatedTo] length])
+        [a addObject: [NSDictionary dictionaryWithObjectsAndKeys: ([person cnWithoutQuotes] ? [person cnWithoutQuotes] : [person rfc822Email]), @"name",
+                                    [person rfc822Email], @"email",
+                                    [[person partStatWithDefault] lowercaseString], @"status", nil]];
+    }
+
+  [d setObject: a  forKey: @"participants"];
+
+  return d;
 }
 
 @end /* UIxMailPartICalViewer */

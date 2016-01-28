@@ -15,7 +15,7 @@
   License for more details.
 
   You should have received a copy of the GNU Lesser General Public
-  License along with OGo; see the file COPYING.  If not, write to the
+  License along with SOGo; see the file COPYING.  If not, write to the
   Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
   02111-1307, USA.
 */
@@ -24,6 +24,7 @@
 #import <Foundation/NSString.h>
 #import <Foundation/NSURL.h>
 #import <Foundation/NSEnumerator.h>
+#import <Foundation/NSCalendarDate.h>
 
 #import <NGObjWeb/NSException+HTTP.h>
 #import <NGObjWeb/SoPermissions.h>
@@ -36,10 +37,13 @@
 #import <NGCards/NGVCard.h>
 
 #import <SOGo/NSArray+Utilities.h>
+#import <SOGo/NSDictionary+Utilities.h>
 #import <SOGo/NSString+Utilities.h>
+#import <SOGo/SOGoContentObject.h>
 #import <SOGo/SOGoUser.h>
 #import <SOGo/SOGoUserDefaults.h>
 
+#import <Contacts/NGVCard+SOGo.h>
 #import <Contacts/SOGoContactFolder.h>
 #import <Contacts/SOGoContactFolders.h>
 #import <Contacts/SOGoContactObject.h>
@@ -109,12 +113,6 @@ static Class SOGoContactGCSEntryK = Nil;
 - (id) addressBookItem
 {
   return addressBookItem;
-}
-
-- (NSString *) saveURL
-{
-  return [NSString stringWithFormat: @"%@/saveAsContact",
-		   [[self clientObject] baseURL]];
 }
 
 - (NSArray *) htmlMailFormatList
@@ -303,15 +301,15 @@ static Class SOGoContactGCSEntryK = Nil;
 
 /* actions */
 
-- (BOOL) shouldTakeValuesFromRequest: (WORequest *) request
-                           inContext: (WOContext*) context
-{
-  NSString *actionName;
-
-  actionName = [[request requestHandlerPath] lastPathComponent];
-
-  return ([actionName hasPrefix: @"save"]);
-}
+// - (BOOL) shouldTakeValuesFromRequest: (WORequest *) request
+//                            inContext: (WOContext*) context
+// {
+//   NSString *actionName;
+// 
+//   actionName = [[request requestHandlerPath] lastPathComponent];
+// 
+//   return ([actionName hasPrefix: @"save"]);
+// }
 
 - (NSString *) viewActionName
 {
@@ -344,46 +342,235 @@ static Class SOGoContactGCSEntryK = Nil;
   return [NSString stringWithFormat: @"%@/photo", [soURL absoluteString]];
 }
 
-- (id <WOActionResults>) saveAction
+- (void) setAttributes: (NSDictionary *) attributes
 {
-  SOGoObject <SOGoContactObject> *contact;
-  id result;
-  NSString *jsRefreshMethod;
-  SoSecurityManager *sm;
+  CardElement *element;
+  NSArray *elements, *values;
+  NSMutableArray *units, *categories;
+  NSCalendarDate *date;
+  id o;
+  unsigned int i, year, month, day, seconds;
 
-  contact = [self clientObject];
-  [contact setLDIFRecord: ldifRecord];
-  [self _fetchAndCombineCategoriesList];
-  [contact save];
+  [card setNWithFamily: [attributes objectForKey: @"c_sn"]
+                 given: [attributes objectForKey: @"c_givenname"]
+            additional: nil prefixes: nil suffixes: nil];
+  [card setNickname: [attributes objectForKey: @"nickname"]];
+  [card setFn: [attributes objectForKey: @"c_cn"]];
+  [card setTitle: [attributes objectForKey: @"title"]];
+  [card setRole: [attributes objectForKey: @"role"]];
 
-  if (componentAddressBook && componentAddressBook != [self componentAddressBook])
+  if ([attributes objectForKey: @"c_screenname"])
+    [[card uniqueChildWithTag: @"x-aim"]
+      setSingleValue: [attributes objectForKey: @"c_screenname"]
+              forKey: @""];
+
+  seconds = [[NSString stringWithFormat: @"%@", [attributes objectForKey: @"birthday"]] intValue];
+  if (seconds > 0)
     {
-      if ([contact isKindOfClass: SOGoContactGCSEntryK])
+      date = [NSCalendarDate dateWithTimeIntervalSince1970: seconds];
+      year = [date yearOfCommonEra];
+      month = [date monthOfYear];
+      day = [date dayOfMonth];
+      [card setBday: [NSString stringWithFormat: @"%.4d%.2d%.2d", year, month, day]];
+    }
+  else
+    [card setBday: nil];
+
+  if ([[attributes objectForKey: @"addresses"] isKindOfClass: [NSArray class]])
+    {
+      elements = [card childrenWithTag: @"adr"];
+      [card removeChildren: elements];
+      values = [attributes objectForKey: @"addresses"];
+      for (i = 0; i < [values count]; i++)
         {
-          sm = [SoSecurityManager sharedSecurityManager];
-          if (![sm validatePermission: SoPerm_DeleteObjects
-                             onObject: componentAddressBook
-                            inContext: context]
-              && ![sm validatePermission: SoPerm_AddDocumentsImagesAndFiles
-                                onObject: componentAddressBook
-                               inContext: context])
-            [(SOGoContactGCSEntry *) contact
-               moveToFolder: (SOGoGCSFolder *)componentAddressBook]; // TODO:
-                                                                     // handle
-                                                                     // exception
+          o = [values objectAtIndex: i];
+          if ([o isKindOfClass: [NSDictionary class]])
+            {
+              element = [card elementWithTag: @"adr" ofType: [o objectForKey: @"type"]];
+              [element setSingleValue: [o objectForKey: @"postoffice"]
+                              atIndex: 0 forKey: @""];
+              [element setSingleValue: [o objectForKey: @"street2"]
+                              atIndex: 1 forKey: @""];
+              [element setSingleValue: [o objectForKey: @"street"]
+                              atIndex: 2 forKey: @""];
+              [element setSingleValue: [o objectForKey: @"locality"]
+                              atIndex: 3 forKey: @""];
+              [element setSingleValue: [o objectForKey: @"region"]
+                              atIndex: 4 forKey: @""];
+              [element setSingleValue: [o objectForKey: @"postalcode"]
+                              atIndex: 5 forKey: @""];
+              [element setSingleValue: [o objectForKey: @"country"]
+                              atIndex: 6 forKey: @""];
+            }
         }
     }
-      
-  if ([[[[self context] request] formValueForKey: @"nojs"] intValue])
-    result = [self redirectToLocation: [self modulePath]];
+
+  if ([[attributes objectForKey: @"orgUnits"] isKindOfClass: [NSArray class]])
+    {
+      elements = [card childrenWithTag: @"org"];
+      [card removeChildren: elements];
+      values = [attributes objectForKey: @"orgUnits"];
+      units = [NSMutableArray arrayWithCapacity: [values count]];
+      for (i = 0; i < [values count]; i++)
+        {
+          o = [values objectAtIndex: i];
+          if ([o isKindOfClass: [NSDictionary class]])
+            {
+              [units addObject: [o objectForKey: @"value"]];
+            }
+        }
+    }
   else
     {
-      jsRefreshMethod = [NSString stringWithFormat: @"refreshContacts('%@')",
-                                  [contact nameInContainer]];
-      result = [self jsCloseWithRefreshMethod: jsRefreshMethod];
+      units = nil;
+    }
+  [card setOrg: [attributes objectForKey: @"c_org"]
+         units: units];
+
+  elements = [card childrenWithTag: @"tel"];
+  [card removeChildren: elements];
+  values = [attributes objectForKey: @"phones"];
+  if ([values isKindOfClass: [NSArray class]])
+    {
+      NSEnumerator *list = [values objectEnumerator];
+      id attrs;
+      while ((attrs = [list nextObject]))
+        {
+          if ([attrs isKindOfClass: [NSDictionary class]])
+            {
+              [card addElementWithTag: @"tel"
+                               ofType: [attrs objectForKey: @"type"]
+                            withValue: [attrs objectForKey: @"value"]];
+            }
+        }
+  }
+
+  if ([[attributes objectForKey: @"emails"] isKindOfClass: [NSArray class]])
+    {
+      elements = [card childrenWithTag: @"email"];
+      [card removeChildren: elements];
+      values = [attributes objectForKey: @"emails"];
+      if (values)
+        {
+          NSEnumerator *list = [values objectEnumerator];
+          while ((o = [list nextObject]))
+            {
+              if ([o isKindOfClass: [NSDictionary class]])
+                {
+                  [card addElementWithTag: @"email"
+                                   ofType: [o objectForKey: @"type"]
+                                withValue: [o objectForKey: @"value"]];
+                }
+            }
+        }
     }
 
-  return result;
+  elements = [card childrenWithTag: @"url"];
+  [card removeChildren: elements];
+  values = [attributes objectForKey: @"urls"];
+  if ([values isKindOfClass: [NSArray class]])
+    {
+      NSEnumerator *list = [values objectEnumerator];
+      id attrs;
+      while ((attrs = [list nextObject]))
+        {
+          if ([attrs isKindOfClass: [NSDictionary class]])
+            {
+              [card addElementWithTag: @"url"
+                               ofType: [attrs objectForKey: @"type"]
+                            withValue: [attrs objectForKey: @"value"]];
+            }
+        }
+  }
+
+  [card setNote: [attributes objectForKey: @"note"]];
+
+  if ([[attributes objectForKey: @"categories"] isKindOfClass: [NSArray class]])
+    {
+      elements = [card childrenWithTag: @"categories"];
+      [card removeChildren: elements];
+      values = [attributes objectForKey: @"categories"];
+      categories = [NSMutableArray arrayWithCapacity: [values count]];
+      for (i = 0; i < [values count]; i++)
+        {
+          o = [values objectAtIndex: i];
+          if ([o isKindOfClass: [NSDictionary class]])
+            {
+              o = [o objectForKey: @"value"];
+              if (o && [o isKindOfClass: [NSString class]] && [(NSString *) o length] > 0)
+                {
+                  [categories addObject: o];
+                }
+            }
+        }
+      [card setCategories: categories];
+    }
+
+  [card cleanupEmptyChildren];
+}
+
+
+/**
+ * @api {post} /so/:username/Contacts/:addressbookId/:cardId/save Save card
+ * @apiVersion 1.0.0
+ * @apiName PostData
+ * @apiGroup Contacts
+ * @apiExample {curl} Example usage:
+ *     curl -i http://localhost/SOGo/so/sogo1/Contacts/personal/1BC8-52F53F80-1-38C52040.vcf/save
+ *
+ * @apiParam {String} id                   Card ID
+ * @apiParam {String} pid                  Address book ID (card's container)
+ * @apiParam {String} c_component          Either vcard or vlist
+ * @apiParam {String} c_givenname          Firstname
+ * @apiParam {String} nickname             Nickname
+ * @apiParam {String} c_sn                 Lastname
+ * @apiParam {String} c_cn                 Fullname
+ * @apiParam {String} c_screenname         Screen Name (X-AIM for now)
+ * @apiParam {String} tz                   Timezone
+ * @apiParam {String} note                 Note
+ * @apiParam {String[]} allCategories      All available categories
+ * @apiParam {Object[]} categories         Categories assigned to the card
+ * @apiParam {String} categories.value     Category name
+ * @apiParam {Object[]} addresses          Postal addresses
+ * @apiParam {String} addresses.type       Type (e.g., home or work)
+ * @apiParam {String} addresses.postoffice Post office box
+ * @apiParam {String} addresses.street     Street address
+ * @apiParam {String} addresses.street2    Extended address (e.g., apartment or suite number)
+ * @apiParam {String} addresses.locality   Locality (e.g., city)
+ * @apiParam {String} addresses.region     Region (e.g., state or province)
+ * @apiParam {String} addresses.postalcode Postal code
+ * @apiParam {String} addresses.country    Country name
+ * @apiParam {Object[]} emails             Email addresses
+ * @apiParam {String} emails.type          Type (e.g., home or work)
+ * @apiParam {String} emails.value         Email address
+ * @apiParam {Object[]} phones             Phone numbers
+ * @apiParam {String} phones.type          Type (e.g., mobile or work)
+ * @apiParam {String} phones.value         Phone number
+ * @apiParam {Object[]} urls               URLs
+ * @apiParam {String} urls.type            Type (e.g., personal or work)
+ * @apiParam {String} urls.value           URL
+ */
+- (id <WOActionResults>) saveAction
+{
+  SOGoContentObject <SOGoContactObject> *co;
+  WORequest *request;
+  NSDictionary *params, *data;
+
+  co = [self clientObject];
+  card = [co vCard];
+  request = [context request];
+  params = [[request contentAsString] objectFromJSONString];
+
+  [self setAttributes: params];
+  [co save];
+
+  // Return card UID and addressbook ID in a JSON payload
+  data = [NSDictionary dictionaryWithObjectsAndKeys:
+                         [[co container] nameInContainer], @"pid",
+                         [co nameInContainer], @"id",
+                         nil];
+
+  return [self responseWithStatus: 200 andJSONRepresentation: data];
 }
 
 - (id) writeAction
@@ -412,41 +599,6 @@ static Class SOGoContactGCSEntryK = Nil;
     url = [NSString stringWithFormat: @"%@/Mail/compose", [self userFolderPath]];
   
   return [self redirectToLocation: url];
-}
-
-#warning Could this be part of a common parent with UIxAppointment/UIxTaskEditor/UIxListEditor ?
-- (id) newAction
-{
-  NSString *objectId, *method, *uri;
-  id <WOActionResults> result;
-  SOGoContactGCSFolder *co;
-  SoSecurityManager *sm;
-
-  co = [self clientObject];
-  objectId = [co globallyUniqueObjectId];
-  if ([objectId length] > 0)
-    {
-      sm = [SoSecurityManager sharedSecurityManager];
-      if (![sm validatePermission: SoPerm_AddDocumentsImagesAndFiles
-	      onObject: co
-	      inContext: context])
-	{
-	  method = [NSString stringWithFormat: @"%@/%@.vcf/editAsContact",
-			     [co soURL], objectId];
-	}
-      else
-	{
-	  method = [NSString stringWithFormat: @"%@/Contacts/personal/%@.vcf/editAsContact",
-			     [self userFolderPath], objectId];
-	}
-      uri = [self completeHrefForMethod: method];
-      result = [self redirectToLocation: uri];
-    }
-  else
-    result = [NSException exceptionWithHTTPStatus: 500 /* Internal Error */
-                          reason: @"could not create a unique ID"];
-
-  return result;
 }
 
 @end /* UIxContactEditor */

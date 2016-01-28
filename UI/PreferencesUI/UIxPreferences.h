@@ -1,6 +1,6 @@
 /* UIxPreferences.h - this file is part of SOGo
  *
- * Copyright (C) 2007-2013 Inverse inc.
+ * Copyright (C) 2007-2015 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@
 
 @class NSString;
 
-@class SOGoMailLabel;
 @class SOGoUser;
 
 @interface UIxPreferences : UIxComponent
@@ -46,10 +45,6 @@
   NSArray *contactsCategories;
   NSCalendarDate *today;
 
-  // Mail labels/tags
-  SOGoMailLabel *label;
-  NSArray *mailLabels;
-  
   // Sieve filtering
   NSArray *daysOfWeek, *daysBetweenResponsesList;
   NSArray *sieveFilters;
@@ -61,9 +56,9 @@
   
 }
 
-- (NSString *) userLongDateFormat;
-- (BOOL) isSieveServerAvailable;
-- (id) sieveClient;
+//- (NSString *) userLongDateFormat;
+- (BOOL) _isSieveServerAvailable;
+- (id) _sieveClient;
 
 @end
 

@@ -1,6 +1,6 @@
 /* UIxContactFolderProperties.m - this file is part of SOGo
  *
- * Copyright (C) 2014 Inverse inc.
+ * Copyright (C) 2015 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,9 +18,19 @@
  * Boston, MA 02111-1307, USA.
  */
 
+#import <Foundation/NSDictionary.h>
+#import <Foundation/NSEnumerator.h>
+#import <Foundation/NSURL.h>
+#import <Foundation/NSValue.h>
+
+#import <NGObjWeb/WORequest.h>
+
+#import <SOGo/NSString+Utilities.h>
+#import <SOGo/SOGoUser.h>
+#import <SOGo/SOGoUserSettings.h>
 #import <SOGo/SOGoSystemDefaults.h>
+
 #import <Contacts/SOGoContactGCSFolder.h>
-#import <NGExtensions/NSURL+misc.h>
 
 #import "UIxContactFolderProperties.h"
 
@@ -30,9 +40,7 @@
 {
   if ((self = [super init]))
     {
-      addressBook = [self clientObject];
-      baseCardDAVURL = nil;
-      basePublicCardDAVURL = nil;
+      addressbook = [self clientObject];
     }
 
   return self;
@@ -40,100 +48,37 @@
 
 - (void) dealloc
 {
-  [baseCardDAVURL release];
-  [basePublicCardDAVURL release];
   [super dealloc];
 }
 
-- (NSString *) addressBookName
+/**
+ * @api {post} /so/:username/Contacts/:addressbookId/save Save addressbook
+ * @apiDescription Save an addressbook's properties.
+ * @apiVersion 1.0.0
+ * @apiName PostSaveProperties
+ * @apiGroup AddressBook
+ *
+ * @apiParam {String} name                Human readable name
+ * @apiParam {Number} synchronize         1 if we enable EAS synchronization for this addressbook
+ */
+- (WOResponse *) savePropertiesAction
 {
-  return [addressBook displayName];
-}
+  WORequest *request;
+  NSDictionary *params;
+  id o, values;
 
-- (void) setAddressBookName: (NSString *) newName
-{
-  [addressBook renameTo: newName];
-}
+  request = [context request];
+  params = [[request contentAsString] objectFromJSONString];
 
-- (BOOL) synchronizeAddressBook
-{
-  return [self mustSynchronize] || [addressBook synchronize];
-}
+  o = [params objectForKey: @"name"];
+  if ([o isKindOfClass: [NSString class]])
+    [addressbook renameTo: o];
 
-- (void) setSynchronizeAddressBook: (BOOL) new
-{
-  [addressBook setSynchronize: new];
-}
+  o = [params objectForKey: @"synchronize"];
+  if ([o isKindOfClass: [NSNumber class]])
+    [addressbook setSynchronize: [o boolValue]];
 
-- (BOOL) mustSynchronize
-{
-  return [[addressBook nameInContainer] isEqualToString: @"personal"];
-}
-
-- (BOOL) shouldTakeValuesFromRequest: (WORequest *) request
-                           inContext: (WOContext*) context
-{
-  NSString *method;
-
-  method = [[request uri] lastPathComponent];
-
-  return [method isEqualToString: @"saveProperties"];
-}
-
-- (id <WOActionResults>) savePropertiesAction
-{
-  return [self jsCloseWithRefreshMethod: nil];
-}
-
-- (NSString *) _baseCardDAVURL
-{
-  NSString *davURL;
-
-  if (!baseCardDAVURL)
-    {
-      davURL = [[addressBook realDavURL] absoluteString];
-      if ([davURL hasSuffix: @"/"])
-        baseCardDAVURL = [davURL substringToIndex: [davURL length] - 1];
-      else
-        baseCardDAVURL = davURL;
-      [baseCardDAVURL retain];
-    }
-
-  return baseCardDAVURL;
-}
-
-- (NSString *) cardDavURL
-{
-  return [NSString stringWithFormat: @"%@/", [self _baseCardDAVURL]];
-}
-
-- (NSString *) _basePublicCardDAVURL
-{
-  NSString *davURL;
-  
-  if (!basePublicCardDAVURL)
-    {
-      davURL = [[addressBook publicDavURL] absoluteString];
-      if ([davURL hasSuffix: @"/"])
-        basePublicCardDAVURL = [davURL substringToIndex: [davURL length] - 1];
-      else
-        basePublicCardDAVURL = davURL;
-      [basePublicCardDAVURL retain];
-    }
-  
-  return basePublicCardDAVURL;
-}
-
-- (NSString *) publicCardDavURL
-{
-  return [NSString stringWithFormat: @"%@/", [self _basePublicCardDAVURL]];
-}
-
-- (BOOL) isPublicAccessEnabled
-{
-  // NOTE: This method is the same found in Common/UIxAclEditor.m
-  return [[SOGoSystemDefaults sharedSystemDefaults]
-           enablePublicAccess];
+  return [self responseWith204];
 }
 
 @end

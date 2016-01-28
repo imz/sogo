@@ -394,6 +394,39 @@
   return dateFormatter;
 }
 
+- (NSDictionary *) currentDay
+{
+  NSCalendarDate *now;
+  NSDictionary *description, *abbr;
+  NSDictionary *locale;
+  SOGoUserDefaults *ud;
+  WOResourceManager *resMgr;
+  NSUInteger seconds;
+
+  now = [NSCalendarDate calendarDate];
+  ud = [self userDefaults];
+  resMgr = [[WOApplication application] resourceManager];
+  locale = [resMgr localeForLanguageNamed: [ud language]];
+
+  [now setTimeZone: [ud timeZone]];
+  seconds = [now hourOfDay]*3600 + [now minuteOfHour]*60 + [now secondOfMinute];
+
+  abbr = [NSDictionary dictionaryWithObjectsAndKeys:
+                 [now descriptionWithCalendarFormat: @"%a" locale: locale], @"weekday",
+                 [now descriptionWithCalendarFormat: @"%b" locale: locale], @"month",
+                       nil];
+  description = [NSDictionary dictionaryWithObjectsAndKeys:
+                        [now descriptionWithCalendarFormat: @"%A" locale: locale], @"weekday",
+                        [now descriptionWithCalendarFormat: @"%B" locale: locale], @"month",
+                        [now descriptionWithCalendarFormat: @"%d" locale: locale], @"day",
+                        [now descriptionWithCalendarFormat: @"%Y" locale: locale], @"year",
+                        abbr, @"abbr",
+                        [NSNumber numberWithInt: (24*3600 - seconds)], @"secondsBeforeTomorrow",
+                        nil];
+
+  return description;
+}
+
 - (SOGoUserDefaults *) userDefaults
 {
   if (!_defaults)
@@ -605,10 +638,10 @@
 {
   NSString *fullName, *replyTo, *imapLogin, *imapServer, *cImapServer, *signature,
     *encryption, *scheme, *action, *query, *customEmail, *defaultEmail, *sieveServer;
-  NSMutableDictionary *mailAccount, *identity, *mailboxes, *receipts;
+  NSMutableDictionary *mailAccount, *identity, *mailboxes, *receipts, *mailSettings;
   NSNumber *port;
   NSMutableArray *identities;
-  NSArray *mails;
+  NSArray *mails, *delegates;
   NSURL *url, *cUrl;
   unsigned int count, max, default_identity;
   NSInteger defaultPort;
@@ -799,11 +832,34 @@
                 forKey: @"Trash"];
   [mailboxes setObject: [_defaults junkFolderName]
                 forKey: @"Junk"];
-  [mailAccount setObject: mailboxes forKey: @"mailboxes"];
+  [mailAccount setObject: mailboxes forKey: @"specialMailboxes"];
   [mailboxes release];
 
   [mailAccounts addObject: mailAccount];
   [mailAccount release];
+
+  /* delegates */
+  mailSettings = [[self userSettings] objectForKey: @"Mail"];
+  delegates = [mailSettings objectForKey: @"DelegateTo"];
+  if (!delegates)
+    delegates = [NSArray array];
+  else
+    {
+      NSMutableArray *allDelegates;
+      SOGoUser *delegate;
+
+      allDelegates = [NSMutableArray array];
+      for (count = 0; count < [delegates count]; count++)
+        {
+          delegate = [SOGoUser userWithLogin: [delegates objectAtIndex: count]];
+          [allDelegates addObject: [NSDictionary dictionaryWithObjectsAndKeys: [delegates objectAtIndex: count], @"uid",
+                                                 [delegate cn], @"cn",
+                                                 [delegate systemEmail], @"c_email", nil]];
+        }
+
+      delegates = allDelegates;
+    }
+  [mailAccount setObject: delegates  forKey: @"delegates"];
 }
 
 - (NSArray *) mailAccounts

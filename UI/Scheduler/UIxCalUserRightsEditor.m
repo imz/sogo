@@ -1,8 +1,6 @@
 /* UIxCalUserRightsEditor.m - this file is part of SOGo
  *
- * Copyright (C) 2007-2010 Inverse inc.
- *
- * Author: Wolfgang Sourdeau <wsourdeau@inverse.ca>
+ * Copyright (C) 2007-2015 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +21,7 @@
 #import <Foundation/NSArray.h>
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSEnumerator.h>
+#import <Foundation/NSValue.h>
 #import <NGObjWeb/WORequest.h>
 #import <SoObjects/SOGo/SOGoPermissions.h>
 
@@ -35,7 +34,6 @@
   if ((self = [super init]))
     {
       currentRight = nil;
-      currentRightType = nil;
       rights = [NSMutableDictionary new];
       [rights setObject: @"None" forKey: @"Public"];
       [rights setObject: @"None" forKey: @"Private"];
@@ -48,7 +46,6 @@
 - (void) dealloc
 {
   [currentRight release];
-  [currentRightType release];
   [rights release];
   [super dealloc];
 }
@@ -94,22 +91,41 @@
   return rightsForType;
 }
 
-- (void) updateRights
+/**
+ * @see [UIxUserRightsEditor userRightsAction]
+ */
+- (NSDictionary *) userRightsForObject
+{
+  NSMutableDictionary *d;
+  
+  [self prepareRightsForm];
+
+  d = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                               [NSNumber numberWithBool:[self userCanCreateObjects]], @"canCreateObjects",
+                               [NSNumber numberWithBool:[self userCanEraseObjects]], @"canEraseObjects",
+                           nil];
+
+  [d addEntriesFromDictionary: rights];
+
+  return d;
+}
+
+/**
+ * @see [UIxUserRightsEditor saveUserRightsAction]
+ */
+- (void) updateRights: (NSDictionary *) newRights
 {
   NSEnumerator *types;
   NSString *currentType, *currentValue;
   NSArray *rightsForType;
-  WORequest *request;
 
-  request = [context request];
   types = [[self rightTypes] objectEnumerator];
   currentType = [types nextObject];
   while (currentType)
     {
       rightsForType = [self _rightsForType: currentType];
-      currentValue
-	= [request formValueForKey:
-		     [NSString stringWithFormat: @"%@Right", currentType]];
+      currentValue = [newRights objectForKey: currentType];
+	
       if ([currentValue isEqualToString: @"None"])
 	[self removeAllRightsFromList: rightsForType];
       else
@@ -119,12 +135,12 @@
       currentType = [types nextObject];
     }
 
-  if ([[request formValueForKey: @"ObjectCreator"] length] > 0)
+  if ([[newRights objectForKey: @"canCreateObjects"] boolValue])
     [self appendRight: SOGoRole_ObjectCreator];
   else
     [self removeRight: SOGoRole_ObjectCreator];
 
-  if ([[request formValueForKey: @"ObjectEraser"] length] > 0)
+  if ([[newRights objectForKey: @"canEraseObjects"] boolValue])
     [self appendRight: SOGoRole_ObjectEraser];
   else
     [self removeRight: SOGoRole_ObjectEraser];
@@ -139,6 +155,11 @@
 		     @"Responder", @"Modifier", nil]);
 }
 
+- (NSArray *) rightTypes
+{
+  return [NSArray arrayWithObjects: @"Public", @"Confidential", @"Private", nil];
+}
+
 - (void) setCurrentRight: (NSString *) newCurrentRight
 {
   ASSIGN (currentRight, newCurrentRight);
@@ -149,57 +170,15 @@
   return currentRight;
 }
 
-- (NSArray *) rightTypes
-{
-  return
-    [NSArray arrayWithObjects: @"Public", @"Confidential", @"Private", nil];
-}
-
-- (void) setCurrentRightType: (NSString *) newCurrentRightType
-{
-  ASSIGN (currentRightType, newCurrentRightType);
-}
-
-- (NSString *) currentRightType
-{
-  return currentRightType;
-}
-
 - (NSString *) currentRightLabel
 {
   return [self labelForKey:
 		 [NSString stringWithFormat: @"label_%@", currentRight]];
 }
 
-- (NSString *) currentRightTypeLabel
-{
-  return [self labelForKey:
-		 [NSString stringWithFormat: @"label_%@", currentRightType]];
-}
-
-- (NSString *) currentRightTypeName
-{
-  return [NSString stringWithFormat: @"%@Right", currentRightType];
-}
-
-- (NSString *) currentRightSelection
-{
-  return [rights objectForKey: currentRightType];
-}
-
-- (void) setUserCanCreateObjects: (BOOL) userCanCreateObjects
-{
-  [self appendRight: SOGoRole_ObjectCreator];
-}
-
 - (BOOL) userCanCreateObjects
 {
   return [userRights containsObject: SOGoRole_ObjectCreator];
-}
-
-- (void) setUserCanEraseObjects: (BOOL) userCanEraseObjects
-{
-  [self appendRight: SOGoRole_ObjectEraser];
 }
 
 - (BOOL) userCanEraseObjects

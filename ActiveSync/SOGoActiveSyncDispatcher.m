@@ -711,6 +711,27 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 }
 
 
+- (void) _flattenFolders: (NSArray *) theFolders
+                    into: (NSMutableArray *) theTarget
+                  parent: (NSString *) theParent
+{
+  NSArray *o;
+  int i;
+
+  [theTarget addObjectsFromArray: theFolders];
+
+  for (i = 0; i < [theFolders count]; i++)
+    {
+      if (theParent)
+        [[theFolders objectAtIndex: i] setObject: theParent  forKey: @"parent"];
+
+      o = [[theFolders objectAtIndex: i] objectForKey: @"children"];
+
+      if (o)
+        [self _flattenFolders: o  into: theTarget  parent: [[theFolders objectAtIndex: i] objectForKey: @"path"]];
+    }
+}
+
 //
 // <?xml version="1.0"?>
 // <!DOCTYPE ActiveSync PUBLIC "-//MICROSOFT//DTD ActiveSync//EN" "http://www.microsoft.com/">
@@ -722,16 +743,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 inResponse: (WOResponse *) theResponse
 {
   NSString *key, *cKey, *nkey, *name, *serverId, *parentId, *nameInCache, *personalFolderName, *syncKey, *folderType, *operation;
+  NSMutableArray *folders, *processedFolders, *allFoldersMetadata;
   NSMutableDictionary *cachedGUIDs, *metadata;
-  NSMutableArray *folders, *processedFolders;
   NSDictionary *folderMetadata, *imapGUIDs;
-  NSArray *allFoldersMetadata, *allKeys;
   SOGoMailAccounts *accountsFolder;
   SOGoMailAccount *accountFolder;
   NSMutableString *s, *commands;
   SOGoUserFolder *userFolder;
   SoSecurityManager *sm;
   SOGoCacheGCSObject *o;
+  NSArray *allKeys;
   id currentFolder;
   NSData *d;
 
@@ -773,7 +794,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   accountsFolder = [userFolder lookupName: @"Mail" inContext: context acquire: NO];
   accountFolder = [accountsFolder lookupName: @"0" inContext: context acquire: NO];
 
-  allFoldersMetadata = [accountFolder allFoldersMetadata];
+  allFoldersMetadata = [NSMutableArray array];
+  [self _flattenFolders: [accountFolder allFoldersMetadata]  into: allFoldersMetadata  parent: nil];
   
   // Get GUIDs of folder (IMAP)
   // e.g. {folderINBOX = folder6b93c528176f1151c7260000aef6df92}
@@ -890,15 +912,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   for (i = 0; i < [allFoldersMetadata count]; i++)
    {
      folderMetadata = [allFoldersMetadata objectAtIndex: i];
-       
-     nameInCache = [NSString stringWithFormat: @"folder%@",  [[folderMetadata objectForKey: @"path"] substringFromIndex: 1]];
+
+     // In v3, the "path" value does not have a '/' at the beginning
+     nameInCache = [NSString stringWithFormat: @"folder%@",  [folderMetadata objectForKey: @"path"]];
 
      // we have no guid - ignore the folder
      if (![imapGUIDs objectForKey: nameInCache])
        continue;
 
      serverId = [NSString stringWithFormat: @"mail/%@",  [[imapGUIDs objectForKey: nameInCache] substringFromIndex: 6]];
-     name = [folderMetadata objectForKey: @"displayName"];
+
+     // In v3, we use "name" while in v2, it was "displayName"
+     name = [folderMetadata objectForKey: @"name"];
 
      // avoid duplicate folders if folder is returned by different imap namespaces
      if ([processedFolders indexOfObject: serverId] == NSNotFound)
@@ -919,7 +944,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
        {
          // make sure that parent of main-folders is always 0
          if (type == 12)
-            parentId = [NSString stringWithFormat: @"mail/%@", [[imapGUIDs objectForKey: [NSString stringWithFormat: @"folder%@",  [[folderMetadata objectForKey: @"parent"] substringFromIndex: 1]]] substringFromIndex: 6]];
+            parentId = [NSString stringWithFormat: @"mail/%@", [[imapGUIDs objectForKey: [NSString stringWithFormat: @"folder%@",  [folderMetadata objectForKey: @"parent"]]] substringFromIndex: 6]];
 
          name = [[name pathComponents] lastObject];
        }

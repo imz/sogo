@@ -791,7 +791,6 @@ static BOOL debugSoParts       = NO;
           filename = [NSString stringWithFormat: @"email_%@.eml", path];
       }
     }
-  
 
   if (filename)
     {

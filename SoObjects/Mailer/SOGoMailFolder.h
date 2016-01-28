@@ -56,6 +56,7 @@
 - (NSArray *) toManyRelationshipKeys;
 
 - (NSDictionary *) statusForFlags: (NSArray *) flags;
+- (unsigned int) unseenCount;
 
 - (NSException *) deleteUIDs: (NSArray *) uids
 	      useTrashFolder: (BOOL *) withTrash
@@ -103,7 +104,6 @@
                           matchingSyncToken: (NSString *) syncToken
                                    fromDate: (NSCalendarDate *) theStartDate
                                 initialLoad: (BOOL) initialLoadInProgress;
-
 /* flags */
 
 - (NSException *) addFlagsToAllMessages: (id) _f;
