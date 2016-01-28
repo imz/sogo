@@ -1,0 +1,17 @@
+object fe0221f6300bc92f0156f9dde4e58c1c8d3610e7
+type commit
+tag SOGo-3.0.0
+tagger Francis Lachapelle <flachapelle@inverse.ca> 1453927258 -0500
+
+SOGo 3.0.0
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQEcBAABAgAGBQJWqStaAAoJENId3QCAiVbRe/4IANxVL8u8Se1jWC3LEsxdXs8N
+FZDP6NUeIJgkHZehM2xu2M3nFqPa/xoQJyweaAK7BMe0cNMEbbIBnLVUP+lJHDMi
+hjo+QGI4Gntyz0ccrB/EWY0JtgiMLbGcgKYZo6N9sWq2i6aHNGrUe3M0+BDU98is
+iRzip27ZaSsEgs47Ppq9VWOI06RF0Hl1nh1vj8CKmyUXyDF7heXvmZJ/b5kPch01
+8JQ3fWV3OF67mNl75I8ZvRb042NuFCWivnYz47Rqn66aHsekSjonS7/rE84njUGk
+dm7LcXTuRGJnJOr9p1nFlUGoSANAtjLI8ANiUkRqkvalYZe5g2Y1sEwLfEbbtNU=
+=4z9S
+-----END PGP SIGNATURE-----
