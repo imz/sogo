@@ -4,7 +4,7 @@
 Summary:      SOGo is a very fast and scalable modern collaboration suite (groupware)
 Name:         sogo
 Version:      3.0.0
-Release:      alt1
+Release:      alt2
 
 License:      GPL
 URL:          http://www.inverse.ca/contributions/sogo.html
@@ -236,7 +236,7 @@ touch %buildroot%apache2_sites_enabled/SOGo.conf
 install -Dm 600 Scripts/sogo.cron %buildroot/etc/cron.d/sogo
 subst 's, sogo, %sogo_user,g' %buildroot/etc/cron.d/sogo
 install -Dm 755 Scripts/tmpwatch %buildroot/etc/cron.daily/sogo-tmpwatch
-install -D      Scripts/logrotate %buildroot%_logrotatedir/sogo
+install -Dm 644 Scripts/logrotate %buildroot%_logrotatedir/sogo
 install -Dm 644 Scripts/sogo-systemd-redhat %buildroot%_unitdir/sogo.service
 subst "s/^User=.*/User=%sogo_user/" %buildroot%_unitdir/sogo.service
 install -Dm 644 Scripts/sogo-systemd.conf %buildroot%_tmpfilesdir/sogo.conf
@@ -368,6 +368,9 @@ fi
 %preun_service sogo
 
 %changelog
+* Tue Feb 02 2016 Andrey Cherepanov <cas@altlinux.org> 3.0.0-alt2
+- Fix permission of /etc/logrotate.d/sogo (ALT #31750)
+
 * Thu Jan 28 2016 Andrey Cherepanov <cas@altlinux.org> 3.0.0-alt1
 - New version
 
