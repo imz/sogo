@@ -3,8 +3,8 @@
 
 Summary:      SOGo is a very fast and scalable modern collaboration suite (groupware)
 Name:         sogo
-Version:      3.0.0
-Release:      alt2
+Version:      3.0.1
+Release:      alt1
 
 License:      GPL
 URL:          http://www.inverse.ca/contributions/sogo.html
@@ -106,11 +106,12 @@ Group:        Communications
 Requires:     sogo = %version-%release
 
 %description tool
-Administrative tool for SOGo that provides the following internal commands:
-  backup          -- backup user folders
-  restore         -- restore user folders
-  remove-doubles  -- remove duplicate contacts from the user addressbooks
-  check-doubles   -- list user addressbooks with duplicate contacts
+Administrative tool for SOGo that provides the following internal
+commands:
+  backup          - backup user folders
+  restore         - restore user folders
+  remove-doubles  - remove duplicate contacts from the user addressbooks
+  check-doubles   - list user addressbooks with duplicate contacts
 
 %package slapd-sockd
 Summary:      SOGo backend for slapd and back-sock
@@ -280,6 +281,7 @@ popd
 %dir %attr(0700, %sogo_user, %sogo_user) %_spooldir/sogo
 %dir %attr(0750, root, %sogo_user) %_sysconfdir/sogo
 %_sbindir/sogod
+%dir %_libdir/sogo
 %_libdir/sogo/libSOGo.so.*
 %_libdir/sogo/libSOGoUI.so.*
 %_libdir/GNUstep/SOGo/AdministrationUI.SOGo
@@ -368,6 +370,9 @@ fi
 %preun_service sogo
 
 %changelog
+* Tue Feb 16 2016 Andrey Cherepanov <cas@altlinux.org> 3.0.1-alt1
+- New version
+
 * Tue Feb 02 2016 Andrey Cherepanov <cas@altlinux.org> 3.0.0-alt2
 - Fix permission of /etc/logrotate.d/sogo (ALT #31750)
 
