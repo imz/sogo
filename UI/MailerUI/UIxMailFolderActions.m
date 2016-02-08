@@ -478,7 +478,7 @@
       response = [co moveUIDs: uids  toFolder: destinationFolder inContext: context];
       if (!response)
         {
-          // Verify if the message beeing delete is saved as the root of a collapsed thread
+          // Verify if the message being deleted is saved as the root of a collapsed thread
           us = [[context activeUser] userSettings];
           moduleSettings = [us objectForKey: @"Mail"];
           threadsCollapsed = [moduleSettings objectForKey: @"threadsCollapsed"];
@@ -501,7 +501,7 @@
   else
     {
       data = [NSDictionary dictionaryWithObject: [self labelForKey: @"Error moving messages." inContext: context]
-                                         forKey: @"error"];
+                                         forKey: @"message"];
       response = [self responseWithStatus: 500 andJSONRepresentation: data];
     }
 
@@ -684,6 +684,8 @@
   NSURL *currentURL;
   NSDictionary *data;
 
+  id quota;
+
   co = [self clientObject];
 
   error = [co addFlagsToAllMessages: @"deleted"];
@@ -712,8 +714,14 @@
     {
       // We return the inbox quota
       account = [co mailAccountFolder];
-      data = [NSDictionary dictionaryWithObject: [account getInboxQuota] forKey: @"quotas"];
-      response = [self responseWithStatus: 200 andJSONRepresentation: data];
+      if ((quota = [account getInboxQuota]))
+        {
+          data = [NSDictionary dictionaryWithObjectsAndKeys: quota, @"quotas", nil];
+          response = [self responseWithStatus: 200
+                                    andString: [data jsonRepresentation]];
+        }
+      else
+        response = [self responseWithStatus: 200];
     }
 
   return response;

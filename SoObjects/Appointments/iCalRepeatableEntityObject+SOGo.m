@@ -1,6 +1,6 @@
 /* iCalRepeatableEntityObject+SOGo.m - this file is part of SOGo
  *
- * Copyright (C) 2007-2015 Inverse inc.
+ * Copyright (C) 2007-2016 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -111,6 +111,7 @@
 
   if ([rules count] > 0)
     {
+      // Consider first rule only
       rule = [rules objectAtIndex: 0];
       frequency = [rule frequencyForValue: [rule frequency]];
 
@@ -163,12 +164,12 @@
       rule = [iCalRecurrenceRule new];
       [rule setInterval: @"1"];
 
-      frequency = (int)NSNotFound;
+      frequency = 0;
       o = [repeat objectForKey: @"frequency"];
       if ([o isKindOfClass: [NSString class]])
         {
           frequency = [rule valueForFrequency: o];
-          if ((NSUInteger) frequency == NSNotFound)
+          if (!frequency)
             {
               if ([o caseInsensitiveCompare: @"BI-WEEKLY"] == NSOrderedSame)
                 {
@@ -222,7 +223,7 @@
                 [rule setValues: o atIndex: 0 forKey: @"bymonth"];
             }
 
-          if ((NSUInteger) frequency != NSNotFound)
+          if (frequency)
             {
               [rule setFrequency: frequency];
               [self setRecurrenceRules: [NSArray arrayWithObject: rule]];

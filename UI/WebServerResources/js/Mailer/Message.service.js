@@ -168,7 +168,7 @@
           if (data.name.split(' ').length)
             data.shortname = data.name.split(' ')[0].replace('\'','');
         }
-        else {
+        else if (data.email) {
           data.full = '<' + data.email + '>';
           data.shortname = data.email.split('@')[0];
         }
@@ -416,8 +416,6 @@
     Message.$$resource.post([this.$absolutePath(), path].join('/'), action, data).then(function(data) {
       Message.$timeout(function() {
         _this.$reload();
-      }, function() {
-        // TODO: show toast
       });
     });
   };

@@ -81,8 +81,6 @@
           // User confirmed the deletion
           var components = _.filter(Component['$' + vm.componentType], function(component) { return component.selected; });
           Calendar.$deleteComponents(components);
-        },  function(data, status) {
-          // Delete failed
         });
     }
 
@@ -153,6 +151,7 @@
 
       if (component.isNew) {
         coordinates = pointerHandler.currentEventCoordinates;
+        component.summary = '';
         if (component.isAllDay)
           coordinates.duration -= 96;
         component.setDelta(coordinates.duration * 15);

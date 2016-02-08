@@ -232,6 +232,11 @@
       // Add strings from Locale
       NSDictionary *moreStrings;
 
+      // AM/PM
+      moreStrings = [NSDictionary dictionaryWithObjects: [locale objectForKey: NSAMPMDesignation]
+                                                forKeys: [UIxComponent amPmLabelKeys]];
+      [strings addEntriesFromDictionary: moreStrings];
+
       // Month names
       moreStrings = [NSDictionary dictionaryWithObjects: [locale objectForKey: NSMonthNameArray]
                                                 forKeys: [UIxComponent monthLabelKeys]];
@@ -470,7 +475,11 @@
 
 - (NSString *) userEmail
 {
-  return [[context activeUser] systemEmail];
+  NSDictionary *identity;
+
+  identity = [[context activeUser] defaultIdentity];
+
+  return [identity objectForKey: @"email"];
 }
 
 
