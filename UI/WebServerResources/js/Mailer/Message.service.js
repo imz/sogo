@@ -156,16 +156,19 @@
    */
   Message.prototype.$formatFullAddresses = function() {
     var _this = this;
-    var identities = _.pluck(_this.$mailbox.$account.identities, 'email');
+    var identities = _.map(_this.$mailbox.$account.identities, 'email');
 
     // Build long representation of email addresses
-    _.each(['from', 'to', 'cc', 'bcc', 'reply-to'], function(type) {
-      _.each(_this[type], function(data, i) {
+    _.forEach(['from', 'to', 'cc', 'bcc', 'reply-to'], function(type) {
+      _.forEach(_this[type], function(data) {
         if (data.name && data.name != data.email) {
           data.full = data.name + ' <' + data.email + '>';
 
-          // If we have "Alice Foo" as name, we grab "Alice"
-          if (data.name.split(' ').length)
+          if (data.name.length < 10)
+            // Name is already short
+            data.shortname = data.name;
+          else if (data.name.split(' ').length)
+            // If we have "Alice Foo" as name, we grab "Alice"
             data.shortname = data.name.split(' ')[0].replace('\'','');
         }
         else if (data.email) {
@@ -190,16 +193,21 @@
    * @desc Format all recipients into a very compact string
    * @returns a compacted string of all recipients
    */
-  Message.prototype.$shortRecipients = function() {
-    var _this = this;
-    var result = [];
+  Message.prototype.$shortRecipients = function(max) {
+    var _this = this, result = [], count = 0, total = 0;
 
-    // Build long representation of email addresses
-    _.each(['to', 'cc', 'bcc'], function(type) {
-      _.each(_this[type], function(data, i) {
-        result.push(data.shortname);
+    // Build short representation of email addresses
+    _.forEach(['to', 'cc', 'bcc'], function(type) {
+      total += _this[type]? _this[type].length : 0;
+      _.forEach(_this[type], function(data, i) {
+        if (count < max)
+          result.push(data.shortname);
+        count++;
       });
     });
+
+    if (total > max)
+      result.push(l('and %{0} more...', (total - max)));
 
     return result.join(', ');
   };
@@ -227,12 +235,12 @@
    */
   Message.prototype.allowReplyAll = function() {
     var recipientsCount = 0;
-    recipientsCount = _.reduce(['to', 'cc'], function(count, type) {
+    recipientsCount = _.reduce(['to', 'cc'], _.bind(function(count, type) {
       if (this[type])
         return count + this[type].length;
       else
         return count;
-    }, recipientsCount, this);
+    }, this), recipientsCount);
 
     return !this.isDraft && recipientsCount > 1;
   };
@@ -273,7 +281,7 @@
                 message: formattedMessage
               };
             }
-            _.each(part.content, function(mixedPart) {
+            _.forEach(part.content, function(mixedPart) {
               _visit(mixedPart);
             });
           }
@@ -316,7 +324,7 @@
 
               // UIxMailPartICalViewer injects 'participants'
               if (part.participants) {
-                _.each(part.participants, function(participant) {
+                _.forEach(part.participants, function(participant) {
                   participant.image = Message.$gravatar(participant.email, 32);
                 });
               }
@@ -360,6 +368,15 @@
         return data.text;
       });
     });
+  };
+
+  /**
+   * @function $plainContent
+   * @memberof Message.prototype
+   * @returns the a plain text representation of the subject and body
+   */
+  Message.prototype.$plainContent = function() {
+    return Message.$$resource.fetch(this.$absolutePath(), 'viewplain');
   };
 
   /**
@@ -444,8 +461,6 @@
         _this.editable.attachmentAttrs = _.filter(_this.editable.attachmentAttrs, function(attachment) {
           return attachment.filename != filename;
         });
-      }, function() {
-        // TODO: show toast
       });
     });
   };
@@ -576,27 +591,24 @@
    */
   Message.prototype.$send = function() {
     var _this = this,
-        data = angular.copy(this.editable),
-        deferred = Message.$q.defer();
+        data = angular.copy(this.editable);
 
     Message.$log.debug('send = ' + JSON.stringify(data, undefined, 2));
 
-    Message.$$resource.post(this.$absolutePath({asDraft: true}), 'send', data).then(function(data) {
+    return Message.$$resource.post(this.$absolutePath({asDraft: true}), 'send', data).then(function(data) {
       if (data.status == 'success') {
-        deferred.resolve(data);
         if (angular.isDefined(_this.origin)) {
           if (_this.origin.action.startsWith('reply'))
             _this.origin.message.isanswered = true;
           else if (_this.origin.action == 'forward')
             _this.origin.message.isforwarded = true;
         }
+        return data;
       }
       else {
-        deferred.reject(data);
+        return Message.$q.reject(data);
       }
     });
-
-    return deferred.promise;
   };
 
   /**

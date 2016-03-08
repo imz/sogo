@@ -28,15 +28,12 @@
 
 #import <Foundation/NSCalendarDate.h>
 #import <Foundation/NSCharacterSet.h>
-#import <Foundation/NSDictionary.h>
-#import <Foundation/NSEnumerator.h>
 #import <Foundation/NSTimeZone.h>
 #import <Foundation/NSUserDefaults.h> /* for locale string constants */
 #import <Foundation/NSValue.h>
 
 #import <NGObjWeb/WOApplication.h>
 #import <NGObjWeb/WOContext+SoObjects.h>
-#import <NGObjWeb/WOResponse.h>
 #import <NGObjWeb/WORequest.h>
 #import <NGObjWeb/SoObject+SoDAV.h>
 #import <NGObjWeb/NSException+HTTP.h>
@@ -50,8 +47,6 @@
 #import <Mailer/NSString+Mail.h>
 #import <Mailer/SOGoDraftsFolder.h>
 #import <Mailer/SOGoMailAccount.h>
-#import <Mailer/SOGoMailFolder.h>
-#import <Mailer/SOGoMailObject.h>
 #import <Mailer/SOGoSentFolder.h>
 #import <SOGo/NSArray+Utilities.h>
 #import <SOGo/NSDictionary+Utilities.h>
@@ -770,7 +765,9 @@
   data = [self getUIDsInFolder: folder
                    withHeaders: !noHeaders];
 
-  return [self responseWithStatus: 200 andJSONRepresentation: data];
+  response = [self responseWithStatus: 200 andJSONRepresentation: data];
+
+  return response;
 }
 
 - (NSArray *) getHeadersForUIDs: (NSArray *) uids
@@ -899,19 +896,18 @@
       || [[data objectForKey: @"uids"] count] == 0)
     {
       data = [NSDictionary dictionaryWithObjectsAndKeys:
-                             @"No UID specified", @"error", nil];
-      return [self responseWithStatus: 404 /* Not Found */
-                            andString: [data jsonRepresentation]];
+                             @"No UID specified", @"message", nil];
+      response = [self responseWithStatus: 404 /* Not Found */
+                    andJSONRepresentation: data];
+
+      return response;
     }
 
   uids = [data objectForKey: @"uids"];
   headers = [self getHeadersForUIDs: uids
 			   inFolder: [self clientObject]];
-
-  response = [context response];
-  [response setHeader: @"application/json; charset=utf-8"
-	    forKey: @"content-type"];
-  [response appendContentString: [headers jsonRepresentation]];
+  response = [self responseWithStatus: 200
+                andJSONRepresentation: headers];
 
   return response;
 }

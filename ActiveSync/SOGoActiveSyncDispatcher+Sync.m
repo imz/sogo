@@ -29,32 +29,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #import "SOGoActiveSyncDispatcher+Sync.h"
 
-#import <Foundation/NSArray.h>
 #import <Foundation/NSAutoreleasePool.h>
-#import <Foundation/NSCalendarDate.h>
 #import <Foundation/NSNull.h>
 #import <Foundation/NSProcessInfo.h>
 #import <Foundation/NSSortDescriptor.h>
-#import <Foundation/NSTimeZone.h>
-#import <Foundation/NSURL.h>
 #import <Foundation/NSValue.h>
 
 #import <NGObjWeb/NSException+HTTP.h>
-#import <NGObjWeb/SoApplication.h>
-#import <NGObjWeb/SoObject.h>
-#import <NGObjWeb/WOContext.h>
 #import <NGObjWeb/WOContext+SoObjects.h>
-#import <NGObjWeb/WOCookie.h>
-#import <NGObjWeb/WODirectAction.h>
 #import <NGObjWeb/WORequest.h>
-#import <NGObjWeb/WOResponse.h>
-
-#import <NGCards/iCalCalendar.h>
-#import <NGCards/iCalEntityObject.h>
-#import <NGCards/iCalEvent.h>
-#import <NGCards/iCalPerson.h>
-#import <NGCards/iCalToDo.h>
-#import <NGCards/NGVCard.h>
 
 #import <NGExtensions/NSCalendarDate+misc.h>
 #import <NGExtensions/NSObject+Logs.h>
@@ -62,40 +45,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #import <NGImap4/NSString+Imap4.h>
 
-#import <DOM/DOMElement.h>
-#import <DOM/DOMProtocols.h>
-
-#import <EOControl/EOQualifier.h>
-
 #import <SOGo/NSArray+DAV.h>
 #import <SOGo/SOGoCache.h>
 #import <SOGo/NSDictionary+DAV.h>
-#import <SOGo/SOGoDAVAuthenticator.h>
-#import <SOGo/SOGoDomainDefaults.h>
-#import <SOGo/SOGoMailer.h>
 #import <SOGo/SOGoSystemDefaults.h>
 #import <SOGo/SOGoUser.h>
-#import <SOGo/SOGoUserSettings.h>
 #import <SOGo/SOGoCacheGCSObject.h>
 
 #import <Appointments/iCalEntityObject+SOGo.h>
 #import <Appointments/SOGoAppointmentObject.h>
-#import <Appointments/SOGoAppointmentFolder.h>
-#import <Appointments/SOGoAppointmentFolders.h>
 #import <Appointments/SOGoTaskObject.h>
 
 #import <Contacts/SOGoContactGCSEntry.h>
-#import <Contacts/SOGoContactGCSFolder.h>
-#import <Contacts/SOGoContactFolders.h>
-#import <Contacts/SOGoContactSourceFolder.h>
 
-#import <Mailer/SOGoMailAccount.h>
-#import <Mailer/SOGoMailAccounts.h>
 #import <Mailer/SOGoMailFolder.h>
-#import <Mailer/SOGoMailObject.h>
-
-#import <Foundation/NSObject.h>
-#import <Foundation/NSString.h>
 
 #include "iCalEvent+ActiveSync.h"
 #include "iCalToDo+ActiveSync.h"
@@ -105,7 +68,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "NSDate+ActiveSync.h"
 #include "NSData+ActiveSync.h"
 #include "NSString+ActiveSync.h"
-#include "SOGoActiveSyncConstants.h"
 #include "SOGoMailObject+ActiveSync.h"
 #include "SOGoSyncCacheObject.h"
 
@@ -1388,7 +1350,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 changeDetected: (BOOL *) changeDetected
            maxSyncResponseSize: (int) theMaxSyncResponseSize
 {
-  NSString *collectionId, *realCollectionId, *syncKey, *davCollectionTag, *bodyPreferenceType, *mimeSupport, *lastServerKey, *syncKeyInCache, *folderKey;
+  NSString *collectionId, *realCollectionId, *syncKey, *davCollectionTag, *bodyPreferenceType, *mimeSupport, *mimeTruncation, *lastServerKey, *syncKeyInCache, *folderKey;
   NSMutableDictionary *folderMetadata, *folderOptions;
   NSMutableArray *supportedElements, *supportedElementNames;
   NSMutableString *changeBuffer, *commandsBuffer;
@@ -1500,48 +1462,60 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   bodyPreferenceType = [[(id)[[(id)[theDocumentElement getElementsByTagName: @"BodyPreference"] lastObject] getElementsByTagName: @"Type"] lastObject] textValue];
 
   if (!bodyPreferenceType)
-   {
-     bodyPreferenceType = [[folderMetadata objectForKey: @"FolderOptions"] objectForKey: @"BodyPreferenceType"];
+    {
+      bodyPreferenceType = [[folderMetadata objectForKey: @"FolderOptions"] objectForKey: @"BodyPreferenceType"];
 
-     // By default, send MIME mails. See #3146 for details.
-     if (!bodyPreferenceType)
-       bodyPreferenceType = @"4";
+      // By default, send MIME mails. See #3146 for details.
+      if (!bodyPreferenceType)
+        bodyPreferenceType = @"4";
 
-     mimeSupport = [[folderMetadata objectForKey: @"FolderOptions"] objectForKey: @"MIMESupport"];
+      mimeSupport = [[folderMetadata objectForKey: @"FolderOptions"] objectForKey: @"MIMESupport"];
+      mimeTruncation = [[folderMetadata objectForKey: @"FolderOptions"] objectForKey: @"MIMETruncation"];
 
-     if (!mimeSupport)
-       mimeSupport = @"1";
-   }
+      if (!mimeSupport)
+        mimeSupport = @"1";
+
+      if (!mimeTruncation)
+        mimeTruncation = @"8";
+    }
   else
-   {
-     mimeSupport = [[(id)[theDocumentElement getElementsByTagName: @"MIMESupport"] lastObject] textValue];
+    {
+      mimeSupport = [[(id)[theDocumentElement getElementsByTagName: @"MIMESupport"] lastObject] textValue];
+      mimeTruncation = [[(id)[theDocumentElement getElementsByTagName: @"MIMETruncation"] lastObject] textValue];
 
-     if (!mimeSupport)
+      if (!mimeSupport)
         mimeSupport = [[folderMetadata objectForKey: @"FolderOptions"] objectForKey: @"MIMESupport"];
 
-     if (!mimeSupport)
+      if (!mimeSupport)
         mimeSupport = @"0";
 
-     if ([mimeSupport isEqualToString: @"1"] && [bodyPreferenceType isEqualToString: @"4"])
+      if (!mimeTruncation)
+        mimeTruncation = [[folderMetadata objectForKey: @"FolderOptions"] objectForKey: @"MIMETruncation"];
+
+      if (!mimeTruncation)
+        mimeTruncation = @"8";
+
+      if ([mimeSupport isEqualToString: @"1"] && [bodyPreferenceType isEqualToString: @"4"])
         bodyPreferenceType = @"2";
-     else if ([mimeSupport isEqualToString: @"2"] && [bodyPreferenceType isEqualToString: @"4"])
+      else if ([mimeSupport isEqualToString: @"2"] && [bodyPreferenceType isEqualToString: @"4"])
         bodyPreferenceType = @"4";
-     else if ([mimeSupport isEqualToString: @"0"] && [bodyPreferenceType isEqualToString: @"4"])
+      else if ([mimeSupport isEqualToString: @"0"] && [bodyPreferenceType isEqualToString: @"4"])
         bodyPreferenceType = @"2";
 
-
-     // Avoid writing to cache if there is nothing to change.
-     if (![[[folderMetadata objectForKey: @"FolderOptions"] objectForKey: @"BodyPreferenceType"] isEqualToString: bodyPreferenceType] ||
-         ![[[folderMetadata objectForKey: @"FolderOptions"] objectForKey: @"MIMESupport"] isEqualToString: mimeSupport])
-       {
-         folderOptions = [[NSDictionary alloc] initWithObjectsAndKeys: mimeSupport, @"MIMESupport", bodyPreferenceType, @"BodyPreferenceType", nil];
-         [folderMetadata setObject: folderOptions forKey: @"FolderOptions"];
-         [self _setFolderMetadata: folderMetadata forKey: folderKey];
-       }
-   }
+      // Avoid writing to cache if there is nothing to change.
+      if (![[[folderMetadata objectForKey: @"FolderOptions"] objectForKey: @"BodyPreferenceType"] isEqualToString: bodyPreferenceType] ||
+          ![[[folderMetadata objectForKey: @"FolderOptions"] objectForKey: @"MIMESupport"] isEqualToString: mimeSupport] ||
+          ![[[folderMetadata objectForKey: @"FolderOptions"] objectForKey: @"MIMETruncation"] isEqualToString: mimeTruncation])
+        {
+          folderOptions = [[NSDictionary alloc] initWithObjectsAndKeys: mimeSupport, @"MIMESupport", mimeTruncation, @"MIMETruncation", bodyPreferenceType, @"BodyPreferenceType", nil];
+          [folderMetadata setObject: folderOptions forKey: @"FolderOptions"];
+          [self _setFolderMetadata: folderMetadata forKey: folderKey];
+        }
+    }
   
   [context setObject: bodyPreferenceType  forKey: @"BodyPreferenceType"];
   [context setObject: mimeSupport  forKey: @"MIMESupport"];
+  [context setObject: mimeTruncation  forKey: @"MIMETruncation"];
   [context setObject: [folderMetadata objectForKey: @"SupportedElements"]  forKey: @"SupportedElements"];
 
   //

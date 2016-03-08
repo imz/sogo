@@ -27,15 +27,10 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
+
 #include "SOGoActiveSyncDispatcher.h"
 
-#import <Foundation/NSArray.h>
-#import <Foundation/NSData.h>
 #import <Foundation/NSAutoreleasePool.h>
-#import <Foundation/NSCalendarDate.h>
-#if GNUSTEP_BASE_MINOR_VERSION >= 21
-#import <Foundation/NSLocale.h>
-#endif
 #import <Foundation/NSProcessInfo.h>
 #import <Foundation/NSTimeZone.h>
 #import <Foundation/NSURL.h>
@@ -44,22 +39,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #import <NGObjWeb/NSException+HTTP.h>
 #import <NGObjWeb/SoPermissions.h>
 #import <NGObjWeb/SoSecurityManager.h>
-#import <NGObjWeb/SoApplication.h>
-#import <NGObjWeb/SoObject.h>
-#import <NGObjWeb/WOContext.h>
 #import <NGObjWeb/WOContext+SoObjects.h>
-#import <NGObjWeb/WOCookie.h>
-#import <NGObjWeb/WODirectAction.h>
-#import <NGObjWeb/WORequest.h>
-#import <NGObjWeb/WOResponse.h>
 
 #import <NGCards/iCalCalendar.h>
-#import <NGCards/iCalEntityObject.h>
-#import <NGCards/iCalEvent.h>
-#import <NGCards/iCalToDo.h>
-#import <NGCards/NGVCard.h>
 
 #import <NGExtensions/NGBase64Coding.h>
+
 #import <NGExtensions/NSCalendarDate+misc.h>
 #import <NGExtensions/NGCalendarDateRange.h>
 #import <NGExtensions/NGHashMap.h>
@@ -76,27 +61,21 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #import <NGMime/NGMimeMultipartBody.h>
 #import <NGMime/NGMimeType.h>
 #import <NGMail/NGMimeMessageParser.h>
-#import <NGMail/NGMimeMessage.h>
 #import <NGMail/NGMimeMessageGenerator.h>
 
 #import <DOM/DOMElement.h>
-#import <DOM/DOMProtocols.h>
 #import <DOM/DOMSaxBuilder.h>
-
-#import <EOControl/EOQualifier.h>
 
 #import <SOGo/NSArray+DAV.h>
 #import <SOGo/NSDictionary+DAV.h>
 #import <SOGo/SOGoCache.h>
 #import <SOGo/SOGoCacheGCSObject.h>
 #import <SOGo/SOGoDAVAuthenticator.h>
-#import <SOGo/SOGoDomainDefaults.h>
 #import <SOGo/SOGoMailer.h>
 #import <SOGo/SOGoSystemDefaults.h>
 #import <SOGo/SOGoUser.h>
 #import <SOGo/SOGoUserFolder.h>
 #import <SOGo/SOGoUserManager.h>
-#import <SOGo/SOGoUserSettings.h>
 #import <SOGo/GCSSpecialQueries+SOGoCacheObject.h>
 #import <SOGo/NSString+Utilities.h>
 #import <SOGo/WORequest+SOGo.h>
@@ -115,12 +94,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #import <Mailer/SOGoMailAccounts.h>
 #import <Mailer/SOGoMailBodyPart.h>
 #import <Mailer/SOGoMailFolder.h>
-#import <Mailer/SOGoMailObject.h>
 #import <Mailer/SOGoMailObject+Draft.h>
+#import <Mailer/SOGoSentFolder.h>
 #import <Mailer/NSString+Mail.h>
 
-
-#import <Foundation/NSObject.h>
 #import <Foundation/NSString.h>
 
 #include "iCalEvent+ActiveSync.h"
@@ -131,7 +108,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "NSData+ActiveSync.h"
 #include "NSDate+ActiveSync.h"
 #include "NSString+ActiveSync.h"
-#include "SOGoActiveSyncConstants.h"
 #include "SOGoMailObject+ActiveSync.h"
 
 #import <GDLContentStore/GCSChannelManager.h>
@@ -1172,17 +1148,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       SOGoMailAccounts *accountsFolder;
       SOGoUserFolder *userFolder;
       SOGoMailObject *mailObject;
+      NSMutableArray *a;
       NSArray *partKeys;
       int p;
 
-      NSRange r1, r2;
 
-      r1 = [realCollectionId rangeOfString: @"/"];
-      r2 = [realCollectionId rangeOfString: @"/"  options: 0  range: NSMakeRange(NSMaxRange(r1)+1, [realCollectionId length]-NSMaxRange(r1)-1)];
-
-      folderName = [realCollectionId substringToIndex: r1.location];
-      messageName = [realCollectionId substringWithRange: NSMakeRange(NSMaxRange(r1), r2.location-r1.location-1)];
-      pathToPart = [realCollectionId substringFromIndex: r2.location+1];
+      a = [[realCollectionId  componentsSeparatedByString: @"/"] mutableCopy];
+      [a autorelease];
+      pathToPart = [a lastObject];
+      [a removeLastObject];
+      messageName = [a lastObject];
+      [a removeLastObject];
+      folderName = [a componentsJoinedByString: @"/"];
 
       userFolder = [[context activeUser] homeFolderInContext: context];
       accountsFolder = [userFolder lookupName: @"Mail"  inContext: context  acquire: NO];
@@ -1379,20 +1356,21 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
               SOGoMailAccounts *accountsFolder;
               SOGoUserFolder *userFolder;
               SOGoMailObject *mailObject;
+              NSMutableArray *a;
 
               if ([fileReference length])
                 {
                   // fetch attachment
-                  NSRange r1, r2;
                   NSArray *partKeys;
                   int p;
 
-                  r1 = [realCollectionId rangeOfString: @"/"];
-                  r2 = [realCollectionId rangeOfString: @"/"  options: 0  range: NSMakeRange(NSMaxRange(r1)+1, [realCollectionId length]-NSMaxRange(r1)-1)];
-      
-                  folderName = [realCollectionId substringToIndex: r1.location];
-                  messageName = [realCollectionId substringWithRange: NSMakeRange(NSMaxRange(r1), r2.location-r1.location-1)];
-                  pathToPart = [realCollectionId substringFromIndex: r2.location+1];
+                  a = [[realCollectionId  componentsSeparatedByString: @"/"] mutableCopy];
+                  [a autorelease];
+                  pathToPart = [a lastObject];
+                  [a removeLastObject];
+                  messageName = [a lastObject];
+                  [a removeLastObject];
+                  folderName = [a componentsJoinedByString: @"/"]; 
 
                   userFolder = [[context activeUser] homeFolderInContext: context];
                   accountsFolder = [userFolder lookupName: @"Mail"  inContext: context  acquire: NO];
@@ -1408,13 +1386,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
                   currentBodyPart = [mailObject lookupImap4BodyPartKey: [partKeys objectAtIndex:0]  inContext: context];
                   for (p = 1; p < [partKeys count]; p++)
-                  {
-                    currentBodyPart = [currentBodyPart lookupImap4BodyPartKey: [partKeys objectAtIndex:p]  inContext: context];
-                  }
+                    {
+                      currentBodyPart = [currentBodyPart lookupImap4BodyPartKey: [partKeys objectAtIndex:p]  inContext: context];
+                    }
                   
                   [s appendString: @"<Fetch>"];
                   [s appendString: @"<Status>1</Status>"];
-                  [s appendFormat: @"<FileReference xmlns=\"AirSyncBase:\">%@</FileReference>", fileReference];
+                  [s appendFormat: @"<FileReference xmlns=\"AirSyncBase:\">mail/%@/%@/%@</FileReference>", [folderName stringByEscapingURL], messageName, pathToPart];
                   [s appendString: @"<Properties>"];
 
                   [s appendFormat: @"<ContentType xmlns=\"AirSyncBase:\">%@/%@</ContentType>", [[currentBodyPart partInfo] objectForKey: @"type"], [[currentBodyPart partInfo] objectForKey: @"subtype"]];
@@ -2037,6 +2015,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     }
   else
     {
+      if (heartbeatInterval < internalInterval)
+        heartbeatInterval = internalInterval; 
+
       status = 1;
     }
 

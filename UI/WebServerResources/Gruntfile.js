@@ -2,8 +2,8 @@ module.exports = function(grunt) {
   var js_files = {
     'js/Common.js': ['js/Common/*.app.js', 'js/Common/*.filter.js', 'js/Common/*Controller.js', 'js/Common/*.service.js', 'js/Common/*.directive.js', 'js/Common/utils.js'],
     'js/Main.js': ['js/Main/Main.app.js'],
-    'js/Scheduler.services.js': ['js/Scheduler/*.service.js'],
-    'js/Scheduler.js': ['js/Scheduler/Scheduler.app.js', 'js/Scheduler/*Controller.js', 'js/Scheduler/*.directive.js'],
+    'js/Scheduler.services.js': ['js/Scheduler/*.service.js', 'js/Scheduler/*Controller.js', 'js/Scheduler/*.directive.js'],
+    'js/Scheduler.js': ['js/Scheduler/Scheduler.app.js'],
     'js/Contacts.services.js': ['js/Contacts/*.service.js'],
     'js/Contacts.js': ['js/Contacts/Contacts.app.js', 'js/Contacts/*Controller.js', 'js/Contacts/*.directive.js'],
     'js/Mailer.services.js': ['js/Mailer/*.service.js', 'js/Mailer/*Controller.js', 'js/Mailer/*.directive.js'],
@@ -14,6 +14,9 @@ module.exports = function(grunt) {
     'js/Administration.services.js': ['js/Administration/*.service.js'],
     'js/Administration.js': ['js/Administration/Administration.app.js', 'js/Administration/*Controller.js']
 
+  };
+  var sortable_files = {
+    'js/vendor/ng-sortable.js': ['bower_components/Sortable/Sortable.js', 'bower_components/Sortable/ng-sortable.js']
   };
 
   require('time-grunt')(grunt);
@@ -87,6 +90,12 @@ module.exports = function(grunt) {
           mangle: false,
         },
         files: js_files
+      },
+      sortable: {
+        options: {
+          compress: true
+        },
+        files: sortable_files,
       }
     },
     watch: {
@@ -123,11 +132,12 @@ module.exports = function(grunt) {
       '<%= src %>/angular-animate/angular-animate{,.min}.js{,.map}',
       '<%= src %>/angular-sanitize/angular-sanitize{,.min}.js{,.map}',
       '<%= src %>/angular-aria/angular-aria{,.min}.js{,.map}',
+      '<%= src %>/angular-messages/angular-messages{,.min}.js{,.map}',
       '<%= src %>/angular-material/angular-material{,.min}.js{,.map}',
       '<%= src %>/angular-ui-router/release/angular-ui-router{,.min}.js',
-      '<%= src %>/angular-file-upload/dist/angular-file-upload.min.js{,map}',
+      '<%= src %>/angular-file-upload/dist/angular-file-upload{,.min}.js{,.map}',
       //'<%= src %>/ng-file-upload/ng-file-upload{,.min}.js{,map}',
-      '<%= src %>/lodash/lodash{,.min}.js'
+      '<%= src %>/lodash/dist/lodash{,.min}.js'
     ];
     for (var j = 0; j < js.length; j++) {
       var files = grunt.file.expand(grunt.template.process(js[j], {data: options}));
@@ -169,6 +179,7 @@ module.exports = function(grunt) {
       }
     }
     */
+    grunt.task.run('uglify:sortable');
   });
   grunt.task.registerTask('build', ['static', 'uglify:dist', 'sass:dist', 'postcss:dist']);
   // Tasks for developers

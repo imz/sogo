@@ -1,3 +1,56 @@
+3.0.2 (2016-03-04)
+------------------
+
+New features
+ - [web] show all/only this calendar
+ - [web] convert a message to an appointment or a task (#1722)
+ - [web] customizable base font size for HTML messages
+ - [web you can now limit the file upload size using the WOMaxUploadSize
+   configuration parameter (integer value in kilobytes) (#3510, #3135)
+
+Enhancements
+ - [web] added Junk handling feature from v2
+ - [web] updated Material Icons font to version 2.1.3
+ - [web] don't offer forward/vacation options in filters if not enabled
+ - [web] mail filters are now sortable
+ - [web] now supports RFC6154 and NoInferiors IMAP flag
+ - [web] improved confirm dialogs for deletions
+ - [web] allow resources to prevent invitations (#3410)
+ - [web] warn when double-booking attendees and offer force save option
+ - [web] list search now displays a warning regarding the minlength constraint
+ - [web] loading an LDAP-based addressbook is now instantaneous when listRequiresDot is disabled (#438, #3464)
+ - [web] improve display of messages with many recipients
+ - [web] colorize categories chips in event and task viewers
+ - [web] initial stylesheet for printing
+ - [web] updated lodash to version 4.6.1
+ - [i18n] updated French and Finnish translations
+ - [eas] now support EAS MIME truncation
+
+Bug fixes
+ - [web] handle birthday dates before 1970
+ - [web] safe-guarding against bogus value coming from the quick tables
+ - [web] apply search filters when automatically reloading current mailbox (#3507)
+ - [web] fixed virtual repeater when moving up in messages list
+ - [web] really delete mailboxes being deleted from the Trash folder (#595, #1189, #641)
+ - [web] fixed address autocompletion of mail editor affecting cards list of active addressbook
+ - [web] fixed batched delete of components (#3516)
+ - [web] fixed mail draft autosave in preferences (#3519)
+ - [web] fixed password change (#3496)
+ - [web] fixed saving of notification email for calendar changes (#3522)
+ - [web] fixed ACL editor for authenticated users in Mail module
+ - [web] fixed fab button position in Calendar module (#3462)
+ - [web] fixed default priority of sent messages (#3542)
+ - [web] removed double-quotes from Chinese (Taiwan) translations that were breaking templates
+ - [web] fixed unseen count retrieval of nested IMAP folders
+ - [web] properly extract the mail column values from an SQL contacts source (#3544)
+ - [web] fixed incorrect date formatting when timezone was after UTC+0 (#3481, #3494)
+ - [web] replaced checkboxes in menu by a custom checkmark (#3557)
+ - [web] fixed attachments display when forwarding a message (#3560)
+ - [web] activate new calendar subscriptions by default
+ - [web] keep specified task status when not completed (#3499)
+ - [eas] allow EAS attachments get on 2nd-level mailboxes (#3505)
+ - [eas] fix EAS bday shift (#3518)
+
 3.0.1 (2016-02-05)
 ------------------
 

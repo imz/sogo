@@ -84,39 +84,36 @@
     }
 
     function unselectCards() {
-      _.each(vm.selectedFolder.cards, function(card) { card.selected = false; });
+      _.forEach(vm.selectedFolder.$cards, function(card) { card.selected = false; });
     }
     
     function confirmDeleteSelectedCards() {
       Dialog.confirm(l('Warning'),
-                     l('Are you sure you want to delete the selected contacts?'))
+                     l('Are you sure you want to delete the selected contacts?'),
+                     { ok: l('Delete') })
         .then(function() {
           // User confirmed the deletion
-          var selectedCards = _.filter(vm.selectedFolder.cards, function(card) { return card.selected; });
+          var selectedCards = _.filter(vm.selectedFolder.$cards, function(card) { return card.selected; });
           vm.selectedFolder.$deleteCards(selectedCards);
           delete vm.selectedFolder.selectedCard;
-        },  function(data, status) {
-          // Delete failed
         });
     }
 
     function saveSelectedCards() {
-      var selectedCards = _.filter(vm.selectedFolder.cards, function(card) { return card.selected; });
-      var selectedUIDs = _.pluck(selectedCards, 'id');
+      var selectedCards = _.filter(vm.selectedFolder.$cards, function(card) { return card.selected; });
+      var selectedUIDs = _.map(selectedCards, 'id');
       $window.location.href = ApplicationBaseURL + '/' + vm.selectedFolder.id + '/export?uid=' + selectedUIDs.join('&uid=');
     }
 
     function copySelectedCards(folder) {
-      var selectedCards = _.filter(vm.selectedFolder.cards, function(card) { return card.selected; });
+      var selectedCards = _.filter(vm.selectedFolder.$cards, function(card) { return card.selected; });
       vm.selectedFolder.$copyCards(selectedCards, folder).then(function() {
         // TODO: refresh target addressbook?
-      }, function(error) {
-        Dialog.alert(l('Error'), error);
       });
     }
 
     function selectAll() {
-      _.each(vm.selectedFolder.cards, function(card) {
+      _.forEach(vm.selectedFolder.$cards, function(card) {
         card.selected = true;
       });
     }
@@ -172,17 +169,17 @@
     }
 
     function newMessageWithSelectedCards($event) {
-      var selectedCards = _.filter(vm.selectedFolder.cards, function(card) { return card.selected; });
+      var selectedCards = _.filter(vm.selectedFolder.$cards, function(card) { return card.selected; });
       var promises = [], recipients = [];
 
-      _.each(selectedCards, function(card) {
+      _.forEach(selectedCards, function(card) {
         if (card.c_component == 'vcard' && card.c_mail.length) {
           recipients.push({full: card.c_cn + ' <' + card.c_mail + '>'});
         }
         else if (card.$isList()) {
           // If the list's members were already fetch, use them
           if (angular.isDefined(card.refs) && card.refs.length) {
-            _.each(card.refs, function(ref) {
+            _.forEach(card.refs, function(ref) {
               if (ref.email.length)
                 recipients.push({full: ref.c_cn + ' <' + ref.email + '>'});
             });
@@ -190,7 +187,7 @@
           else {
             promises.push(vm.selectedFolder.$getCard(card.id).then(function(card) {
               return card.$futureCardData.then(function(data) {
-                _.each(data.refs, function(ref) {
+                _.forEach(data.refs, function(ref) {
                   if (ref.email.length)
                     recipients.push({full: ref.c_cn + ' <' + ref.email + '>'});
                 });

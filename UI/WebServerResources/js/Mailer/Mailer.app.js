@@ -4,7 +4,7 @@
 (function() {
   'use strict';
 
-  angular.module('SOGo.MailerUI', ['ui.router', 'ck', 'angularFileUpload', 'SOGo.Common', 'SOGo.ContactsUI', 'ngAnimate', 'SOGo.PreferencesUI'])
+  angular.module('SOGo.MailerUI', ['ui.router', 'ck', 'angularFileUpload', 'SOGo.Common', 'SOGo.ContactsUI', 'SOGo.SchedulerUI', 'ngAnimate', 'SOGo.PreferencesUI'])
     .config(configure)
     .run(runBlock);
 
@@ -69,17 +69,7 @@
       })
       .state('mail.account.inbox', {
         url: '/inbox',
-        views: {
-          'mailbox@mail': {
-            templateUrl: 'UIxMailFolderTemplate', // UI/Templates/MailerUI/UIxMailFolderTemplate.wox
-            controller: 'MailboxController',
-            controllerAs: 'mailbox'
-          }
-        },
-        resolve: {
-          stateMailbox: stateInbox,
-          stateMessages: stateMessages
-        }
+        onEnter: onEnterInbox
       })
       .state('mail.account.mailbox', {
         url: '/:mailboxId',
@@ -207,8 +197,10 @@
 
     mailbox = _find(stateAccount.$mailboxes);
 
-    if (mailbox)
+    if (mailbox) {
+      mailbox.$topIndex = 0;
       return mailbox;
+    }
     else
       // Mailbox not found
       return $state.go('mail.account.inbox');
@@ -217,12 +209,11 @@
   /**
    * @ngInject
    */
-  stateInbox.$inject = ['stateAccount', 'Mailbox'];
-  function stateInbox(stateAccount, Mailbox) {
-    if (Mailbox.selectedFolder)
-      Mailbox.selectedFolder.$isLoading = true;
-
-    return stateAccount.$mailboxes[0];
+  onEnterInbox.$inject = ['$window', '$state', 'encodeUriFilter', 'stateAccount'];
+  function onEnterInbox($window, $state, encodeUriFilter, stateAccount) {
+    $window.location.hash = $state.href('mail.account.mailbox',
+                                        {accountId: stateAccount.id,
+                                         mailboxId: encodeUriFilter(stateAccount.$mailboxes[0].path)});
   }
 
   /**

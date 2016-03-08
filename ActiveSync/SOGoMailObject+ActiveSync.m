@@ -29,20 +29,17 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include "SOGoMailObject+ActiveSync.h"
 
-#import <Foundation/NSArray.h>
 #import <Foundation/NSCalendarDate.h>
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSException.h>
-#import <Foundation/NSString.h>
 
 #import <NGCards/iCalCalendar.h>
 #import <NGCards/iCalDateTime.h>
 #import <NGCards/iCalEvent.h>
-#import <NGCards/iCalPerson.h>
-#import <NGCards/iCalTimeZone.h>
 
 #import <NGExtensions/NGBase64Coding.h>
 #import <NGExtensions/NGQuotedPrintableCoding.h>
+
 #import <NGExtensions/NSString+misc.h>
 #import <NGExtensions/NSString+Encoding.h>
 #import <NGImap4/NGImap4Envelope.h>
@@ -50,6 +47,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #import <NGImap4/NSString+Imap4.h>
 #import <NGObjWeb/WOContext+SoObjects.h>
 #import <NGObjWeb/WOApplication.h>
+#import <NGObjWeb/WORequest.h>
 
 #import <NGMime/NGMimeBodyPart.h>
 #import <NGMime/NGMimeFileData.h>
@@ -58,8 +56,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #import <NGMail/NGMimeMessageParser.h>
 #import <NGMail/NGMimeMessage.h>
 #import <NGMail/NGMimeMessageGenerator.h>
-
-#import <Mailer/SOGoMailLabel.h>
 
 #import <SOGo/SOGoUserDefaults.h>
 
@@ -70,12 +66,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <Appointments/iCalEntityObject+SOGo.h>
 #include <Appointments/iCalPerson+SOGo.h>
-#include <Mailer/NSString+Mail.h>
 #include <Mailer/SOGoMailBodyPart.h>
+#include <Mailer/NSString+Mail.h>
+
 #include <SOGo/SOGoUser.h>
 #include <SOGo/NSString+Utilities.h>
 
 #import <Appointments/SOGoAptMailNotification.h>
+
+
 
 unsigned char strToChar(char a, char b) {
     char encoder[3] = {'\0','\0','\0'};
@@ -423,7 +422,7 @@ struct GlobalObjectId {
           mimeType = [NGMimeType mimeType: [[thePart contentType] type]
                                   subType: [[thePart contentType] subType]
                                parameters: [NSDictionary dictionaryWithObject: @"utf-8"  forKey: @"charset"]];
-          [thePart setHeader: mimeType  forKey: @"content-type"];
+          [(NGMimeBodyPart *)thePart setHeader: mimeType  forKey: @"content-type"];
           
           fdata = [[NGMimeFileData alloc] initWithBytes: [body bytes]
                                                  length: [body length]];
@@ -606,6 +605,35 @@ struct GlobalObjectId {
 }
 
 
+- (NSString *) _truncateContent: (NSString *) theContent
+                          limit: (int) theLimit
+                      truncated: (int *) wasTruncated
+{
+  if ([theContent length] > theLimit)
+    {
+      int i, len;
+
+      theContent = [theContent substringToIndex: theLimit];
+      *wasTruncated = 1;
+
+      // We search for the first "space" character starting from the
+      // end and we truncate the string once more. We do this to avoid
+      // truncating the content in the middle of a XML entity
+      len = theLimit-1;
+
+      for (i = len; i >= 0; i--)
+        {
+          if (isspace([theContent characterAtIndex: i]))
+            break;
+        }
+
+      return [theContent substringToIndex: i];
+    }
+
+  *wasTruncated = 0;
+  return theContent;
+}
+
 //
 //
 //
@@ -695,13 +723,14 @@ struct GlobalObjectId {
   NSMutableString *s;
   id value;
       
-  int preferredBodyType, mimeSupport, nativeBodyType;
+  int preferredBodyType, mimeSupport, mimeTruncation, nativeBodyType;
   uint32_t v;
 
   subtype = [[[self bodyStructure] valueForKey: @"subtype"] lowercaseString];
 
   preferredBodyType = [[context objectForKey: @"BodyPreferenceType"] intValue];
   mimeSupport = [[context objectForKey: @"MIMESupport"] intValue];
+  mimeTruncation = [[context objectForKey: @"MIMETruncation"] intValue];
 
   s = [NSMutableString string];
 
@@ -1007,9 +1036,50 @@ struct GlobalObjectId {
       AUTORELEASE(content);
       
       content = [content activeSyncRepresentationInContext: context];
+      len = [content length];
       truncated = 0;
 
-      len = [content length];
+      // We handle MIMETruncation
+      switch (mimeTruncation)
+        {
+        case 0:
+          {
+            content = @"";
+            len = 0; truncated = 1;
+          }
+          break;
+        case 1:
+          content = [self _truncateContent: content  limit: 4096  truncated: &truncated];
+          len = [content length];
+          break;
+        case 2:
+          content = [self _truncateContent: content  limit: 5120  truncated: &truncated];
+          len = [content length];
+          break;
+        case 3:
+          content = [self _truncateContent: content  limit: 7168  truncated: &truncated];
+          len = [content length];
+          break;
+        case 4:
+          content = [self _truncateContent: content  limit: 10240  truncated: &truncated];
+          len = [content length];
+          break;
+        case 5:
+          content = [self _truncateContent: content  limit: 20480  truncated: &truncated];
+          len = [content length];
+          break;
+        case 6:
+          content = [self _truncateContent: content  limit: 51200  truncated: &truncated];
+          len = [content length];
+          break;
+        case 7:
+          content = [self _truncateContent: content  limit: 102400  truncated: &truncated];
+          len = [content length];
+          break;
+        case 8:
+        default:
+          truncated = 0;
+        }
 
       if ([[[context request] headerForKey: @"MS-ASProtocolVersion"] isEqualToString: @"2.5"])
         {
@@ -1017,7 +1087,7 @@ struct GlobalObjectId {
           [s appendFormat: @"<BodyTruncated xmlns=\"Email:\">%d</BodyTruncated>", truncated];
         }
       else
-       {
+        {
           [s appendString: @"<Body xmlns=\"AirSyncBase:\">"];
 
           // Set the correct type if client requested text/html but we got text/plain.
@@ -1031,16 +1101,12 @@ struct GlobalObjectId {
 
           [s appendFormat: @"<Truncated>%d</Truncated>", truncated];
           [s appendFormat: @"<Preview></Preview>"];
-
-          if (!truncated)
-            {
-              [s appendFormat: @"<Data>%@</Data>", content];
-              [s appendFormat: @"<EstimatedDataSize>%d</EstimatedDataSize>", len];
-            }
+          [s appendFormat: @"<Data>%@</Data>", content];
+          [s appendFormat: @"<EstimatedDataSize>%d</EstimatedDataSize>", len];
           [s appendString: @"</Body>"];
        }
     }
-  
+
   // Attachments -namespace 16
   attachmentKeys = [self fetchFileAttachmentKeys];
 

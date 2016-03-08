@@ -22,7 +22,6 @@
 #ifndef __UIxContactsListActions_H__
 #define __UIxContactsListActions_H__
 
-#import <NGObjWeb/WODirectAction.h>
 
 @class NSDictionary;
 @class NSString;
@@ -32,8 +31,13 @@
 @interface UIxContactsListActions : WODirectAction
 {
   NSDictionary *currentContact;
+
   NSArray *contactInfos;
+  NSArray *sortedIDs;
 }
+
+- (NSString *) cardDavURL;
+- (NSString *) publicCardDavURL;
 
 @end
 

@@ -39,7 +39,7 @@
       $Preferences: Preferences,
       $Card: Card,
       $gravatar: Gravatar,
-      $$resource: new Resource(Settings.baseURL(), Settings.activeUser()),
+      $$resource: new Resource(Settings.activeUser('folderURL') + 'Calendar', Settings.activeUser()),
       timeFormat: "%H:%M",
       // Filter parameters common to events and tasks
       $query: { value: '', search: 'title_Category_Location' },
@@ -158,7 +158,7 @@
       angular.extend(_this.$query, params);
 
       if (options) {
-        _.each(_.keys(options), function(key) {
+        _.forEach(_.keys(options), function(key) {
           // Query parameters common to events and tasks are compared
           dirty |= (_this.$query[key] && options[key] != Component.$query[key]);
           if (key == 'reload' && options[key])
@@ -236,35 +236,40 @@
    * @returns a promise of a collection of objects describing the events blocks
    */
   Component.$eventsBlocksForView = function(view, date) {
-    var viewAction, startDate, endDate, params;
+    var _this = this;
 
-    if (view == 'day') {
-      viewAction = 'dayView';
-      startDate = endDate = date;
-    }
-    else if (view == 'multicolumnday') {
-      viewAction = 'multicolumndayView';
-      startDate = endDate = date;
-    }
-    else if (view == 'week') {
-      viewAction = 'weekView';
-      startDate = date.beginOfWeek();
-      endDate = new Date();
-      endDate.setTime(startDate.getTime());
-      endDate.addDays(6);
-    }
-    else if (view == 'month') {
-      viewAction = 'monthView';
-      startDate = date;
-      startDate.setDate(1);
-      startDate = startDate.beginOfWeek();
-      endDate = new Date();
-      endDate.setTime(startDate.getTime());
-      endDate.setMonth(endDate.getMonth() + 1);
-      endDate.addDays(-1);
-      endDate = endDate.endOfWeek();
-    }
-    return this.$eventsBlocks(viewAction, startDate, endDate);
+    return Component.$Preferences.ready().then(function(data) {
+      var firstDayOfWeek, viewAction, startDate, endDate, params;
+      firstDayOfWeek = Component.$Preferences.defaults.SOGoFirstDayOfWeek;
+
+      if (view == 'day') {
+        viewAction = 'dayView';
+        startDate = endDate = date;
+      }
+      else if (view == 'multicolumnday') {
+        viewAction = 'multicolumndayView';
+        startDate = endDate = date;
+      }
+      else if (view == 'week') {
+        viewAction = 'weekView';
+        startDate = date.beginOfWeek(firstDayOfWeek);
+        endDate = new Date();
+        endDate.setTime(startDate.getTime());
+        endDate.addDays(6);
+      }
+      else if (view == 'month') {
+        viewAction = 'monthView';
+        startDate = date;
+        startDate.setDate(1);
+        startDate = startDate.beginOfWeek(firstDayOfWeek);
+        endDate = new Date();
+        endDate.setTime(startDate.getTime());
+        endDate.setMonth(endDate.getMonth() + 1);
+        endDate.addDays(-1);
+        endDate = endDate.endOfWeek(firstDayOfWeek);
+      }
+      return _this.$eventsBlocks(viewAction, startDate, endDate);
+    });
   };
 
   /**
@@ -286,7 +291,7 @@
       var reduceComponent, associateComponent;
 
       reduceComponent = function(objects, eventData, i) {
-        var componentData = _.object(this.eventsFields, eventData),
+        var componentData = _.zipObject(this.eventsFields, eventData),
             start = new Date(componentData.c_startdate * 1000);
         componentData.hour = start.getHourString();
         componentData.blocks = [];
@@ -311,13 +316,13 @@
           data.eventsFields.splice(_.indexOf(data.eventsFields, 'c_title'),         1, 'summary');
 
           // Instantiate Component objects
-          _.reduce(data.events, reduceComponent, components, data);
+          _.reduce(data.events, _.bind(reduceComponent, data), components);
 
           // Associate Component objects to blocks positions
-          _.forEach(_.flatten(data.blocks), associateComponent, components);
+          _.forEach(_.flatten(data.blocks), _.bind(associateComponent, components));
 
           // Associate Component objects to all-day blocks positions
-          _.each(_.flatten(data.allDayBlocks), associateComponent, components);
+          _.forEach(_.flatten(data.allDayBlocks), _.bind(associateComponent, components));
 
           // Build array of dates
           if (dates.length === 0)
@@ -387,14 +392,14 @@
 
     return futureComponentData.then(function(data) {
       return Component.$timeout(function() {
-        var fields = _.invoke(data.fields, 'toLowerCase');
+        var fields = _.invokeMap(data.fields, 'toLowerCase');
           fields.splice(_.indexOf(fields, 'c_folder'), 1, 'pid');
           fields.splice(_.indexOf(fields, 'c_name'), 1, 'id');
           fields.splice(_.indexOf(fields, 'c_recurrence_id'), 1, 'occurrenceId');
 
         // Instanciate Component objects
         _.reduce(data[type], function(components, componentData, i) {
-          var data = _.object(fields, componentData);
+          var data = _.zipObject(fields, componentData);
           components.push(new Component(data));
           return components;
         }, components);
@@ -407,6 +412,15 @@
         return components;
       });
     });
+  };
+
+  /**
+   * @function $resetGhost
+   * @desc Prepare the ghost object for the next drag by resetting appropriate attributes
+   */
+  Component.$resetGhost = function() {
+    this.$ghost.pointerHandler = null;
+    this.$ghost.component = null;
   };
 
   /**
@@ -456,7 +470,7 @@
 
     if (this.component == 'vevent')
       this.type = 'appointment';
-    else if (this.component == 'vtoto')
+    else if (this.component == 'vtodo')
       this.type = 'task';
 
     if (this.startDate) {
@@ -483,8 +497,13 @@
     if (this.dueDate)
       this.due = Component.$parseDate(this.dueDate);
 
+    if (this.completedDate)
+      this.completed = Component.$parseDate(this.completedDate);
+    else if (this.type == 'task')
+      this.completed = new Date();
+
     if (this.c_category)
-      this.categories = _.invoke(this.c_category, 'asCSSIdentifier');
+      this.categories = _.invokeMap(this.c_category, 'asCSSIdentifier');
 
     // Parse recurrence rule definition and initialize default values
     this.$isRecurrent = angular.isDefined(data.repeat);
@@ -666,7 +685,7 @@
       roundedStart.setMinutes(15*startQuarter);
       roundedEnd.setMinutes(15*endQuarter);
 
-      _.each(roundedStart.daysUpTo(roundedEnd), function(date, index) {
+      _.forEach(roundedStart.daysUpTo(roundedEnd), function(date, index) {
         var currentDay = date.getDate(),
             dayKey = date.getDayString(),
             hourKey;
@@ -707,7 +726,7 @@
     this.freebusy = this.updateFreeBusyCoverage();
 
     if (this.attendees) {
-      _.each(this.attendees, function(attendee) {
+      _.forEach(this.attendees, function(attendee) {
         attendee.image = Component.$gravatar(attendee.email, 32);
         _this.updateFreeBusyAttendee(attendee);
       });
@@ -749,7 +768,7 @@
 
       // Fetch FreeBusy information
       Component.$$resource.fetch(url.join('/'), 'ajaxRead', params).then(function(data) {
-        _.each(days, function(day) {
+        _.forEach(days, function(day) {
           var hour;
 
           if (angular.isUndefined(attendee.freebusy[day]))
@@ -1030,8 +1049,9 @@
    * @function $save
    * @memberof Component.prototype
    * @desc Save the component to the server.
+   * @param {object} extraAttributes - additional attributes to send to the server
    */
-  Component.prototype.$save = function() {
+  Component.prototype.$save = function(extraAttributes) {
     var _this = this, options, path, component, date, dlp;
 
     component = this.$omit();
@@ -1044,6 +1064,7 @@
     component.endTime = component.end ? component.end.format(dlp, '%H:%M') : '';
     component.dueDate = component.due ? component.due.format(dlp, '%Y-%m-%d') : '';
     component.dueTime = component.due ? component.due.format(dlp, '%H:%M') : '';
+    component.completedDate = component.completed ? component.completed.format(dlp, '%Y-%m-%d') : '';
 
     // Update recurrence definition depending on selections
     if (this.$hasCustomRepeat) {
@@ -1078,6 +1099,8 @@
     // Check status
     if (this.status == 'not-specified')
       delete component.status;
+    else if (this.status != 'completed')
+      delete component.completedDate;
 
     // Verify alarm
     if (this.$hasAlarm) {
@@ -1100,6 +1123,8 @@
 
     if (this.occurrenceId)
       path.push(this.occurrenceId);
+
+    angular.extend(component, extraAttributes);
 
     return Component.$$resource.save(path.join('/'), component, options)
       .then(function(data) {

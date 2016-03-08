@@ -18,22 +18,17 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#import <Foundation/NSArray.h>
-#import <Foundation/NSCalendarDate.h>
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSValue.h>
 
-#import <NGExtensions/NGCalendarDateRange.h>
 #import <NGExtensions/NSNull+misc.h>
 #import <NGExtensions/NSObject+Logs.h>
 
 #import <NGCards/NSString+NGCards.h>
-#import <NGCards/iCalAlarm.h>
 #import <NGCards/iCalCalendar.h>
 #import <NGCards/iCalDateTime.h>
 #import <NGCards/iCalPerson.h>
 #import <NGCards/iCalTimeZone.h>
-#import <NGCards/iCalTrigger.h>
 
 #import <SoObjects/SOGo/WOContext+SOGo.h>
 
@@ -192,11 +187,15 @@
   // Handle completed date
   o = [data objectForKey: @"completedDate"];
   if ([o isKindOfClass: [NSString class]] && [o length])
-    completedDate = [self dateFromString: o inContext: context];
+    {
+      completedDate = [self dateFromString: o inContext: context];
 
-  o = [data objectForKey: @"completedTime"];
-  if ([o isKindOfClass: [NSString class]] && [o length])
-    [self adjustDate: &completedDate withTimeString: o inContext: context];
+      o = [data objectForKey: @"completedTime"];
+      if ([o isKindOfClass: [NSString class]] && [o length])
+        [self adjustDate: &completedDate withTimeString: o inContext: context];
+    }
+  else
+    [(iCalDateTime *) [self uniqueChildWithTag: @"completed"] setDateTime: nil];
 
   o = [self status];
   if ([o length])
@@ -204,8 +203,6 @@
       if ([o isEqualToString: @"COMPLETED"] && completedDate)
         // As specified in RFC5545, the COMPLETED property must use UTC time
         [self setCompleted: completedDate];
-      else
-        [self setCompleted: nil];
     }
 
   // Percent complete

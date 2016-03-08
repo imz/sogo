@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2007-2014 Inverse inc.
+  Copyright (C) 2007-2016 Inverse inc.
 
   This file is part of SOGo
 
@@ -22,7 +22,6 @@
 #ifndef __Appointments_SOGoAppointmentObject_H__
 #define __Appointments_SOGoAppointmentObject_H__
 
-#import <SOGo/SOGoContentObject.h>
 
 @class NSArray;
 @class NSException;

@@ -30,8 +30,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #import "NGMimeMessage+ActiveSync.h"
 
 #import <Foundation/NSArray.h>
-#import <Foundation/NSEnumerator.h>
-#import <Foundation/NSString.h>
 
 #import <NGMail/NGMailAddress.h>
 #import <NGMail/NGMailAddressParser.h>

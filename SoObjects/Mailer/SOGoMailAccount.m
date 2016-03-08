@@ -20,41 +20,30 @@
   02111-1307, USA.
 */
 
-#import <Foundation/NSArray.h>
 #import <Foundation/NSAutoreleasePool.h>
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSURL.h>
-#import <Foundation/NSString.h>
 #import <Foundation/NSValue.h>
 
-#import <DOM/DOMElement.h>
-#import <DOM/DOMProtocols.h>
 
 #import <NGObjWeb/NSException+HTTP.h>
-#import <NGObjWeb/SoHTTPAuthenticator.h>
-#import <NGObjWeb/WORequest.h>
 #import <NGObjWeb/WOContext+SoObjects.h>
 #import <NGExtensions/NSNull+misc.h>
 #import <NGExtensions/NSObject+Logs.h>
 #import <NGExtensions/NSString+misc.h>
 #import <NGImap4/NGImap4Connection.h>
 #import <NGImap4/NGImap4Client.h>
-#import <NGImap4/NGImap4Context.h>
 #import <NGImap4/NSString+Imap4.h>
 
 #import <SOGo/NSArray+Utilities.h>
 #import <SOGo/NSString+Utilities.h>
 #import <SOGo/SOGoAuthenticator.h>
 #import <SOGo/SOGoDomainDefaults.h>
-#import <SOGo/SOGoUser.h>
-#import <SOGo/SOGoUserDefaults.h>
 #import <SOGo/SOGoUserSettings.h>
 #import <SOGo/SOGoUserManager.h>
 #import <SOGo/SOGoSieveManager.h>
 
 #import "SOGoDraftsFolder.h"
-#import "SOGoMailFolder.h"
-#import "SOGoMailManager.h"
 #import "SOGoMailNamespace.h"
 #import "SOGoSentFolder.h"
 #import "SOGoTrashFolder.h"
@@ -410,23 +399,42 @@ static NSString *inboxFolderName = @"INBOX";
 //
 //
 - (NSString *) _folderType: (NSString *) folderName
+                     flags: (NSMutableArray *) flags
 {
-  NSString *folderType;
+  NSString *folderType, *key;
+  NSDictionary *metadata;
+  SOGoUserDefaults *ud;
 
+  ud = [[context activeUser] userDefaults];
+
+  metadata = [[[self imap4Connection] allFoldersMetadataForURL: [self imap4URL]
+                                         onlySubscribedFolders: [ud mailShowSubscribedFoldersOnly]]
+               objectForKey: @"list"];
+
+  key = [NSString stringWithFormat: @"/%@", folderName];
+  [flags addObjectsFromArray: [metadata objectForKey: key]];
+
+  // RFC6154 (https://tools.ietf.org/html/rfc6154) describes special uses for IMAP mailboxes.
+  // We do honor them, as long as your SOGo{Drafts,Trash,Sent,Junk}FolderName are properly configured
+  // See http://wiki.dovecot.org/MailboxSettings for a Dovecot example.
   if ([folderName isEqualToString: inboxFolderName])
     folderType = @"inbox";
-  else if ([folderName isEqualToString: [self draftsFolderNameInContext: context]])
+  else if ([flags containsObject: [self draftsFolderNameInContext: context]] ||
+           [folderName isEqualToString: [self draftsFolderNameInContext: context]])
     folderType = @"draft";
-  else if ([folderName isEqualToString: [self sentFolderNameInContext: context]])
+  else if ([flags containsObject: [self sentFolderNameInContext: context]] ||
+           [folderName isEqualToString: [self sentFolderNameInContext: context]])
     folderType = @"sent";
-  else if ([folderName isEqualToString: [self trashFolderNameInContext: context]])
+  else if ([flags containsObject: [self trashFolderNameInContext: context]] ||
+           [folderName isEqualToString: [self trashFolderNameInContext: context]])
     folderType = @"trash";
+  else if ([flags containsObject: [self junkFolderNameInContext: context]] ||
+           [folderName isEqualToString: [self junkFolderNameInContext: context]])
+    folderType = @"junk";
   else if ([folderName isEqualToString: otherUsersFolderName])
     folderType = @"otherUsers";
   else if ([folderName isEqualToString: sharedFoldersName])
     folderType = @"shared";
-  else if ([folderName isEqualToString: [self junkFolderNameInContext: context]])
-    folderType = @"junk";
   else
     folderType = @"folder";
 
@@ -437,7 +445,7 @@ static NSString *inboxFolderName = @"INBOX";
                             foldersList: (NSMutableArray *) theFolders
 {
   NSArray *pathComponents;
-  NSMutableArray *folders;
+  NSMutableArray *folders, *flags;
   NSMutableDictionary *currentFolder, *parentFolder, *folder;
   NSString *currentFolderName, *currentPath, *fullName, *folderType;
   SOGoUserManager *userManager;
@@ -519,8 +527,11 @@ static NSString *inboxFolderName = @"INBOX";
               currentFolderName = [self labelForKey: @"SharedFoldersName"];
             }
 
+          flags = [NSMutableArray array];;
+
           if (last)
-            folderType = [self _folderType: currentPath];
+            folderType = [self _folderType: currentPath
+                                     flags: flags];
           else
             folderType = @"additional";
 
@@ -529,6 +540,7 @@ static NSString *inboxFolderName = @"INBOX";
                                         folderType, @"type",
                                         currentFolderName, @"name",
                                         [NSMutableArray array], @"children",
+                                        flags, @"flags",
                                         nil];
           // Either add this new folder to its parent or the list of root folders
           [folders addObject: folder];
@@ -806,6 +818,25 @@ static NSString *inboxFolderName = @"INBOX";
 
 
 /* name lookup */
+
+- (id) lookupNameByPaths: (NSArray *) _paths
+               inContext: (id)_ctx
+                 acquire: (BOOL) _flag
+{
+  NSString *folderName;
+  NSUInteger count, max;
+  SOGoMailBaseObject *folder;
+
+  max = [_paths count];
+  folder = self;
+  for (count = 0; folder && count < max; count++)
+    {
+      folderName = [_paths objectAtIndex: count];
+      folder = [folder lookupName: folderName inContext: _ctx acquire: _flag];
+    }
+
+  return folder;
+}
 
 - (id) lookupName: (NSString *) _key
 	inContext: (id)_ctx

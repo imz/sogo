@@ -8,13 +8,15 @@
     xmlns:label="OGo:label"
     className="UIxPageFrame"
     title="title"
-    const:jsFiles="Common.js, Preferences.js, Preferences.services.js, Mailer.services.js, Contacts.services.js, vendor/ckeditor/ckeditor.js, vendor/ckeditor/ck.js">
+    const:jsFiles="Common.js, vendor/ng-sortable.js, Preferences.js, Preferences.services.js, Mailer.services.js, Contacts.services.js, vendor/ckeditor/ckeditor.js, vendor/ckeditor/ck.js">
 
   <main class="view layout-fill" ui-view="preferences" layout="row"
         ng-controller="navController"><!-- preferences --> </main>
 
   <script type="text/javascript">
     var mailCustomFromEnabled = <var:string value="mailCustomFromEnabled" const:escapeHTML="NO"/>;
+    var forwardEnabled = <var:string value="forwardEnabled" const:escapeHTML="NO"/>;
+    var vacationEnabled = <var:string value="isVacationEnabled" const:escapeHTML="NO"/>;
     var timeZonesList = <var:string value="timeZonesList" const:escapeHTML="NO"/>;
     var defaultEmailAddresses = '<var:string value="defaultEmailAddresses" const:escapeHTML="NO"/>';
     var forwardConstraints = <var:string value="forwardConstraints" const:escapeHTML="NO"/>;
@@ -509,19 +511,18 @@
               </md-checkbox>
             </div>
 
-            <div>
+            <div layout="row" layout-align="start center" flex="50" flex-xs="100">
               <md-checkbox
                   class="md-align-top-left" ng-model="app.preferences.defaults.SOGoMailAddOutgoingAddresses"
                   ng-true-value="1"
                   ng-false-value="0"
                   label:arial-label="When sending mail, add unknown recipients to my">
-                <var:string label:value="When sending mail, add unknown recipients to my"/>
               </md-checkbox>
 
-              <md-input-container>
-                <label><var:string label:aria-label="Address Book"/></label>
+              <md-input-container class="md-block md-flex">
+                <label><var:string label:value="When sending mail, add unknown recipients to my"/></label>
                 <md-select
-                    ng-disabled="app.preferences.defaults.SOGoMailAddOutgoingAddresses == 0"
+                    ng-disabled="app.preferences.defaults.SOGoMailAddOutgoingAddresses != 1"
                     ng-model="app.preferences.defaults.SOGoSelectedAddressBook">
                   <var:foreach list="addressBookList" item="item">
                     <md-option var:value="item.id">
@@ -532,7 +533,7 @@
               </md-input-container>
             </div>
 
-            <md-input-container class="md-block">
+            <md-input-container class="md-block" flex="50" flex-xs="100">
               <label><var:string label:value="Forward messages"/></label>
               <md-select ng-model="app.preferences.defaults.SOGoMailMessageForwarding">
                 <var:foreach list="messageForwardingList" item="item">
@@ -567,18 +568,42 @@
               </md-input-container>
             </div>
 
-            <md-input-container class="md-block">
-              <label><var:string label:value="Compose messages in"/></label>
-              <md-select ng-model="app.preferences.defaults.SOGoMailComposeMessageType">
-                <var:foreach list="composeMessagesType" item="item">
-                  <md-option var:value="item">
-                    <var:string value="itemComposeMessagesText"/>
-                  </md-option>
-                </var:foreach>
-              </md-select>
-            </md-input-container>
+            <div layout="row" layout-wrap="layout-wrap">
+              <md-input-container class="md-block" flex="50">
+                <label><var:string label:value="Compose messages in"/></label>
+                <md-select ng-model="app.preferences.defaults.SOGoMailComposeMessageType">
+                  <var:foreach list="composeMessagesType" item="item">
+                    <md-option var:value="item">
+                      <var:string value="itemComposeMessagesText"/>
+                    </md-option>
+                  </var:foreach>
+                </md-select>
+              </md-input-container>
 
-            <md-input-container class="md-block">
+              <div layout="row" flex="50"
+                   ng-show="app.preferences.defaults.SOGoMailComposeMessageType == 'html'">
+                <md-checkbox
+                    ng-model="app.preferences.defaults.SOGoMailComposeFontSizeEnabled"
+                    label:aria-label="Default font size">
+                </md-checkbox>
+                <md-input-container class="md-block md-flex">
+                  <label><var:string label:value="Default font size"/></label>
+                  <md-select label:aria-label="Default font size"
+                             ng-disabled="!app.preferences.defaults.SOGoMailComposeFontSizeEnabled"
+                             ng-required="app.preferences.defaults.SOGoMailComposeFontSizeEnabled"
+                             ng-model="app.preferences.defaults.SOGoMailComposeFontSize">
+                    <var:foreach list="fontSizesList" item="item">
+                      <md-option var:value="item">
+                        <var:string value="item"/>
+                      </md-option>
+                    </var:foreach>
+                  </md-select>
+                  <div class="md-char-counter">px</div>
+                </md-input-container>
+              </div>
+            </div>
+
+            <md-input-container class="md-block" flex="50" flex-xs="100">
               <label><var:string label:value="Display remote inline images"/></label>
               <md-select ng-model="app.preferences.defaults.SOGoMailDisplayRemoteInlineImages">
                 <var:foreach list="displayRemoteInlineImages" item="item">
@@ -592,7 +617,8 @@
             <div layout="row" layout-align="start center">
               <p><var:string label:value="Auto save every"/></p>
               <md-input-container class="md-input-number" md-no-float="md-no-float">
-                <input type="number" min="0" label:aria-label="minutes" ng-model="preferences.defaults.SOGoMailAutoSave"/>
+                <input type="number" min="0" label:aria-label="minutes"
+                       ng-model="app.preferences.defaults.SOGoMailAutoSave"/>
               </md-input-container>
               <var:string label:value="minutes"/>
             </div>
@@ -610,11 +636,12 @@
             <div role="tabpanel" aria-labelledby="mailFiltersView"
                  id="mailFiltersView-content">
 
-              <div class="md-padding">
+              <div class="md-padding" ng-sortable="{ animation: 150, draggable: '.layout-row', handle: '.sg-sortable-grip', ghostClass: 'sg-sortable-ghost', chosenClass: 'sg-sortable-chosen' }">
                 <div layout="row" layout-align="start center"
-                     ng-repeat="item in
-                                app.preferences.defaults.SOGoSieveFilters
-                                track by $index">
+                     ng-repeat="item in app.preferences.defaults.SOGoSieveFilters track by $index">
+                  <md-button class="md-icon-button" md-no-ink="md-no-ink">
+                    <md-icon class="sg-sortable-grip">drag_handle</md-icon>
+                  </md-button>
                   <md-checkbox
                       style="margin-bottom: 0;"
                       ng-model="app.preferences.defaults.SOGoSieveFilters[$index].active"

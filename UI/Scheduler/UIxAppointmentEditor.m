@@ -1,6 +1,6 @@
 /* UIxAppointmentEditor.m - this file is part of SOGo
  *
- * Copyright (C) 2007-2015 Inverse inc.
+ * Copyright (C) 2007-2016 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,37 +18,25 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#include <math.h>
 
-#import <Foundation/NSDictionary.h>
-#import <Foundation/NSEnumerator.h>
 #import <Foundation/NSTimeZone.h>
 #import <Foundation/NSValue.h>
 
-#import <NGObjWeb/SoObject.h>
-#import <NGObjWeb/SoPermissions.h>
 #import <NGObjWeb/SoSecurityManager.h>
 #import <NGObjWeb/WORequest.h>
 #import <NGObjWeb/WOResponse.h>
 #import <NGObjWeb/NSException+HTTP.h>
 #import <NGExtensions/NSCalendarDate+misc.h>
-#import <NGExtensions/NGCalendarDateRange.h>
 #import <NGExtensions/NSObject+Logs.h>
 #import <NGExtensions/NSString+misc.h>
 
-#import <NGCards/iCalAlarm.h>
-#import <NGCards/iCalCalendar.h>
 #import <NGCards/iCalEvent.h>
-#import <NGCards/iCalPerson.h>
 #import <NGCards/iCalTrigger.h>
 #import <NGCards/iCalRecurrenceRule.h>
-#import <NGCards/iCalTimeZone.h>
-#import <NGCards/iCalDateTime.h>
 
 #import <SOGo/NSCalendarDate+SOGo.h>
 #import <SOGo/NSDictionary+Utilities.h>
 #import <SOGo/NSString+Utilities.h>
-#import <SOGo/SOGoContentObject.h>
 #import <SOGo/SOGoDateFormatter.h>
 #import <SOGo/SOGoPermissions.h>
 #import <SOGo/SOGoUser.h>
@@ -61,7 +49,6 @@
 #import <Appointments/SOGoAppointmentObject.h>
 #import <Appointments/SOGoAppointmentOccurence.h>
 
-#import <Appointments/SOGoComponentOccurence.h>
 
 #import "UIxComponentEditor.h"
 #import "UIxAppointmentEditor.h"
@@ -467,7 +454,10 @@
   SOGoAppointmentObject *co;
   SoSecurityManager *sm;
   WORequest *request;
+  id error;
+
   unsigned int httpStatus;
+  BOOL forceSave;
 
   event = [self event];
   co = [self clientObject];
@@ -488,6 +478,7 @@
   else
     {
       [self setAttributes: params];
+      forceSave = [[params objectForKey: @"ignoreConflicts"] boolValue];
 
       if ([event hasRecurrenceRules])
         [self _adjustRecurrentRules];
@@ -511,12 +502,12 @@
             }
 
           // Save the event.
-          ex = [co saveComponent: event];
+          ex = [co saveComponent: event  force: forceSave];
         }
       else
         {
           // The event was modified -- save it.
-          ex = [co saveComponent: event];
+          ex = [co saveComponent: event  force: forceSave];
 
           if (componentCalendar
               && ![[componentCalendar ocsPath]
@@ -539,10 +530,15 @@
   if (ex)
     {
       httpStatus = 500;
+
+      if ([ex respondsToSelector: @selector(httpStatus)])
+        httpStatus = [ex httpStatus];
+
+      error = [[ex reason] objectFromJSONString];
+      if (error == nil)
+        error = [ex reason];
       jsonResponse = [NSDictionary dictionaryWithObjectsAndKeys:
-                                     @"failure", @"status",
-                                   [ex reason], @"message",
-                                   nil];
+                                     error, @"message", nil];
     }
   else
     {

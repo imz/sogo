@@ -8,32 +8,12 @@
     xmlns:label="OGo:label"
     className="UIxPageFrame"
     title="title"
-    const:jsFiles="Common.js, Preferences.services.js, Contacts.services.js, Mailer.js, Mailer.services.js, vendor/ckeditor/ckeditor.js, vendor/ckeditor/ck.js, vendor/angular-file-upload.min.js">
+    const:jsFiles="Common.js, Preferences.services.js, Contacts.services.js, Scheduler.services.js, Mailer.js, Mailer.services.js, vendor/ckeditor/ckeditor.js, vendor/ckeditor/ck.js, vendor/angular-file-upload.min.js">
   <script type="text/javascript">
     var mailAccounts = <var:string value="mailAccounts" const:escapeHTML="NO" />;
     var userNames = <var:string value="userNames" const:escapeHTML="NO" />;
     var unseenCountFolders = <var:string value="unseenCountFolders" const:escapeHTML="NO" />;
   </script>
-  <style type="text/css">
-    <var:foreach list="availableLabels" item="currentLabel">
-      #label-menu LI.<var:string value="currentLabel.name.asCSSIdentifier" />,
-      TABLE.messageList TR[labels~=
-      <var:string const:value = '"' const:escapeHTML="NO"
-          />
-      <var:string value="currentLabel.name" />
-      <var:string const:value = '"' const:escapeHTML="NO" />] TD
-      { color:<var:string value="currentLabel.color" />; }
-      TABLE.messageList TR[labels~=
-      <var:string const:value = '"' const:escapeHTML="NO"
-          />
-      <var:string value="currentLabel.name" />
-      <var:string const:value = '"' const:escapeHTML="NO" />]._selected TD
-      { color: #fff;
-      background-color:
-      <var:string value="currentLabel.color" />
-      !important; }
-    </var:foreach>
-  </style>
 
   <!--
       MAIN CONTENT ROW
@@ -116,11 +96,12 @@
                            md-menu-origin="md-menu-origin">more_vert</md-icon>
                   <md-menu-content width="3">
                     <md-menu-item>
-                      <md-button type="button" md-menu-align-target="md-menu-align-target" ng-click="app.markFolderRead(folder)">
+                      <md-button type="button" md-menu-align-target="md-menu-align-target"
+                                 ng-click="app.markFolderRead(folder)">
                         <var:string label:value="Mark Folder Read"/>
                       </md-button>
                     </md-menu-item>
-                    <md-menu-item>
+                    <md-menu-item ng-hide="folder.$isNoInferiors">
                       <md-button type="button" ng-click="app.newFolder(folder)">
                         <var:string label:value="New Subfolder..."/>
                       </md-button>
@@ -170,6 +151,11 @@
                     <md-menu-item ng-show="folder.type == 'folder'">
                       <md-button type="button" ng-click="app.setFolderAs(folder, 'Trash')">
                         <var:string label:value="Set as Trash"/>
+                      </md-button>
+                    </md-menu-item>
+                    <md-menu-item ng-show="folder.type == 'folder'">
+                      <md-button type="button" ng-click="app.setFolderAs(folder, 'Junk')">
+                        <var:string label:value="Set as Junk"/>
                       </md-button>
                     </md-menu-item>
                     <md-menu-divider ng-show="folder.type != 'additional'"><!-- divider --></md-menu-divider>

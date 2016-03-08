@@ -7,7 +7,7 @@
     xmlns:label="OGo:label"
     >
   <md-dialog flex="50" flex-sm="80" flex-xs="100">
-    <md-toolbar>
+    <md-toolbar ng-class="!acl.folder.getClassName || acl.folder.getClassName('bg')">
       <div class="md-toolbar-tools">
         <md-icon class="material-icons sg-icon-toolbar-bg">folder_shared</md-icon>
         <div class="pseudo-input-container md-flex">
@@ -97,13 +97,17 @@
     <md-dialog-actions ng-hide="acl.confirmation.showing">
       <md-button class="md-primary" ng-click="acl.saveModal()"><var:string label:value="Save"/></md-button>
     </md-dialog-actions>
+
+    <md-dialog-content class="md-default-theme md-bg md-warn md-padding sg-dialog-message ng-hide"
+                       ng-show="acl.confirmation.showing">
+      <div>{{acl.confirmation.message}}</div>
+    </md-dialog-content>
     <md-dialog-actions ng-show="acl.confirmation.showing">
-      <span>{{acl.confirmation.message}}</span>
       <md-button ng-click="acl.selectedUser.$resetRights(true); acl.confirmation.showing = false">
-        <var:string label:value="Cancel"/>
+        <var:string label:value="Keep Private"/>
       </md-button>
       <md-button class="md-warn" ng-click="acl.confirmation.showing = false">
-        <var:string label:value="OK"/>
+        <var:string label:value="Give Access"/>
       </md-button>
     </md-dialog-actions>
   </md-dialog>

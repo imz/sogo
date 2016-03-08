@@ -21,7 +21,7 @@
     vm.send = send;
     vm.removeAttachment = removeAttachment;
     vm.contactFilter = contactFilter;
-    vm.identities = _.pluck(_.flatten(_.pluck(stateAccounts, 'identities')), 'full');
+    vm.identities = _.map(_.flatten(_.map(stateAccounts, 'identities')), 'full');
     vm.recipientSeparatorKeys = [$mdConstant.KEY_CODE.ENTER, $mdConstant.KEY_CODE.TAB, $mdConstant.KEY_CODE.COMMA, semicolon];
     vm.uploader = new FileUploader({
       url: stateMessage.$absolutePath({asDraft: true}) + '/save',
@@ -44,6 +44,12 @@
         this.removeFromQueue(item);
       },
       onErrorItem: function(item, response, status, headers) {
+        $mdToast.show(
+          $mdToast.simple()
+            .content(l('Error while uploading the file \"%{0}\":', item.file.name))
+            .position('top right')
+            .hideDelay(3000));
+        this.removeFromQueue(item);
         //console.debug(item); console.debug('error = ' + JSON.stringify(response, undefined, 2));
       }
     });
@@ -74,7 +80,7 @@
     }
 
     if (angular.isDefined(stateRecipients)) {
-      vm.message.editable.to = _.union(vm.message.editable.to, _.pluck(stateRecipients, 'full'));
+      vm.message.editable.to = _.union(vm.message.editable.to, _.map(stateRecipients, 'full'));
     }
 
     /**
@@ -106,19 +112,19 @@
 
     function addAttachments() {
       // Add existing attached files to uploader
-      var i, data, fileItem;
-      if (vm.message.attachmentAttrs)
-        for (i = 0; i < vm.message.attachmentAttrs.length; i++) {
+      var i, data, fileItem, attrs = vm.message.editable.attachmentAttrs;
+      if (attrs)
+        for (i = 0; i < attrs.length; i++) {
           data = {
-            name: vm.message.attachmentAttrs[i].filename,
-            type: vm.message.attachmentAttrs[i].mimetype,
-            size: parseInt(vm.message.attachmentAttrs[i].size)
+            name: attrs[i].filename,
+            type: attrs[i].mimetype,
+            size: parseInt(attrs[i].size)
           };
           fileItem = new FileUploader.FileItem(vm.uploader, data);
           fileItem.progress = 100;
           fileItem.isUploaded = true;
           fileItem.isSuccess = true;
-          fileItem.inlineUrl = vm.message.attachmentAttrs[i].url;
+          fileItem.inlineUrl = attrs[i].url;
           vm.uploader.queue.push(fileItem);
         }
     }
@@ -209,7 +215,7 @@
       if (contact.$isList()) {
         // If the list's members were already fetch, use them
         if (angular.isDefined(contact.refs) && contact.refs.length) {
-          _.each(contact.refs, function(ref) {
+          _.forEach(contact.refs, function(ref) {
             if (ref.email.length)
               recipients.push(ref.$shortFormat());
           });

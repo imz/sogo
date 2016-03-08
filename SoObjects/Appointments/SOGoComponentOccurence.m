@@ -1,6 +1,6 @@
 /* SOGoComponentOccurence.m - this file is part of SOGo
  * 
- * Copyright (C) 2008-2014 Inverse inc.
+ * Copyright (C) 2008-2016 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,15 +18,10 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#import <Foundation/NSArray.h>
 #import <Foundation/NSCalendarDate.h>
-#import <Foundation/NSString.h>
 
 #import <NGCards/iCalCalendar.h>
-#import <NGCards/iCalDateTime.h>
 #import <NGCards/iCalEvent.h>
-#import <NGCards/iCalTimeZone.h>
-#import <NGCards/iCalRepeatableEntityObject.h>
 
 #import <NGObjWeb/WOContext+SoObjects.h>
 
@@ -34,9 +29,7 @@
 #import <SOGo/SOGoDomainDefaults.h>
 
 #import "SOGoAppointmentObject.h"
-#import "SOGoCalendarComponent.h"
 
-#import "SOGoComponentOccurence.h"
 
 @interface SOGoCalendarComponent (OccurenceExtensions)
 
@@ -209,6 +202,13 @@
 - (NSException *) saveComponent: (iCalRepeatableEntityObject *) newObject
 {
   return [container saveComponent: newObject];
+}
+
+- (NSException *) saveComponent: (iCalRepeatableEntityObject *) newObject
+                          force: (BOOL) forceSave
+{
+  return [container saveComponent: newObject
+                            force: forceSave];
 }
 
 #warning most of SOGoCalendarComponent and SOGoComponentOccurence share the same external interface... \

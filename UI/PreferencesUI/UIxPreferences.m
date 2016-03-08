@@ -19,31 +19,22 @@
  */
 
 #import <Foundation/NSCalendarDate.h>
-#import <Foundation/NSDictionary.h>
-#import <Foundation/NSPropertyList.h>
-#import <Foundation/NSString.h>
-#import <Foundation/NSTimeZone.h>
 #import <Foundation/NSUserDefaults.h> /* for locale strings */
 #import <Foundation/NSValue.h>
 
-#import <NGObjWeb/WOContext.h>
 #import <NGObjWeb/WORequest.h>
 
-#import <NGImap4/NGSieveClient.h>
 #import <NGImap4/NSString+Imap4.h>
 
 #import <NGExtensions/NSObject+Logs.h>
 
 #import <NGCards/iCalTimeZone.h>
-#import <NGCards/iCalTimeZonePeriod.h>
 
 #import <SOGo/NSArray+Utilities.h>
 #import <SOGo/NSDictionary+Utilities.h>
 #import <SOGo/NSString+Utilities.h>
 #import <SOGo/SOGoUser.h>
-#import <SOGo/SOGoUserDefaults.h>
 #import <SOGo/SOGoUserSettings.h>
-#import <SOGo/SOGoDomainDefaults.h>
 #import <SOGo/SOGoSieveManager.h>
 #import <SOGo/SOGoSystemDefaults.h>
 #import <SOGo/SOGoUserFolder.h>
@@ -144,6 +135,7 @@ static NSArray *reminderValues = nil;
 	}
 
       mailCustomFromEnabled = [dd mailCustomFromEnabled];
+      forwardEnabled = [dd forwardEnabled];
 
       hasChanged = NO;
     }
@@ -1174,6 +1166,27 @@ static NSArray *reminderValues = nil;
 //
 // Used by templates
 //
+- (NSArray *) fontSizesList
+{
+  static NSArray *fontSizes = nil;
+
+  if (!fontSizes)
+    {
+      fontSizes = [NSArray arrayWithObjects: @"8", @"9", @"10", @"11", @"12", @"13", @"14", @"16", @"18",
+                           @"20", @"22", @"24", @"26", @"28",
+                           @"36",
+                           @"48",
+                           @"72",
+                           nil];
+      [fontSizes retain];
+    }
+
+  return fontSizes;
+}
+
+//
+// Used by templates
+//
 - (NSArray *) daysBetweenResponsesList
 {
   static NSArray *daysBetweenResponses = nil;
@@ -2077,6 +2090,11 @@ static NSArray *reminderValues = nil;
 - (NSString *) mailCustomFromEnabled
 {
   return (mailCustomFromEnabled ? @"true" : @"false");
+}
+
+- (NSString *) forwardEnabled
+{
+  return (forwardEnabled ? @"true" : @"false");
 }
 
 //

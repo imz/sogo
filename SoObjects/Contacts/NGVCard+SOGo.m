@@ -18,11 +18,6 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#import <Foundation/NSArray.h>
-#import <Foundation/NSCalendarDate.h>
-#import <Foundation/NSDictionary.h>
-#import <Foundation/NSEnumerator.h>
-#import <Foundation/NSString.h>
 
 #import <NGExtensions/NSNull+misc.h>
 
@@ -253,15 +248,19 @@ convention:
   CardElement *element;
   NSCalendarDate *now;
   NSArray *units;
-  NSString *ou;
+  NSString *fn, *ou;
   id o;
 
   [self setNWithFamily: [ldifRecord objectForKey: @"sn"]
                  given: [ldifRecord objectForKey: @"givenname"]
             additional: nil prefixes: nil suffixes: nil];
   [self setNickname: [ldifRecord objectForKey: @"mozillanickname"]];
-  [self setFn: [ldifRecord objectForKey: @"displayname"]];
   [self setTitle: [ldifRecord objectForKey: @"title"]];  
+
+  fn = [ldifRecord objectForKey: @"displayname"];
+  if (!fn)
+    fn = [ldifRecord objectForKey: @"cn"];
+  [self setFn: fn];
 
   element = [self elementWithTag: @"adr" ofType: @"home"];
   [element setSingleValue: [ldifRecord objectForKey: @"mozillahomestreet2"]

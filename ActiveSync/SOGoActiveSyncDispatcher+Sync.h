@@ -33,7 +33,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #import "SOGoActiveSyncDispatcher.h"
 
 #import <DOM/DOMElement.h>
-#import <DOM/DOMProtocols.h>
 
 @class WOResponse;
 

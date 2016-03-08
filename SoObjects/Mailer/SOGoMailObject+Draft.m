@@ -20,9 +20,7 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#import <Foundation/NSArray.h>
 #import <Foundation/NSDictionary.h>
-#import <Foundation/NSEnumerator.h>
 
 #import <NGObjWeb/WOApplication.h>
 #import <NGObjWeb/WOResponse.h>
@@ -35,7 +33,6 @@
 #import <SoObjects/SOGo/SOGoUserDefaults.h>
 
 #import "NSString+Mail.h"
-#import "SOGoMailForward.h"
 #import "SOGoMailObject+Draft.h"
 #import "SOGoMailReply.h"
 
@@ -167,8 +164,7 @@
   NSMutableArray *keys;
   NSArray *acceptedTypes;
 
-  acceptedTypes
-    = [NSArray arrayWithObjects: @"text/plain", @"text/html", nil];
+  acceptedTypes = [NSArray arrayWithObjects: @"text/plain", @"text/html", nil];
   keys = [NSMutableArray array];
   [self addRequiredKeysOfStructure: [self bodyStructure]
                               path: @"" toArray: keys acceptedTypes: acceptedTypes

@@ -29,14 +29,13 @@
           </md-button>
           <md-menu-content>
             <md-menu-item>
-              <md-button>
-                <md-checkbox ng-model="app.search.subfolders"
-                             ng-true-value="1"
-                             ng-false-value="0">
-                  <var:string label:value="Search subfolders"/>
-                </md-checkbox>
-              </md-button>
+              <sg-checkmark ng-model="app.search.subfolders"
+                            sg-true-value="1"
+                            sg-false-value="0">
+                <var:string label:value="Search subfolders"/>
+              </sg-checkmark>
             </md-menu-item>
+            <md-menu-divider> <!-- divider --></md-menu-divider>
             <md-menu-item>
               <md-button ng-click="app.search.match='AND'">
                 <md-icon ng-class="{ 'icon-check': app.search.match == 'AND'}">
@@ -102,12 +101,12 @@
             </md-menu-item>
             <md-menu-divider> <!-- divider --></md-menu-divider>
             <md-menu-item>
-              <md-button ng-click="mailbox.selectedFolder.$filter()">
-                <md-checkbox
-                    ng-model="mailbox.service.$query.asc"
-                    ng-true-value="0"
-                    ng-false-value="1"><var:string label:value="Descending Order"/></md-checkbox>
-              </md-button>
+              <sg-checkmark
+                  label:aria-label="Descending Order"
+                  ng-model="mailbox.service.$query.asc"
+                  ng-change="mailbox.selectedFolder.$filter()"
+                  sg-true-value="0"
+                  sg-false-value="1"><var:string label:value="Descending Order"/></sg-checkmark>
             </md-menu-item>
           </md-menu-content>
         </md-menu>
@@ -116,17 +115,22 @@
         </md-button>
       </div>
       <!-- search mode -->
-      <div class="md-toolbar-tools sg-toolbar-secondary"
-           layout="row"
-           ng-show="mailbox.mode.search"
-           sg-search="mailbox.selectedFolder.$filter(null, [{ searchBy: searchField, searchInput: searchText }])">
+      <form class="md-toolbar-tools sg-toolbar-secondary"
+            name="searchForm"
+            layout="row"
+            ng-show="mailbox.mode.search"
+            sg-search="mailbox.selectedFolder.$filter(null, [{ searchBy: searchField, searchInput: searchText }])"
+            sg-allow-dot="false">
         <md-button class="sg-icon-button"
                    sg-search-cancel="mailbox.cancelSearch()"
                    label:aria-label="Back">
           <md-icon>arrow_back</md-icon>
         </md-button>
         <md-input-container class="md-flex" md-no-float="md-no-float">
-          <input name="folderSearch" type="search" ng-minlength="3" label:placeholder="Search"/>
+          <input name="folderSearch" type="search" var:minlength="minimumSearchLength" label:placeholder="Search"/>
+          <div ng-messages="searchForm.folderSearch.$error" ng-show="searchForm.folderSearch.$dirty">
+            <div ng-message="minlength"><var:string value="minimumSearchLengthLabel"/></div>
+          </div>
         </md-input-container>
         <md-input-container flex="25">
           <md-select>
@@ -137,7 +141,7 @@
             <md-option value="body"><var:string label:value="Entire Message"/></md-option>
           </md-select>
         </md-input-container>
-      </div>
+      </form>
     </md-toolbar>
 
     <!-- multiple-selection mode -->
@@ -154,6 +158,10 @@
         </md-button>
         <md-button class="sg-icon-button" ng-click="mailbox.confirmDeleteSelectedMessages()">
           <md-icon>delete</md-icon>
+        </md-button>
+        <md-button class="sg-icon-button" ng-click="mailbox.markOrUnMarkMessagesAsJunk()">
+          <md-icon ng-hide="mailbox.service.selectedFolder.type == 'junk'">thumb_down</md-icon>
+          <md-icon ng-hide="mailbox.service.selectedFolder.type != 'junk'">thumb_up</md-icon>
         </md-button>
         <md-menu>
           <md-button class="sg-icon-button" label:aria-label="More messages options" ng-click="$mdOpenMenu()">
@@ -183,16 +191,22 @@
                 <md-menu-content width="4">
                   <div ng-repeat="account in mailbox.accounts track by account.id">
                     <md-menu-item>
-                      <md-button class="md-primary" ng-disabled="true">{{account.name}}</md-button>
-                    </md-menu-item>
-                    <md-menu-divider><!-- divider --></md-menu-divider>
-                    <md-menu-item ng-repeat="folder in
-                                             account.$flattenMailboxes({ all: true })
-                                             track by folder.path"
-                                  ng-hide="mailbox.id == folder.id">
-                      <md-button ng-click="mailbox.copySelectedMessages(folder.id)">
-                        <span ng-class="'sg-child-level-' + folder.level">{{folder.name}}</span>
-                      </md-button>
+                      <md-menu>
+                        <md-button class="md-primary" ng-click="$mdOpenMenu($event)">{{account.name}}</md-button>
+                        <md-menu-content class="md-dense" width="4">
+                          <div ng-repeat="folder in
+                                          account.$flattenMailboxes({ all: true })
+                                          track by folder.path">
+                            <md-menu-item>
+                              <md-button class="sg-no-wrap"
+                                         ng-disabled="mailbox.service.selectedFolder.id == folder.id"
+                                         ng-click="mailbox.copySelectedMessages(folder.id)">
+                                <span ng-class="'sg-child-level-' + folder.level">{{folder.name}}</span>
+                              </md-button>
+                            </md-menu-item>
+                          </div>
+                        </md-menu-content>
+                      </md-menu>
                     </md-menu-item>
                   </div>
                 </md-menu-content>
@@ -206,16 +220,22 @@
                 <md-menu-content width="4">
                   <div ng-repeat="account in mailbox.accounts track by account.id">
                     <md-menu-item>
-                      <md-button class="md-primary" ng-disabled="true">{{account.name}}</md-button>
-                    </md-menu-item>
-                    <md-menu-divider><!-- divider --></md-menu-divider>
-                    <md-menu-item ng-repeat="folder in
-                                             account.$flattenMailboxes({ all: true })
-                                             track by folder.path"
-                                  ng-hide="mailbox.id == folder.id">
-                      <md-button ng-click="mailbox.moveSelectedMessages(folder.id)">
-                        <span ng-class="'sg-child-level-' + folder.level">{{folder.name}}</span>
-                      </md-button>
+                      <md-menu>
+                        <md-button class="md-primary" ng-click="$mdOpenMenu($event)">{{account.name}}</md-button>
+                        <md-menu-content class="md-dense" width="4">
+                          <div ng-repeat="folder in
+                                          account.$flattenMailboxes({ all: true })
+                                          track by folder.path">
+                            <md-menu-item>
+                              <md-button class="sg-no-wrap"
+                                         ng-disabled="mailbox.service.selectedFolder.id == folder.id"
+                                         ng-click="mailbox.moveSelectedMessages(folder.id)">
+                                <span ng-class="'sg-child-level-' + folder.level">{{folder.name}}</span>
+                              </md-button>
+                            </md-menu-item>
+                          </div>
+                        </md-menu-content>
+                      </md-menu>
                     </md-menu-item>
                   </div>
                 </md-menu-content>

@@ -6,10 +6,11 @@
   /**
    * @ngInject
    */
-  ComponentController.$inject = ['$rootScope', '$mdDialog', 'Calendar', 'AddressBook', 'Alarm', 'stateComponent'];
-  function ComponentController($rootScope, $mdDialog, Calendar, AddressBook, Alarm, stateComponent) {
+  ComponentController.$inject = ['$rootScope', '$mdDialog', 'Calendar', 'Component', 'AddressBook', 'Alarm', 'stateComponent'];
+  function ComponentController($rootScope, $mdDialog, Calendar, Component, AddressBook, Alarm, stateComponent) {
     var vm = this, component;
 
+    vm.service = Component;
     vm.component = stateComponent;
     vm.close = close;
     vm.cardFilter = cardFilter;
@@ -159,9 +160,11 @@
     //vm.searchText = null;
     vm.cardFilter = cardFilter;
     vm.addAttendee = addAttendee;
+    vm.removeAttendee = removeAttendee;
     vm.addAttachUrl = addAttachUrl;
     vm.cancel = cancel;
     vm.save = save;
+    vm.attendeeConflictError = false;
     vm.attendeesEditor = {
       days: getDays(),
       hours: getHours()
@@ -217,15 +220,24 @@
       }
     }
 
-    function save(form) {
+    function removeAttendee(attendee) {
+      vm.component.deleteAttendee(attendee);
+      if (vm.component.attendees.length === 0)
+        vm.showAttendeesEditor = false;
+    }
+
+    function save(form, options) {
       if (form.$valid) {
-        vm.component.$save()
+        vm.component.$save(options)
           .then(function(data) {
             $rootScope.$emit('calendars:list');
             $mdDialog.hide();
             Alarm.getAlarms();
-          }, function(data, status) {
-            $log.debug('failed');
+          }, function(response) {
+            if (response.status == 403 &&
+                response.data && response.data.message &&
+                angular.isObject(response.data.message))
+              vm.attendeeConflictError = response.data.message;
           });
       }
     }

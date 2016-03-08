@@ -18,13 +18,13 @@ About this Guide
 
 This guide will walk you through the installation and configuration of
 the SOGo solution. It also covers the installation and configuration of
-SOGo ActiveSync support – the solution used to synchronize mobile
+SOGo ActiveSync support - the solution used to synchronize mobile
 devices with SOGo.
 
 The instructions are based on version {release_version} of SOGo.
 
 The latest version of this guide is available
-at http://www.sogo.nu/downloads/documentation.html.
+at http://sogo.nu/downloads/documentation.html.
 
 Introduction
 ------------
@@ -50,8 +50,7 @@ the SOGo Connector and the SOGo Integrator
 device, or Outlook 2013
 
 SOGo is developed by a community of developers located mainly in North
-America and Europe. More information can be found
-at http://www.sogo.nu/
+America and Europe. More information can be found at http://sogo.nu/
 
 Architecture and Compatibility
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -178,14 +177,14 @@ Make sure the required components are started automatically at boot time
 and that they are running before proceeding with the SOGo configuration.
 Also make sure that you can install additional packages from your
 standard distribution. For example, if you are using Red Hat Enterprise
-Linux 5, you have to be subscribed to the Red Hat Network before
+Linux 7, you have to be subscribed to the Red Hat Network before
 continuing with the SOGo software installation.
 
-NOTE: This document covers the installation of SOGo under RHEL 6.
+NOTE: This document covers the installation of SOGo under RHEL 7.
 
 For installation instructions on Debian and Ubuntu, please refer
-directly to the SOGo website at http://www.sogo.nu/.
-Under the downloads section, you will find links for installation steps
+directly to the SOGo website at http://sogo.nu/.
+Under the _Support_ section, you will find links for installation steps
 for Debian and Ubuntu.
 
 Note that once the SOGo packages are installed under Debian and Ubuntu,
@@ -196,7 +195,7 @@ Installation
 
 This section will guide you through the installation of SOGo together
 with its dependencies. The steps described here apply to an RPM-based
-installation for a Red Hat or CentOS 6 distribution. Most of these steps
+installation for a Red Hat or CentOS 7 distribution. Most of these steps
 should apply to all supported operating systems.
 
 Software Downloads
@@ -209,7 +208,7 @@ content:
 ----
 [SOGo]
 name=Inverse SOGo Repository
-baseurl=http://inverse.ca/rhel-v3/6/$basearch
+baseurl=http://inverse.ca/rhel-v3/7/$basearch
 gpgcheck=0
 ----
 
@@ -499,8 +498,8 @@ In our example, we set the default domain to `acme.com`.
 meeting participants. Possible values are:
 
 [options="compact"]
-* `YES` – to send notifications
-* `NO` – to not send notifications
+* `YES` - to send notifications
+* `NO` - to not send notifications
 
 Defaults to `NO` when unset.
 
@@ -599,8 +598,8 @@ for SOGo. Possible values are:
 someone changes his/her own calendar. Possible values are:
 
 [options="compact"]
-- `YES` – to send notifications
-- `NO` – to not send notifications
+- `YES` - to send notifications
+- `NO` - to not send notifications
 
 Defaults to `NO` when unset. User can overwrite this from the calendar
 properties window.
@@ -611,8 +610,8 @@ modification is being done to his/her own calendar by someone else.
 Possible values are:
 
 [options="compact"]
-* `YES` – to send notifications
-* `NO` – to not send notifications
+* `YES` - to send notifications
+* `NO` - to not send notifications
 
 Defaults to `NO` when unset. User can overwrite this from the calendar
 properties window.
@@ -635,8 +634,8 @@ requiring not authentication) their calendars and address books.
 Possible values are:
 
 [options="compact"]
-* `YES` – to allow them
-* `NO` – to prevent them from doing so
+* `YES` - to allow them
+* `NO` - to prevent them from doing so
 
 Defaults to `NO` when unset.
 
@@ -647,8 +646,8 @@ SOGo.
 Possible values are:
 
 [options="compact"]
-* `YES` – to allow them
-* `NO` – to prevent them from doing so
+* `YES` - to allow them
+* `NO` - to prevent them from doing so
 
 Defaults to `NO` when unset.
 
@@ -678,7 +677,7 @@ Defaults to `NO` when unset.
 string (attendee completion, address book search, etc.) prior triggering
 the server-side search operation.
 
-Defaults to `2` when unset – which means a search operation will be
+Defaults to `2` when unset - which means a search operation will be
 triggered on the 3rd typed character.
 
 |S |SOGoMaximumFailedLoginCount
@@ -868,7 +867,7 @@ source can contain the following values:
 |The type of this user source, set to ldap` for an LDAP source.
 
 |id
-|The identification name of the LDAP repository. This must be unique –
+|The identification name of the LDAP repository. This must be unique -
 even when using multiple domains.
 
 |CNFieldName
@@ -934,8 +933,8 @@ be marked as busy the first time it is booked.
 EOQualifier. The following operators are supported:
 
 [options="compact"]
-* `<>` – inequality operator
-* `=` – equality operator
+* `<>` - inequality operator
+* `=` - equality operator
 
 Multiple qualifiers can be joined by using `OR` and `AND`, they can also
 be grouped together by using parenthesis. Attribute values should be
@@ -1035,6 +1034,10 @@ not work for entries in this source and thus, freebusy lookups.
 |If set as an address book, the human identification name of the LDAP
 repository
 
+|listRequiresDot (optional)
+|If set to `YES`, listing of this LDAP source is only possible when performing a search (respecting the SOGoSearchMinimumWordLength parameter) or when explicitely typing a single dot.
+Defaults to `YES` when unset.
+
 |ModulesConstraints (optional)
 |Limits the access of any module through a constraint based on an LDAP
 attribute; must be a dictionary with keys `Mail`, and/or `Calendar`,
@@ -1107,6 +1110,7 @@ LDAP Attributes Indexing
 To ensure proper performance of the SOGo application, the following LDAP
 attributes must be fully indexed:
 
+[options="compact"]
 * givenName
 * cn
 * mail
@@ -1302,7 +1306,7 @@ If you want to test the IdP-initiated logout using SimpleSAMLphp, you can do so 
 the following URL:
 
 ----
-https://idp.example.org/simplesaml/saml2/idp/SingleLogoutService.php?ReturnTo=www.sogo.nu
+https://idp.example.org/simplesaml/saml2/idp/SingleLogoutService.php?ReturnTo=sogo.nu
 ----
 
 In order to relay authentication information to your IMAP server and if
@@ -1327,9 +1331,9 @@ support enabled.
 Create the database user and schema using the following commands:
 
 ----
-su – postgres
-createuser --no-superuser --no-createdb –-no-createrole \
-	–-encrypted --pwprompt sogo
+su - postgres
+createuser --no-superuser --no-createdb --no-createrole \
+	--encrypted --pwprompt sogo
 (specify “sogo” as password)
 createdb -O sogo sogo
 ----
@@ -1423,7 +1427,7 @@ source can contain the following values:
 |The type of this user source, set to `sql` for a SQL source.
 
 |id
-|The identification name of the SQL repository. This must be unique –
+|The identification name of the SQL repository. This must be unique -
 even when using multiple domains.
 
 |viewURL
@@ -1431,14 +1435,14 @@ even when using multiple domains.
 present. Required columns are:
 
 [options="compact"]
-* `c_uid`: will be used for authentication – it's a username or
+* `c_uid`: will be used for authentication - it's a username or
   username@domain.tld
-* `c_name`: will be used to uniquely identify entries – which can be
+* `c_name`: will be used to uniquely identify entries - which can be
   identical to `c_uid`
 * `c_password`: password of the user, plain text, crypt, md5 or sha
   encoded 
 * `c_cn`: the user's common name
-* mail : the user's email address
+* `mail`: the user's email address
 
 Other columns can exist and will actually be mapped automatically if
 they have the same name as popular LDAP attributes (such as `givenName`,
@@ -1539,14 +1543,14 @@ SOGoUserSources =
 
 Certain database columns must be present in the view/table, such as:
 
-* `c_uid` – will be used for authentication – it's the username
+* `c_uid` - will be used for authentication - it's the username
 or username@domain.tld
-* `c_name` – which can be identical to `c_uid` – will be used to
+* `c_name` - which can be identical to `c_uid` - will be used to
   uniquely identify entries
-* `c_password` – password of the user, plain-text, md5 or sha encoded
+* `c_password` - password of the user, plain-text, md5 or sha encoded
   for now
-* `c_cn` – the user's common name – such as "John Doe"
-* `mail` – the user's mail address
+* `c_cn` - the user's common name - such as "John Doe"
+* `mail` - the user's mail address
 
 Note that groups are currently not supported for SQL-based
 authentication sources.
@@ -1566,8 +1570,8 @@ The following table describes the related parameters.
 are:
 
 [options="compact"]
-* `sendmail` – to use the sendmail binary
-* `smtp` – to use the SMTP protocol
+* `sendmail` - to use the sendmail binary
+* `smtp` - to use the SMTP protocol
 
 |D |SOGoSMTPServer
 |The DNS name or IP address of the SMTP server used when
@@ -1805,7 +1809,7 @@ interface)
 |Parameter used to specify the default order of the columns from the
 SOGo webmail interface. The parameter is an array, for example:
 
- SOGoMailListViewColumnsOrder = (Flagged, Attachment, Priority, From, Subject, Unread, Date, Size);
+`SOGoMailListViewColumnsOrder = (Flagged, Attachment, Priority, From, Subject, Unread, Date, Size);`
 
 |D |SOGoVacationEnabled
 |Parameter used to activate the edition from the preferences window of a
@@ -2278,7 +2282,7 @@ RequestHeader set "x-webobjects-server-url" "http://yourhostname"
 You may consider enabling SSL on top of this current installation to
 secure access to your SOGo installation.
 
-See http://httpd.apache.org/docs/2.2/ssl/ for details.
+See http://httpd.apache.org/docs/2.4/ssl/ for details.
 
 You might also have to adjust the configuration if you have SELinux
 enabled.
@@ -2293,13 +2297,13 @@ Starting Services
 Once SOGo if fully installed and configured, start the services using
 the following command:
 
- service sogod start
+ systemctl start sogod.service
 
-You may verify using thechkconfigcommand that the SOGo service is
-automatically started at boot time. Restart the Apache service since
+You may verify using the `systemctl is-enabled sogod` command that the SOGo
+service is automatically started at boot time. Restart the Apache service since
 modules and configuration files were added:
 
- service httpd restart
+ systemctl restart httpd.service
 
 Finally, you should also make sure that the `memcached` service is
 started and that it is also automatically started at boot time.
@@ -2643,7 +2647,7 @@ your site. However, be aware that in order to use the SOGo Integrator
 plug in, you will need to repackage it with specific modifications.
 Please refer to the documentation published online:
 
-http://www.sogo.nu/downloads/documentation.html
+http://sogo.nu/downloads/documentation.html
 
 If you only use the SOGo Connector plug in, you can still easily access
 your data.

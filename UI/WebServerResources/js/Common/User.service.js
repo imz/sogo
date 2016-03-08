@@ -65,15 +65,19 @@
             return this.uid == data.uid;
           };
 
-      if (options && options.dry)
-        users = [];
+      if (options) {
+        if (options.dry)
+          users = [];
+        else if (options.results)
+          users = options.results;
+      }
       else
         users = User.$users;
 
       if (excludedUsers) {
         // Remove excluded users from response
         results = _.filter(response.users, function(user) {
-          return !_.find(excludedUsers, compareUids, user);
+          return !_.find(excludedUsers, _.bind(compareUids, user));
         });
       }
       else {
@@ -83,13 +87,13 @@
       // Remove users that no longer match the search query
       for (index = users.length - 1; index >= 0; index--) {
         user = users[index];
-        if (!_.find(results, compareUids, user)) {
+        if (!_.find(results, _.bind(compareUids, user))) {
           users.splice(index, 1);
         }
       }
       // Add new users matching the search query
-      _.each(results, function(data, index) {
-        if (_.isUndefined(_.find(users, compareUids, data))) {
+      _.forEach(results, function(data, index) {
+        if (_.isUndefined(_.find(users, _.bind(compareUids, data)))) {
           var user = new User(data);
           users.splice(index, 0, user);
         }
@@ -195,7 +199,7 @@
    * @desc Check if a confirmation is required before giving some rights.
    * @return the confirmation message or false if no confirmation is required
    */
-  User.prototype.$confirmRights = function() {
+  User.prototype.$confirmRights = function(folder) {
     var confirmation = false;
 
     if (this.$confirmation) {
@@ -205,10 +209,18 @@
 
     if (_.some(_.values(this.rights))) {
       if (this.uid == 'anonymous') {
-        confirmation = l('Potentially anyone on the Internet will be able to access your folder, even if they do not have an account on this system. Is this information suitable for the public Internet?');
+        if (folder.constructor.name == 'AddressBook')
+          confirmation = l('Potentially anyone on the Internet will be able to access your address book "%{0}", even if they do not have an account on this system. Is this information suitable for the public Internet?', folder.name);
+        else if (folder.constructor.name == 'Calendar')
+          confirmation = l('Potentially anyone on the Internet will be able to access your calendar "%{0}", even if they do not have an account on this system. Is this information suitable for the public Internet?', folder.name);
       }
-      else if (this.uid == '<default>') {
-        confirmation = l('Any user with an account on this system will be able to access your folder. Are you certain you trust them all?');
+      else if (this.uid == 'anyone' || this.uid == '<default>') {
+        if (folder.constructor.name == 'AddressBook')
+          confirmation = l('Any user with an account on this system will be able to access your address book "%{0}". Are you certain you trust them all?', folder.name);
+        else if (folder.constructor.name == 'Calendar')
+          confirmation = l('Any user with an account on this system will be able to access your calendar "%{0}". Are you certain you trust them all?', folder.name);
+        else if (folder.constructor.name == 'Mailbox')
+          confirmation = l('Any user with an account on this system will be able to access your mailbox "%{0}". Are you certain you trust them all?', folder.name);
       }
     }
 

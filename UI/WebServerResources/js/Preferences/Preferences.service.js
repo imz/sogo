@@ -15,13 +15,25 @@
 
     this.defaultsPromise = Preferences.$$resource.fetch("jsonDefaults").then(function(data) {
       // We swap $key -> _$key to avoid an Angular bug (https://github.com/angular/angular.js/issues/6266)
-      var labels = _.object(_.map(data.SOGoMailLabelsColors, function(value, key) {
+      var labels = _.zipObject(_.map(data.SOGoMailLabelsColors, function(value, key) {
         if (key.charAt(0) == '$')
           return ['_' + key, value];
         return [key, value];
       }));
 
       data.SOGoMailLabelsColors = labels;
+
+      // Mail editor autosave is a number of minutes or 0 if disabled
+      data.SOGoMailAutoSave = parseInt(data.SOGoMailAutoSave) || 0;
+
+      // Specify a base font size for HTML messages when SOGoMailComposeFontSize is not zero
+      data.SOGoMailComposeFontSizeEnabled = parseInt(data.SOGoMailComposeFontSize) > 0;
+
+      if (window.CKEDITOR && data.SOGoMailComposeFontSizeEnabled) {
+        // HTML editor is enabled; set user's preferred font size
+        window.CKEDITOR.config.fontSize_defaultLabel = data.SOGoMailComposeFontSize;
+        window.CKEDITOR.addCss('.cke_editable { font-size: ' + data.SOGoMailComposeFontSize + 'px; }');
+      }
 
       // We convert our list of autoReplyEmailAddresses/forwardAddress into a string.
       // We also convert our date objects into real date, otherwise we'll have strings
@@ -66,21 +78,22 @@
       angular.extend(_this.defaults, data);
 
       // Configure date locale
-      angular.extend(Preferences.$mdDateLocaleProvider, data.locale);
-      Preferences.$mdDateLocaleProvider.firstDayOfWeek = parseInt(data.SOGoFirstDayOfWeek);
-      Preferences.$mdDateLocaleProvider.weekNumberFormatter = function(weekNumber) {
+      _this.$mdDateLocaleProvider = Preferences.$mdDateLocaleProvider;
+      angular.extend(_this.$mdDateLocaleProvider, data.locale);
+      _this.$mdDateLocaleProvider.firstDayOfWeek = parseInt(data.SOGoFirstDayOfWeek);
+      _this.$mdDateLocaleProvider.weekNumberFormatter = function(weekNumber) {
         return l('Week %d', weekNumber);
       };
-      Preferences.$mdDateLocaleProvider.msgCalendar = l('Calender');
-      Preferences.$mdDateLocaleProvider.msgOpenCalendar = l('Open Calendar');
-      Preferences.$mdDateLocaleProvider.parseDate = function(dateString) {
-        return dateString? dateString.parseDate(Preferences.$mdDateLocaleProvider, data.SOGoShortDateFormat) : new Date(NaN);
+      _this.$mdDateLocaleProvider.msgCalendar = l('Calender');
+      _this.$mdDateLocaleProvider.msgOpenCalendar = l('Open Calendar');
+      _this.$mdDateLocaleProvider.parseDate = function(dateString) {
+        return dateString? dateString.parseDate(_this.$mdDateLocaleProvider, data.SOGoShortDateFormat) : new Date(NaN);
       };
-      Preferences.$mdDateLocaleProvider.formatDate = function(date) {
-        return date? date.format(Preferences.$mdDateLocaleProvider, data.SOGoShortDateFormat) : '';
+      _this.$mdDateLocaleProvider.formatDate = function(date) {
+        return date? date.format(_this.$mdDateLocaleProvider, data.SOGoShortDateFormat) : '';
       };
-      Preferences.$mdDateLocaleProvider.formatTime = function(date) {
-        return date? date.format(Preferences.$mdDateLocaleProvider, data.SOGoTimeFormat) : '';
+      _this.$mdDateLocaleProvider.formatTime = function(date) {
+        return date? date.format(_this.$mdDateLocaleProvider, data.SOGoTimeFormat) : '';
       };
 
       return _this.defaults;
@@ -184,7 +197,7 @@
     });
 
     // We swap _$key -> $key to avoid an Angular bug (https://github.com/angular/angular.js/issues/6266)
-    labels = _.object(_.map(preferences.defaults.SOGoMailLabelsColors, function(value, key) {
+    labels = _.zipObject(_.map(preferences.defaults.SOGoMailLabelsColors, function(value, key) {
       if (key.charAt(0) == '_' && key.charAt(1) == '$') {
         // New key, let's take the value and flatten it
         if (key.length > 2 && key.charAt(2) == '$') {
@@ -196,6 +209,10 @@
     }));
 
     preferences.defaults.SOGoMailLabelsColors = labels;
+
+    if (!preferences.defaults.SOGoMailComposeFontSizeEnabled)
+      preferences.defaults.SOGoMailComposeFontSize = 0;
+    delete preferences.defaults.SOGoMailComposeFontSizeEnabled;
 
     if (preferences.defaults.Vacation) {
       if (preferences.defaults.Vacation.endDateEnabled)
@@ -213,7 +230,7 @@
       preferences.defaults.Forward.forwardAddress = preferences.defaults.Forward.forwardAddress.split(",");
 
     if (preferences.settings.Calendar && preferences.settings.Calendar.PreventInvitationsWhitelist) {
-      _.each(preferences.settings.Calendar.PreventInvitationsWhitelist, function(user) {
+      _.forEach(preferences.settings.Calendar.PreventInvitationsWhitelist, function(user) {
         whitelist[user.uid] = user.$shortFormat();
       });
       preferences.settings.Calendar.PreventInvitationsWhitelist = whitelist;

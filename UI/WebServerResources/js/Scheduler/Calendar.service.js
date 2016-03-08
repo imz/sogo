@@ -93,10 +93,11 @@
       list = this.$calendars;
 
     sibling = _.find(list, function(o) {
-      return (o.id != 'personal' &&
-              o.name.localeCompare(calendar.name) === 1);
+      return (calendar.id == 'personal' ||
+              (o.id != 'personal' &&
+               o.name.localeCompare(calendar.name) === 1));
     });
-    i = sibling ? _.indexOf(_.pluck(list, 'id'), sibling.id) : 1;
+    i = sibling ? _.indexOf(_.map(list, 'id'), sibling.id) : 1;
     list.splice(i, 0, calendar);
   };
 
@@ -122,6 +123,14 @@
           _this.$subscriptions.push(calendar);
         else
           _this.$calendars.push(calendar);
+      });
+    }
+    else if (angular.isUndefined(this.$calendars)) {
+      this.$calendars = [];
+      this.$subscriptions = [];
+      this.$webcalendars = [];
+      Calendar.$$resource.fetch('calendarslist').then(function(data) {
+        Calendar.$findAll(data.calendars, writable);
       });
     }
 
@@ -159,11 +168,11 @@
   Calendar.$getIndex = function(id) {
     var i;
 
-    i = _.indexOf(_.pluck(Calendar.$calendars, 'id'), id);
+    i = _.indexOf(_.map(Calendar.$calendars, 'id'), id);
     if (i < 0)
-      i = _.indexOf(_.pluck(Calendar.$subscriptions, 'id'), id);
+      i = _.indexOf(_.map(Calendar.$subscriptions, 'id'), id);
     if (i < 0)
-      i = _.indexOf(_.pluck(Calendar.$webcalendars, 'id'), id);
+      i = _.indexOf(_.map(Calendar.$webcalendars, 'id'), id);
 
     return i;
   };
@@ -178,7 +187,7 @@
   Calendar.$subscribe = function(uid, path) {
     var _this = this;
     return Calendar.$$resource.userResource(uid).fetch(path, 'subscribe').then(function(calendarData) {
-      var calendar = new Calendar(calendarData);
+      var calendar = new Calendar(angular.extend({ active: 1 }, calendarData));
       if (!_.find(_this.$subscriptions, function(o) {
         return o.id == calendarData.id;
       })) {
@@ -235,25 +244,19 @@
    * @return a promise of the HTTP operation
    */
   Calendar.$deleteComponents = function(components) {
-
-    // We create a c_folder -> event hash
-    var calendars = {}, _this = this;
+    var _this = this, calendars = {}, promises = [];
 
     _.forEach(components, function(component) {
-      if (!angular.isDefined(calendars[component.c_folder]))
-        calendars[component.c_folder] = [];
-
-      calendars[component.c_folder].push(component.c_name);
+      if (!angular.isDefined(calendars[component.pid]))
+        calendars[component.pid] = [];
+      calendars[component.pid].push(component.id);
     });
 
-    _.forEach(calendars, function(uids, c_folder) {
-      Calendar.$$resource.post(c_folder, 'batchDelete', {uids: uids});
+    _.forEach(calendars, function(uids, pid) {
+      promises.push(Calendar.$$resource.post(pid, 'batchDelete', {uids: uids}));
     });
 
-    // We slice both arrays - might be useful if in the future, we can delete
-    // events and tasks at the same time.
-    _this.$Component.$events = _.difference(_this.$Component.$events, components);
-    _this.$Component.$tasks = _.difference(_this.$Component.$tasks, components);
+    return Calendar.$q.all(promises);
   };
 
   /**
@@ -332,7 +335,7 @@
     else
       calendars = Calendar.$calendars;
 
-    i = _.indexOf(_.pluck(calendars, 'id'), this.id);
+    i = _.indexOf(_.map(calendars, 'id'), this.id);
     if (i > -1) {
       return this.$save().then(function() {
         calendars.splice(i, 1);
@@ -368,7 +371,7 @@
     }
 
     return promise.then(function() {
-      var i = _.indexOf(_.pluck(list, 'id'), _this.id);
+      var i = _.indexOf(_.map(list, 'id'), _this.id);
       list.splice(i, 1);
     });
   };

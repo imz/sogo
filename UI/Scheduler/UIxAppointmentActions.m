@@ -1,8 +1,6 @@
 /* UIxAppointmentActions.m - this file is part of SOGo
  *
- * Copyright (C) 2011-2014 Inverse inc.
- *
- * Author: Wolfgang Sourdeau <wsourdeau@inverse.ca>
+ * Copyright (C) 2011-2016 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +18,7 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#import <Foundation/NSCalendarDate.h>
-#import <Foundation/NSDictionary.h>
-#import <Foundation/NSString.h>
-#import <Foundation/NSArray.h>
+#import <Foundation/NSValue.h>
 
 #import <NGExtensions/NSObject+Values.h>
 
@@ -34,7 +29,6 @@
 #import <NGObjWeb/WORequest.h>
 
 #import <NGCards/iCalCalendar.h>
-#import <NGCards/iCalEvent.h>
 
 #import <SOGo/NSCalendarDate+SOGo.h>
 #import <SOGo/NSDictionary+Utilities.h>
@@ -69,6 +63,8 @@
   NSException *ex;
   SOGoAppointmentFolder *targetCalendar, *sourceCalendar;
   SOGoAppointmentFolders *folders;
+  BOOL forceSave;
+  id error;
 
   rq = [context request];
   params = [[rq contentAsString] objectFromJSONString];
@@ -77,6 +73,7 @@
   startDelta = [params objectForKey: @"start"];
   durationDelta = [params objectForKey: @"duration"];
   destionationCalendar = [params objectForKey: @"destination"];
+  forceSave = [[params objectForKey: @"ignoreConflicts"] boolValue];
 
   if (daysDelta || startDelta || durationDelta)
     {
@@ -120,7 +117,8 @@
         [event updateRecurrenceRulesUntilDate: end];
 
       [event setLastModified: [NSCalendarDate calendarDate]];
-      ex = [co saveComponent: event];
+      ex = [co saveComponent: event  force: forceSave];
+
       // This condition will be executed only if the event is moved from a calendar to another. If destionationCalendar == 0; there is no calendar change
       if ([destionationCalendar length] > 0)
         {
@@ -139,12 +137,24 @@
               ex = [co moveToFolder: targetCalendar];
           }
         }
+
       if (ex)
         {
+          unsigned int httpStatus;
+
+          httpStatus = 500;
+
+          if ([ex respondsToSelector: @selector(httpStatus)])
+            httpStatus = [ex httpStatus];
+
+          error = [[ex reason] objectFromJSONString];
+          if (error == nil)
+            error = [ex reason];
           jsonResponse = [NSDictionary dictionaryWithObjectsAndKeys:
-                                       [ex reason], @"message",
+                                         error, @"message",
                                        nil];
-          response = [self responseWithStatus: 403
+
+          response = [self responseWithStatus: httpStatus
                         andJSONRepresentation: jsonResponse];
         }
       else

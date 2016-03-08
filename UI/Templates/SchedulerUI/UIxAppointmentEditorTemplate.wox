@@ -8,6 +8,7 @@
     <form name="eventForm" ng-submit="editor.save(eventForm)">
       <md-toolbar ng-class="editor.component.getClassName('bg')">
         <div class="md-toolbar-tools">
+          <md-icon class="material-icons sg-icon-toolbar-bg">event</md-icon>
           <!-- summary -->
           <md-icon ng-if="editor.component.classification == 'confidential'">visibility_off</md-icon>
           <md-icon ng-if="editor.component.classification == 'private'">vpn_key</md-icon>
@@ -210,7 +211,7 @@
         </div>
         <!-- attendees -->
         <div class="sg-form-section">
-          <div layout="row" layout-align="start start">
+          <div layout="row" layout-align="start center">
             <md-icon>search</md-icon>
             <md-autocomplete class="md-flex"
                              label:md-floating-label="Invite Attendees"
@@ -219,7 +220,7 @@
                              md-selected-item-change="editor.addAttendee(card)"
                              md-items="card in editor.cardFilter(editor.searchText)"
                              md-item-text="card.empty"
-                             md-min-length="3"
+                             var:md-min-length="minimumSearchLength"
                              md-delay="300"
                              md-no-cache="true"
                              sg-enter="editor.addAttendee(editor.searchText)">
@@ -236,6 +237,7 @@
             </md-autocomplete>
             <md-button type="button" class="sg-icon-button"
                        label:aria-label="repeat_CUSTOM"
+                       ng-show="editor.component.attendees.length"
                        ng-click="editor.toggleAttendeesEditor()">
               <md-icon ng-class="{'md-rotate-180': editor.showAttendeesEditor}">expand_more</md-icon>
             </md-button>
@@ -254,7 +256,7 @@
               <md-icon ng-class="'icon-' + $chip.status"><!-- partstat --></md-icon>
               <md-icon class="sg-chip-remove"
                        label:aria-label="Delete"
-                       ng-click="editor.component.deleteAttendee($chip)">close</md-icon>
+                       ng-click="editor.removeAttendee($chip)">close</md-icon>
             </md-chip-template>
           </md-chips>
           <div ng-show="editor.showAttendeesEditor" class="attendees">
@@ -274,7 +276,7 @@
         </div>
       </md-dialog-content>
       <!-- cancel/reset/save -->
-      <md-dialog-actions>
+      <md-dialog-actions ng-hide="editor.attendeeConflictError">
         <md-button type="button" ng-click="editor.cancel()">
           <var:string label:value="Cancel"/>
         </md-button>
@@ -284,6 +286,65 @@
         <md-button class="md-primary" type="submit"
                    ng-disabled="editor.eventForm.$invalid">
           <var:string label:value="Save"/>
+        </md-button>
+      </md-dialog-actions>
+
+      <!-- attendee availability conflict -->
+      <md-dialog-content class="md-default-theme md-bg md-warn md-padding sg-dialog-message ng-hide"
+                         ng-show="editor.attendeeConflictError.conflicts">
+        <div layout="row">
+          <div class="md-flex"><var:string label:value="A time conflict exists with one or more attendees.\nWould you like to keep the current settings anyway?"/></div>
+          <md-button class="md-icon-button" ng-click="editor.attendeeConflictError = false">
+            <md-icon label:aria-label="Close">close</md-icon>
+          </md-button>
+        </div>
+        <div class="md-flex" ng-show="editor.attendeeConflictError.attendee_email">
+          <md-icon>person</md-icon> {{editor.attendeeConflictError.attendee_name}} ({{editor.attendeeConflictError.attendee_email}})
+        </div>
+        <div layout="row"
+             ng-show="editor.attendeeConflictError.conflicts"
+             ng-repeat="conflict in editor.attendeeConflictError.conflicts">
+          <md-icon>schedule</md-icon>
+          <div class="pseudo-input-container">
+            <label class="pseudo-input-label"><var:string label:value="From"/></label>
+            <div>{{conflict.startDate}} <md-icon>trending_flat</md-icon></div>
+          </div>
+          <div class="pseudo-input-container md-flex">
+            <label class="pseudo-input-label"><var:string label:value="To"/></label>
+            <div>{{conflict.endDate}}</div>
+          </div>
+        </div>
+      </md-dialog-content>
+      <md-dialog-actions ng-show="editor.attendeeConflictError.conflicts">
+        <md-button type="button" ng-click="editor.cancel()">
+          <var:string label:value="Cancel"/>
+        </md-button>
+        <md-button type="button"
+                   ng-click="editor.attendeeConflictError = false">
+          <var:string label:value="Edit"/>
+        </md-button>
+        <md-button class="md-warn" type="button"
+                   ng-click="editor.save(eventForm, { ignoreConflicts: true })"
+                   ng-disabled="editor.eventForm.$invalid">
+          <var:string label:value="Save"/>
+        </md-button>
+      </md-dialog-actions>
+
+      <!-- rejected attendee invitation -->
+      <md-dialog-content class="md-default-theme md-bg md-warn md-padding sg-dialog-message ng-hide" layout="row"
+                         ng-show="editor.attendeeConflictError.reject">
+        <div class="md-flex">{{editor.attendeeConflictError.reject}}</div>
+        <md-button class="md-icon-button" ng-click="editor.attendeeConflictError = false">
+          <md-icon label:aria-label="Close">close</md-icon>
+        </md-button>
+      </md-dialog-content>
+      <md-dialog-actions ng-show="editor.attendeeConflictError.reject">
+        <md-button type="button" ng-click="editor.cancel()">
+          <var:string label:value="Cancel"/>
+        </md-button>
+        <md-button type="button"
+                   ng-click="editor.attendeeConflictError = false">
+          <var:string label:value="Edit"/>
         </md-button>
       </md-dialog-actions>
     </form>

@@ -31,7 +31,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define __NSSTRINGACTIVESYNC_H__
 
 #import <Foundation/NSString.h>
-
 #include "SOGoActiveSyncConstants.h"
 
 @class NSCalendarDate;

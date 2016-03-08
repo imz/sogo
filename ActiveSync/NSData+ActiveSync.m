@@ -30,7 +30,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #import "NSData+ActiveSync.h"
 
 #import <Foundation/NSProcessInfo.h>
-#import <Foundation/NSString.h>
 
 #import <SOGo/SOGoSystemDefaults.h>
 
@@ -38,8 +37,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #import <NGExtensions/NSObject+Logs.h>
 
 #include <wbxml/wbxml.h>
-#include <wbxml/wbxml_conv.h>
-#include <wbxml/wbxml_errors.h>
 
 #define WBXMLDEBUG 0
 

@@ -165,6 +165,7 @@
     if (this.type) {
       this.$isEditable = this.isEditable();
     }
+    this.$isNoInferiors = this.isNoInferiors();
     if (angular.isUndefined(this.$shadowData)) {
       // Make a copy of the data for an eventual reset
       this.$shadowData = this.$omit();
@@ -273,9 +274,10 @@
       angular.extend(options, { sortingAttributes: Mailbox.$query });
       if (angular.isDefined(filters)) {
         options.filters = _.reject(filters, function(filter) {
-          return angular.isUndefined(filter.searchInput) || filter.searchInput.length === 0;
+          return !filter.searchInput || filter.searchInput.length === 0;
         });
-        _.each(options.filters, function(filter) {
+        // Decompose filters that match two fields
+        _.forEach(options.filters, function(filter) {
           var secondFilter,
               match = filter.searchBy.match(/(\w+)_or_(\w+)/);
           if (match) {
@@ -292,7 +294,7 @@
       if (!Mailbox.$virtualMode) {
         var refreshViewCheck = Mailbox.$Preferences.defaults.SOGoRefreshViewCheck;
         if (refreshViewCheck && refreshViewCheck != 'manually') {
-          var f = angular.bind(_this, Mailbox.prototype.$filter);
+          var f = angular.bind(_this, Mailbox.prototype.$filter, null, filters);
           Mailbox.$refreshTimeout = Mailbox.$timeout(f, refreshViewCheck.timeInterval()*1000);
         }
       }
@@ -311,6 +313,7 @@
   Mailbox.prototype.$loadMessage = function(messageId) {
     var startIndex = this.uidsMap[messageId],
         endIndex,
+        index,
         max = this.$messages.length,
         loaded = false,
         uids,
@@ -324,9 +327,25 @@
 
       // Preload more headers if possible
       endIndex = Math.min(startIndex + Mailbox.PRELOAD.LOOKAHEAD, max - 1);
-      if (!angular.isDefined(this.$messages[endIndex].subject) &&
+      if (angular.isDefined(this.$messages[endIndex].subject) ||
+          angular.isDefined(this.$messages[endIndex].loading)) {
+        index = Math.max(startIndex - Mailbox.PRELOAD.LOOKAHEAD, 0);
+        if (!angular.isDefined(this.$messages[index].subject) &&
+            !angular.isDefined(this.$messages[index].loading)) {
+          // Previous messages not loaded; preload more headers further up
+          endIndex = startIndex;
+          startIndex = Math.max(startIndex - Mailbox.PRELOAD.SIZE, 0);
+        }
+      }
+      else
+        // Next messages not load; preload more headers further down
+        endIndex = Math.min(startIndex + Mailbox.PRELOAD.SIZE, max - 1);
+
+      if (!angular.isDefined(this.$messages[startIndex].subject) &&
+          !angular.isDefined(this.$messages[startIndex].loading) ||
+          !angular.isDefined(this.$messages[endIndex].subject) &&
           !angular.isDefined(this.$messages[endIndex].loading)) {
-        endIndex = Math.min(startIndex + Mailbox.PRELOAD.SIZE, max);
+
         for (uids = []; startIndex < endIndex && startIndex < max; startIndex++) {
           if (angular.isDefined(this.$messages[startIndex].subject) || this.$messages[startIndex].loading) {
             // Message at this index is already loaded; increase the end index
@@ -355,6 +374,16 @@
    */
   Mailbox.prototype.isEditable = function() {
     return this.type == 'folder';
+  };
+
+  /**
+   * @function isNoInferiors
+   * @memberof Mailbox.prototype
+   * @desc Checks if the mailbox can contain submailboxes
+   * @returns true if the mailbox can not contain submailboxes
+   */
+  Mailbox.prototype.isNoInferiors = function() {
+    return this.flags.indexOf('noinferiors') >= 0;
   };
 
   /**
@@ -403,7 +432,7 @@
       children = parent.children;
 
     // Find index of mailbox among siblings
-    i = _.indexOf(_.pluck(children, 'id'), this.id);
+    i = _.indexOf(_.map(children, 'id'), this.id);
 
     return this.$save().then(function(data) {
       var sibling;
@@ -417,7 +446,7 @@
         return (o.type == 'folder' && o.name.localeCompare(_this.name) > 0);
       });
       if (sibling) {
-        i = _.indexOf(_.pluck(children, 'id'), sibling.id);
+        i = _.indexOf(_.map(children, 'id'), sibling.id);
       }
       else {
         i = children.length;
@@ -564,7 +593,7 @@
   Mailbox.prototype.$deleteMessages = function(messages) {
     var _this = this, uids;
 
-    uids = _.pluck(messages, 'uid');
+    uids = _.map(messages, 'uid');
     return Mailbox.$$resource.post(this.id, 'batchDelete', {uids: uids})
       .then(function(data) {
         // Update inbox quota
@@ -573,6 +602,20 @@
 
         return _this.$_deleteMessages(uids, messages);
       });
+  };
+
+  /**
+   * @function $markOrUnMarkMessagesAsJunk
+   * @memberof Mailbox.prototype
+   * @desc Mark messages as junk/not junk
+   * @return a promise of the HTTP operation
+   */
+  Mailbox.prototype.$markOrUnMarkMessagesAsJunk = function(messages) {
+    var _this = this, uids;
+    var method = (this.type == 'junk' ? 'markMessagesAsNotJunk' : 'markMessagesAsJunk');
+    uids = _.map(messages, 'uid');
+
+    return Mailbox.$$resource.post(this.id, method, {uids: uids});
   };
 
   /**
@@ -601,7 +644,7 @@
   Mailbox.prototype.$moveMessages = function(messages, folder) {
     var _this = this, uids;
 
-    uids = _.pluck(messages, 'uid');
+    uids = _.map(messages, 'uid');
     return Mailbox.$$resource.post(this.id, 'moveMessages', {uids: uids, folder: folder})
       .then(function() {
         return _this.$_deleteMessages(uids, messages);
@@ -689,7 +732,7 @@
       Mailbox.$timeout(function() {
         var uids, headers;
 
-        if (_this.$topIndex > data.uids.length - 1)
+        if (!data.uids || _this.$topIndex > data.uids.length - 1)
           _this.$topIndex = 0;
 
         _this.init(data);
@@ -698,7 +741,7 @@
           Mailbox.$log.debug('unwrapping ' + data.uids.length + ' messages');
 
           // First entry of 'headers' are keys
-          headers = _.invoke(_this.headers[0], 'toLowerCase');
+          headers = _.invokeMap(_this.headers[0], 'toLowerCase');
           _this.headers.splice(0, 1);
 
           // First entry of 'uids' are keys when threaded view is enabled
@@ -711,7 +754,7 @@
           _.reduce(_this.uids, function(msgs, msg, i) {
             var data;
             if (_this.threaded)
-              data = _.object(uids, msg);
+              data = _.zipObject(uids, msg);
             else
               data = {uid: msg.toString()};
 
@@ -724,8 +767,8 @@
           }, _this.$messages);
 
           // Extend Message objects with received headers
-          _.each(_this.headers, function(data) {
-            var msg = _.object(headers, data),
+          _.forEach(_this.headers, function(data) {
+            var msg = _.zipObject(headers, data),
                 i = _this.uidsMap[msg.uid.toString()];
             _.extend(_this.$messages[i], msg);
           });
@@ -757,10 +800,10 @@
         var headers, j;
         if (data.length > 0) {
           // First entry of 'headers' are keys
-          headers = _.invoke(data[0], 'toLowerCase');
+          headers = _.invokeMap(data[0], 'toLowerCase');
           data.splice(0, 1);
-          _.each(data, function(messageHeaders) {
-            messageHeaders = _.object(headers, messageHeaders);
+          _.forEach(data, function(messageHeaders) {
+            messageHeaders = _.zipObject(headers, messageHeaders);
             j = _this.uidsMap[messageHeaders.uid.toString()];
             if (angular.isDefined(j)) {
               _.extend(_this.$messages[j], messageHeaders);

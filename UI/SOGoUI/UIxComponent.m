@@ -20,18 +20,11 @@
   02111-1307, USA.
 */
 
-#import <Foundation/NSDictionary.h>
-#import <Foundation/NSException.h>
-#import <Foundation/NSEnumerator.h>
 #import <Foundation/NSKeyValueCoding.h>
-#import <Foundation/NSPathUtilities.h>
 #import <Foundation/NSUserDefaults.h> /* for locale strings */
-#import <Foundation/NSString.h>
+#import <Foundation/NSValue.h>
 
-#import <NGObjWeb/SoHTTPAuthenticator.h>
 #import <NGObjWeb/SoObjects.h>
-#import <NGObjWeb/SoProduct.h>
-#import <NGObjWeb/WORequest.h>
 #import <NGObjWeb/WOResponse.h>
 #import <NGObjWeb/WOContext+SoObjects.h>
 #import <NGExtensions/NSObject+Logs.h>
@@ -43,19 +36,14 @@
 #import <SOGo/NSObject+Utilities.h>
 #import <SOGo/NSString+Utilities.h>
 #import <SOGo/SOGoBuild.h>
-#import <SOGo/SOGoContentObject.h>
-#import <SOGo/SOGoObject.h>
-#import <SOGo/SOGoPermissions.h>
 #import <SOGo/SOGoSystemDefaults.h>
 #import <SOGo/SOGoUser.h>
 #import <SOGo/SOGoUserFolder.h>
-#import <SOGo/SOGoUserDefaults.h>
 #import <SOGo/WOContext+SOGo.h>
 #import <SOGo/WOResourceManager+SOGo.h>
 
 #import "UIxJSClose.h"
 
-#import "UIxComponent.h"
 
 @interface UIxComponent (PrivateAPI)
 - (void)_parseQueryString:(NSString *)_s;
@@ -520,6 +508,22 @@ static SoProduct      *commonProduct      = nil;
 - (NSString *) shortUserNameForDisplay
 {
   return [[context activeUser] login];
+}
+
+/* Common defaults and settings */
+
+- (int) minimumSearchLength
+{
+  return [[[context activeUser] domainDefaults] searchMinimumWordLength];
+}
+
+- (NSString *) minimumSearchLengthLabel
+{
+  NSDictionary *defaults;
+
+  defaults = [NSDictionary dictionaryWithObject: [NSNumber numberWithInt: [self minimumSearchLength]]
+                                         forKey: @"minimumSearchLength"];
+  return [defaults keysWithFormat: [self commonLabelForKey: @"Enter at least %{minimumSearchLength} characters"]];
 }
 
 /* labels */

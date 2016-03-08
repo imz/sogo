@@ -18,22 +18,13 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#import <Foundation/NSArray.h>
 #import <Foundation/NSValue.h>
-#import <Foundation/NSDictionary.h>
-#import <Foundation/NSEnumerator.h>
-#import <Foundation/NSKeyValueCoding.h>
 
-#import <NGObjWeb/SoSecurityManager.h>
-#import <NGObjWeb/SoUser.h>
 #import <NGObjWeb/WORequest.h>
 #import <NGObjWeb/WOResponse.h>
-#import <NGCards/iCalPerson.h>
 #import <SOGo/NSArray+Utilities.h>
 #import <SOGo/NSDictionary+Utilities.h>
-#import <SOGo/SOGoContentObject.h>
 #import <SOGo/SOGoGCSFolder.h>
-#import <SOGo/SOGoPermissions.h>
 #import <SOGo/SOGoSystemDefaults.h>
 #import <SOGo/SOGoUser.h>
 #import <SOGo/SOGoUserManager.h>
@@ -144,15 +135,15 @@
         }
 
       // Add the 'Any authenticated' user
-      if ([self canSubscribeUsers])
-        {
+      if (defaultUserID)
+      {
           userData = [NSDictionary dictionaryWithObjectsAndKeys:
-                                     @"<default>", @"uid",
-                                              [self labelForKey: @"Any Authenticated User"], @"cn",
+                                     defaultUserID, @"uid",
+                                   [self labelForKey: @"Any Authenticated User"], @"cn",
                                    @"public-user", @"userClass",
                                    nil];
-          [users setObject: userData forKey: @"<default>"];
-        }
+          [users setObject: userData forKey: defaultUserID];
+      }
 
       if ([self canSubscribeUsers] && [self isPublicAccessEnabled])
         {

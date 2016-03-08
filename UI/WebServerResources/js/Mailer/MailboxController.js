@@ -23,6 +23,7 @@
     vm.toggleMessageSelection = toggleMessageSelection;
     vm.unselectMessages = unselectMessages;
     vm.confirmDeleteSelectedMessages = confirmDeleteSelectedMessages;
+    vm.markOrUnMarkMessagesAsJunk = markOrUnMarkMessagesAsJunk;
     vm.copySelectedMessages = copySelectedMessages;
     vm.moveSelectedMessages = moveSelectedMessages;
     vm.saveSelectedMessages = saveSelectedMessages;
@@ -39,7 +40,7 @@
       if (Mailbox.$virtualMode)
         $state.go('mail.account.virtualMailbox.message', {accountId: stateAccount.id, mailboxId: encodeUriFilter(message.$mailbox.path), messageId: message.uid});
       else
-        $state.go('mail.account.mailbox.message', {accountId: stateAccount.id, mailboxId: encodeUriFilter(message.$mailbox.path), messageId: message.uid});
+        $state.go('mail.account.mailbox.message', {messageId: message.uid});
     }
 
     function toggleMessageSelection($event, message) {
@@ -49,12 +50,13 @@
     }
 
     function unselectMessages() {
-      _.each(vm.selectedFolder.$messages, function(message) { message.selected = false; });
+      _.forEach(vm.selectedFolder.$messages, function(message) { message.selected = false; });
     }
 
     function confirmDeleteSelectedMessages() {
       Dialog.confirm(l('Warning'),
-                     l('Are you sure you want to delete the selected messages?'))
+                     l('Are you sure you want to delete the selected messages?'),
+                     { ok: l('Delete') })
         .then(function() {
           var deleteSelectedMessage = false;
           var selectedMessages = _.filter(vm.selectedFolder.$messages, function(message) {
@@ -67,6 +69,28 @@
             unselectMessage(deleteSelectedMessage, index);
           });
         });
+    }
+
+    function markOrUnMarkMessagesAsJunk() {
+      var moveSelectedMessage = false;
+      var selectedMessages = _.filter(vm.selectedFolder.$messages, function(message) {
+        if (message.selected &&
+            message.uid == vm.selectedFolder.selectedMessage)
+          moveSelectedMessage = true;
+        return message.selected;
+      });
+
+      vm.selectedFolder.$markOrUnMarkMessagesAsJunk(selectedMessages).then(function() {
+        var folder = '/' + vm.account.id + '/folderINBOX';
+
+        if (vm.selectedFolder.type != 'junk') {
+          folder = '/' + vm.account.$getMailboxByType('junk').id;
+        }
+
+        vm.selectedFolder.$moveMessages(selectedMessages, folder).then(function(index) {
+          unselectMessage(moveSelectedMessage, index);
+        });
+      });
     }
 
     function unselectMessage(message, index) {
@@ -107,7 +131,7 @@
 
     function copySelectedMessages(folder) {
       var selectedMessages = _.filter(vm.selectedFolder.$messages, function(message) { return message.selected; });
-      var selectedUIDs = _.pluck(selectedMessages, 'uid');
+      var selectedUIDs = _.map(selectedMessages, 'uid');
       vm.selectedFolder.$copyMessages(selectedUIDs, '/' + folder);
     }
 
@@ -126,7 +150,7 @@
 
     function saveSelectedMessages() {
       var selectedMessages = _.filter(vm.selectedFolder.$messages, function(message) { return message.selected; });
-      var selectedUIDs = _.pluck(selectedMessages, 'uid');
+      var selectedUIDs = _.map(selectedMessages, 'uid');
       window.location.href = ApplicationBaseURL + '/' + vm.selectedFolder.id + '/saveMessages?uid=' + selectedUIDs.join(",");
     }
 
@@ -138,7 +162,7 @@
 
     function markSelectedMessagesAsFlagged() {
       var selectedMessages = _.filter(vm.selectedFolder.$messages, function(message) { return message.selected; });
-      var selectedUIDs = _.pluck(selectedMessages, 'uid');
+      var selectedUIDs = _.map(selectedMessages, 'uid');
 
       vm.selectedFolder.$flagMessages(selectedUIDs, '\\Flagged', 'add').then(function(d) {
         // Success
@@ -150,7 +174,7 @@
 
     function markSelectedMessagesAsUnread() {
       var selectedMessages = _.filter(vm.selectedFolder.$messages, function(message) { return message.selected; });
-      var selectedUIDs = _.pluck(selectedMessages, 'uid');
+      var selectedUIDs = _.map(selectedMessages, 'uid');
 
       vm.selectedFolder.$flagMessages(selectedUIDs, 'seen', 'remove').then(function(d) {
         // Success

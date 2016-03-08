@@ -113,31 +113,6 @@ String.prototype.formatted = function() {
   return newString;
 };
 
-String.prototype.formatTime = function(hours, minutes) {
-    var newString = this;
-
-    // See http://www.gnustep.org/resources/documentation/Developer/Base/Reference/NSCalendarDate.html#method$NSCalendarDate-descriptionWithCalendarFormat$
-    var p = 'am', i = hours, m = minutes;
-    if (hours > 12) {
-        p = 'pm';
-        i = hours % 12;
-    }
-    if (minutes < 10) {
-        m = '0' + minutes;
-    }
-
-    // %H : hour as a decimal number using 24-hour clock
-    newString = newString.replace("%H", hours < 10 ? '0' + hours : hours);
-    // %I : hour as a decimal number using 12-hour clock
-    newString = newString.replace("%I", i < 10 ? '0' + i : i);
-    // %M : minute as decimal number
-    newString = newString.replace("%M", m);
-    // %p : 'am' or 'pm'
-    newString = newString.replace("%p", p);
-
-    return newString;
-};
-
 String.prototype.isValidEmail = function() {
   var emailRE = /^([\w\!\#$\%\&\'\*\+\-\/\=\?\^\`{\|\}\~]+\.)*[\w\!\#$\%\&\'\*\+\-\/\=\?\^\`{\|\}\~]+@((((([a-z0-9]{1}[a-z0-9\-]{0,62}[a-z0-9]{1})|[a-z])\.)+[a-z]{2,})|(\d{1,3}\.){3}\d{1,3}(\:\d{1,5})?)$/i;
   return emailRE.test(this);
@@ -328,7 +303,7 @@ Date.prototype.beginOfDay = function() {
     return beginOfDay;
 };
 
-Date.prototype.beginOfWeek = function() {
+Date.prototype.beginOfWeek = function(firstDayOfWeek) {
     var offset = firstDayOfWeek - this.getDay();
     if (offset > 0)
         offset -= 7;
@@ -340,8 +315,8 @@ Date.prototype.beginOfWeek = function() {
     return beginOfWeek;
 };
 
-Date.prototype.endOfWeek = function() {
-    var endOfWeek = this.beginOfWeek();
+Date.prototype.endOfWeek = function(firstDayOfWeek) {
+    var endOfWeek = this.beginOfWeek(firstDayOfWeek);
     endOfWeek.addDays(6);
 
     endOfWeek.setHours(23);
@@ -382,19 +357,19 @@ Date.prototype.format = function(localeProvider, format) {
       date = [],
       validParts = /%[daAmbByYHIMp]/g,
       val = {
-        '%d': this.getUTCDate(),                                  // day of month (e.g., 01)
-        '%e': this.getUTCDate(),                                  // day of month, space padded
-        '%a': localeProvider.shortDays[this.getUTCDay()],         // locale's abbreviated weekday name (e.g., Sun)
-        '%A': localeProvider.days[this.getUTCDay()],              // locale's full weekday name (e.g., Sunday)
-        '%m': this.getUTCMonth() + 1,                             // month (01..12)
-        '%b': localeProvider.shortMonths[this.getUTCMonth()],     // locale's abbreviated month name (e.g., Jan)
-        '%B': localeProvider.months[this.getUTCMonth()],          // locale's full month name (e.g., January)
-        '%y': this.getUTCFullYear().toString().substring(2),      // last two digits of year (00..99)
-        '%Y': this.getUTCFullYear(),                              // year
-        '%H': this.getHours(),                                    // hour (00..23)
-        '%M': this.getMinutes() };                                // minute (00..59)
-  val['%I'] = val['%H'] > 12 ? val['%H'] % 12 : val['%H'];        // hour (01..12)
-  val['%p'] = val['%H'] < 12 ? l('AM') : l('PM');                 // locale's equivalent of either AM or PM
+        '%d': this.getDate(),                                  // day of month (e.g., 01)
+        '%e': this.getDate(),                                  // day of month, space padded
+        '%a': localeProvider.shortDays[this.getDay()],         // locale's abbreviated weekday name (e.g., Sun)
+        '%A': localeProvider.days[this.getDay()],              // locale's full weekday name (e.g., Sunday)
+        '%m': this.getMonth() + 1,                             // month (01..12)
+        '%b': localeProvider.shortMonths[this.getMonth()],     // locale's abbreviated month name (e.g., Jan)
+        '%B': localeProvider.months[this.getMonth()],          // locale's full month name (e.g., January)
+        '%y': this.getFullYear().toString().substring(2),      // last two digits of year (00..99)
+        '%Y': this.getFullYear(),                              // year
+        '%H': this.getHours(),                                 // hour (00..23)
+        '%M': this.getMinutes() };                             // minute (00..59)
+  val['%I'] = val['%H'] > 12 ? val['%H'] % 12 : val['%H'];     // hour (01..12)
+  val['%p'] = val['%H'] < 12 ? l('AM') : l('PM');              // locale's equivalent of either AM or PM
 
   val['%d'] = (val['%d'] < 10 ? '0' : '') + val['%d'];
   val['%e'] = (val['%e'] < 10 ? ' ' : '') + val['%e'];

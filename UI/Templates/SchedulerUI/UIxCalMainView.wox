@@ -16,98 +16,6 @@
     var localeCode = '<var:string value="localeCode" />';
   </script>
   <var:component className="UIxCalendarSelector" />
-  <style type="text/css">
-  <var:if condition="horizontalDragHandleStyle">
-    DIV#verticalDragHandle, DIV#rightPanel
-     { left: <var:string value="horizontalDragHandleStyle" />; }
-    DIV#leftPanel
-     { width: <var:string value="horizontalDragHandleStyle" />; }
-  </var:if><var:if condition="verticalDragHandleStyle">
-    DIV#rightDragHandle, DIV#calendarView
-     { top: <var:string value="verticalDragHandleStyle" />; }
-  </var:if><var:if condition="eventsListViewStyle">
-    DIV#schedulerTabs
-     { height: <var:string value="eventsListViewStyle" />; }
-  </var:if>
-  </style>
-
-  <!--
-  <div class="preload" style="visibility: hidden;">
-    <img rsrc:src="event-gradient.png"/>
-  </div>
-  <img rsrc:src="event7.png" id="DnDLeftPanelImage" style="visibility: hidden;"/>
-  <div class="menu" id="monthListMenu">
-    <ul>
-      <var:foreach list="monthMenuItems" item="monthMenuItem"
-	><li var:month="monthMenuItem"
-	  ><var:string value="monthMenuItemLabel" /></li>
-      </var:foreach
-	></ul>
-  </div>
-  
-  <div class="menu" id="yearListMenu">
-    <ul>
-      <var:foreach list="yearMenuItems" item="yearMenuItem"
-	><li><var:string value="yearMenuItem" /></li>
-      </var:foreach
-        ></ul>
-  </div>
-
-  <div class="menu" id="eventsListMenu">
-    <ul>
-      <li><var:string label:value="New Event..."/></li>
-      <li><var:string label:value="New Task..."/></li>
-      <li>!- separator -</li>
-      <li><var:string label:value="Edit Selected Event..."/></li>
-      <li><var:string label:value="Delete Selected Event"/></li>
-      <li>!- separator -</li>
-      <li><var:string label:value="Select All"/></li>
-      <li>!- separator -</li>
-      <li><var:string label:value="Workweek days only"/></li>
-      <li><var:string label:value="Tasks in View"/></li>
-    </ul>
-  </div>
-
-  <div class="menu" id="tasksListMenu">
-    <ul>
-      <li><var:string label:value="Open Task..."/></li>
-      <li><var:string label:value="New Task..."/></li>
-      <li>!- separator -</li>
-      <li><var:string label:value="Mark Completed"/></li>
-      <li><var:string label:value="Delete Task"/></li>
-      <li>!- separator -</li>
-      <li><var:string label:value="View Raw Source"/></li>
-    </ul>
-  </div>
-
-  <div class="menu" id="calendarsMenu">
-    <ul>
-      <li><var:string label:value="Properties"/></li>
-      <li>!- separator -</li>
-      <li><var:string label:value="New Calendar..."/></li>
-      <li id="deleteCalendarMenuItem"><var:string label:value="Delete Calendar"/></li>
-      <li>!- separator -</li>
-      <li><var:string label:value="Export Calendar..."/></li>
-      <li><var:string label:value="Import Events..."/></li>
-      <li><var:string label:value="Publish Calendar..."/></li>
-      <li>!- separator -</li>
-      <li><var:string label:value="Reload Remote Calendars"/></li>
-      <li>!- separator -</li>
-      <li><var:string label:value="Sharing..." /></li>
-    </ul>
-  </div>
-  
-  <div id="eventDialog" style="display: none;" class="dialog">
-    <div>
-      <h1>!- space -</h1>
-      <p><span>!- space -</span></p>
-      <p><span class="label"><var:string label:value="Calendar" /></span> <span>!- space -</span></p>
-      <p><span class="label"><var:string label:value="Location" /></span> <span>!- space -</span></p>
-      <p><span class="label"><var:string label:value="Created by" /></span> <span>!- space -</span></p>
-      <p class="description">!- space -</p>
-    </div>
-    </div>
-  -->
 
   <main class="view layout-fill" ui-view="calendars" layout="row" ng-controller="navController"><!-- calendars list --></main>
 
@@ -185,6 +93,17 @@
                   <md-menu-item>
                     <md-button ng-click="app.exportCalendar(calendar)">
                       <var:string label:value="Export"/>
+                    </md-button>
+                  </md-menu-item>
+                  <md-menu-divider><!-- divider --></md-menu-divider>
+                  <md-menu-item>
+                    <md-button ng-click="app.showOnly(calendar)">
+                      <var:string label:value="Show Only This Calendar"/>
+                    </md-button>
+                  </md-menu-item>
+                  <md-menu-item>
+                    <md-button ng-click="app.showAll()">
+                      <var:string label:value="Show All Calendars"/>
                     </md-button>
                   </md-menu-item>
                   <md-menu-divider><!-- divider --></md-menu-divider>
@@ -358,8 +277,8 @@
              </div> -->
       </md-toolbar>
       <div layout="row" class="md-flex">
-      <div class="view-list" layout="column">
 
+      <div class="view-list" layout="column">
         <md-toolbar class="md-accent md-hue-1"
                     ng-show="list.component.$selectedCount() == 0">
           <!-- sort/filter mode (default) -->
@@ -443,12 +362,11 @@
                 </md-menu-item>
                 <md-menu-divider ng-if="list.componentType == 'tasks'"><!-- divider --></md-menu-divider>
                 <md-menu-item ng-if="list.componentType == 'tasks'">
-                  <md-button ng-click="list.component.$filter(list.componentType)">
-                    <md-checkbox
-                        ng-model="list.component.$queryTasks.show_completed"
-                        ng-true-value="1"
-                        ng-false-value="0"> <var:string label:value="Show completed tasks"/></md-checkbox>
-                  </md-button>
+                  <sg-checkmark
+                      ng-change="list.component.$filter(list.componentType)"
+                      ng-model="list.component.$queryTasks.show_completed"
+                      sg-true-value="1"
+                      sg-false-value="0"> <var:string label:value="Show completed tasks"/></sg-checkmark>
                 </md-menu-item>
               </md-menu-content>
             </md-menu>
@@ -514,22 +432,20 @@
                 </md-menu-item>
                 <md-menu-divider><!-- divider --></md-menu-divider>
                 <md-menu-item ng-if="list.componentType == 'events'">
-                  <md-button>
-                    <md-checkbox class="sg-no-wrap"
-                        ng-change="list.component.$filter(list.componentType)"
-                        ng-model="list.component.$queryEvents.asc"
-                        ng-true-value="0"
-                        ng-false-value="1"><var:string label:value="Descending Order"/></md-checkbox>
-                  </md-button>
+                  <sg-checkmark
+                      class="sg-no-wrap"
+                      ng-change="list.component.$filter(list.componentType)"
+                      ng-model="list.component.$queryEvents.asc"
+                      sg-true-value="0"
+                      sg-false-value="1"><var:string label:value="Descending Order"/></sg-checkmark>
                 </md-menu-item>
                 <md-menu-item ng-if="list.componentType == 'tasks'">
-                  <md-button>
-                    <md-checkbox class="sg-no-wrap"
-                        ng-change="list.component.$filter(list.componentType)"
-                        ng-model="list.component.$queryTasks.asc"
-                        ng-true-value="0"
-                        ng-false-value="1"><var:string label:value="Descending Order"/></md-checkbox>
-                  </md-button>
+                  <sg-checkmark
+                      class="sg-no-wrap"
+                      ng-change="list.component.$filter(list.componentType)"
+                      ng-model="list.component.$queryTasks.asc"
+                      sg-true-value="0"
+                      sg-false-value="1"><var:string label:value="Descending Order"/></sg-checkmark>
                 </md-menu-item>
               </md-menu-content>
             </md-menu>
@@ -538,10 +454,12 @@
             </md-button>
           </div>
           <!-- search mode -->
-          <div class="md-toolbar-tools sg-toolbar-secondary"
-               layout="row"
-               ng-show="list.mode.search"
-               sg-search="list.component.$filter(list.componentType, { value: searchText, search: searchField })">
+          <form class="md-toolbar-tools sg-toolbar-secondary"
+                name="searchForm"
+                layout="row"
+                ng-show="list.mode.search"
+                sg-search="list.component.$filter(list.componentType, { value: searchText, search: searchField })"
+                sg-allow-dot="false">
             <md-button class="md-icon-button"
                        sg-search-cancel="list.cancelSearch()"
                        label:aria-label="Back">
@@ -556,7 +474,7 @@
                 <md-option value="entireContent"><var:string label:value="Entire content"/></md-option>
               </md-select>
             </md-input-container>
-          </div>
+          </form>
         </md-toolbar>
 
         <!-- multiple-selection mode -->
@@ -668,19 +586,19 @@
               </md-list>
             </md-tab>
           </md-tabs>
-          <md-button class="md-fab md-fab-bottom-right"
-                     label:aria-label="Create a new event"
-                     ng-click="list.newComponent($event)"
-                     ng-if="list.componentType == 'events'">
-            <md-icon >event</md-icon>
-          </md-button>
-          <md-button class="md-fab md-fab-bottom-right"
-                     label:aria-label="Create a new task"
-                     ng-click="list.newComponent($event)"
-                     ng-if="list.componentType == 'tasks'">
-            <md-icon>assignment_turned_in</md-icon>
-          </md-button>
         </md-content>
+        <md-button class="md-fab md-fab-bottom-right"
+                   label:aria-label="Create a new event"
+                   ng-click="list.newComponent($event)"
+                   ng-if="list.componentType == 'events'">
+          <md-icon >event</md-icon>
+        </md-button>
+        <md-button class="md-fab md-fab-bottom-right"
+                   label:aria-label="Create a new task"
+                   ng-click="list.newComponent($event)"
+                   ng-if="list.componentType == 'tasks'">
+          <md-icon>assignment_turned_in</md-icon>
+        </md-button>
         </div>
         <div id="detailView" class="view-detail hide-xs" layout="column" ui-view="calendarView">
           <!-- calendar view -->
@@ -722,6 +640,48 @@
         <input id="file-input" type="file" class="ng-hide"
                nv-file-select="nv-file-select"
                uploader="$CalendarImportDialogController.uploader"/>
+      </md-dialog-actions>
+    </md-dialog>
+  </script>
+
+  <!-- modal for attendee availability conflict -->
+  <script type="text/ng-template" id="UIxAttendeeConflictDialog">
+    <md-dialog flex="60" flex-xs="100">
+      <md-dialog-content class="md-dialog-content"
+                         ng-show="$AttendeeConflictDialogController.conflictError.attendee_email">
+        <h2 class="md-title"><var:string label:value="Warning"/></h2>
+        <p><var:string label:value="A time conflict exists with one or more attendees.\nWould you like to keep the current settings anyway?"/></p>
+        <md-list>
+          <md-list-item>
+            <md-icon>person</md-icon> {{$AttendeeConflictDialogController.conflictError.attendee_name}} ({{$AttendeeConflictDialogController.conflictError.attendee_email}})
+          </md-list-item>
+          <md-list-item ng-repeat="conflict in $AttendeeConflictDialogController.conflictError.conflicts">
+            <md-icon>schedule</md-icon>
+            <div class="pseudo-input-container">
+              <label class="pseudo-input-label"><var:string label:value="From"/></label>
+              <div>{{conflict.startDate}}</div>
+            </div>
+            <div class="pseudo-input-container md-flex">
+              <label class="pseudo-input-label"><var:string label:value="To"/></label>
+              <div>{{conflict.endDate}}</div>
+            </div>
+          </md-list-item>
+        </md-list>
+      </md-dialog-content>
+      <md-dialog-content class="md-dialog-content"
+                         ng-show="$AttendeeConflictDialogController.conflictError.reject">
+        <h2 class="md-title"><var:string label:value="Warning"/></h2>
+        <p>{{$AttendeeConflictDialogController.conflictError.reject}}</p>
+      </md-dialog-content>
+      <md-dialog-actions>
+        <md-button type="button" ng-click="$AttendeeConflictDialogController.cancel()">
+          <var:string label:value="Cancel"/>
+        </md-button>
+        <md-button class="md-warn" type="button"
+                   ng-show="$AttendeeConflictDialogController.conflictError.conflicts"
+                   ng-click="$AttendeeConflictDialogController.save()">
+          <var:string label:value="Save"/>
+        </md-button>
       </md-dialog-actions>
     </md-dialog>
   </script>
