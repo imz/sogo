@@ -4,7 +4,7 @@
 Summary:      SOGo is a very fast and scalable modern collaboration suite (groupware)
 Name:         sogo3
 Version:      3.0.2
-Release:      alt2
+Release:      alt3
 
 License:      GPL
 URL:          http://www.inverse.ca/contributions/sogo.html
@@ -252,7 +252,9 @@ touch %buildroot%apache2_sites_enabled/SOGo.conf
 install -Dm 600 Scripts/sogo.cron %buildroot/etc/cron.d/sogo
 subst 's, sogo, %sogo_user,g' %buildroot/etc/cron.d/sogo
 install -Dm 755 Scripts/tmpwatch %buildroot/etc/cron.daily/sogo-tmpwatch
+subst 's/user sogo/user %sogo_user/' %buildroot/etc/cron.daily/sogo-tmpwatch
 install -Dm 644 Scripts/logrotate %buildroot%_logrotatedir/sogo
+sed -i '1 a\su %sogo_user %sogo_user' %buildroot%_logrotatedir/sogo
 install -Dm 644 Scripts/sogo-systemd-redhat %buildroot%_unitdir/sogo.service
 subst "s/^User=.*/User=%sogo_user/" %buildroot%_unitdir/sogo.service
 install -Dm 644 Scripts/sogo-systemd.conf %buildroot%_tmpfilesdir/sogo.conf
@@ -385,6 +387,9 @@ fi
 %preun_service sogo
 
 %changelog
+* Tue Apr 12 2016 Andrey Cherepanov <cas@altlinux.org> 3.0.2-alt3
+- Fix user name in tmpwatch and logrotate rules (ALT #31962)
+
 * Thu Mar 10 2016 Andrey Cherepanov <cas@altlinux.org> 3.0.2-alt2
 - Rebuild with new rpm
 
