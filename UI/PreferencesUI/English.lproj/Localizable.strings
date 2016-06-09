@@ -3,6 +3,18 @@
 "Close" = "Close";
 "Preferences saved" = "Preferences saved";
 
+/* Unsaved changes confirmation dialog title */
+"Unsaved Changes" = "Unsaved Changes";
+
+/* Unsaved changes confirmation dialog text */
+"Do you want to save your changes made to the configuration?" = "Do you want to save your changes made to the configuration?";
+
+/* Unsaved changes confirmation dialog button */
+"Save" = "Save";
+
+/* Unsaved changes confirmation dialog button */
+"Don't Save" = "Don't Save";
+
 /* tabs */
 "General" = "General";
 "Calendar Options" = "Calendar Options";
@@ -87,11 +99,15 @@
 "timeFmt_3" = "";
 "timeFmt_4" = "";
 
+/* Timezone autocompletion */
+"No matches found." = "No matches found.";
+
 /* calendar */
 "Week begins on" = "Week begins on";
 "Day start time" = "Day start time";
 "Day end time" = "Day end time";
 "Day start time must be prior to day end time." = "Day start time must be prior to day end time.";
+"Week days to display" = "Week days to display";
 "Show time as busy outside working hours" = "Show time as busy outside working hours";
 "First week of year" = "First week of year";
 "Enable reminders for Calendar items" = "Enable reminders for Calendar items";
@@ -127,6 +143,7 @@
 "Labels" = "Labels";
 "Label" = "Label";
 "Show subscribed mailboxes only" = "Show subscribed mailboxes only";
+"Synchronize only default mail folders (EAS)" = "Synchronize only default mail folders (EAS)";
 "Sort messages by threads" = "Sort messages by threads";
 "When sending mail, add unknown recipients to my" = "When sending mail, add unknown recipients to my";
 "Address Book" = "Address Book";
@@ -225,6 +242,7 @@
 "Hungarian" = "Magyar";
 "Icelandic" = "Íslenska";
 "Italian" = "Italiano";
+"Lithuanian" = "Lietuvių";
 "Macedonian" = "Македонски";
 "NorwegianBokmal" = "Norsk bokmål";
 "NorwegianNynorsk" = "Norsk nynorsk";
@@ -237,8 +255,10 @@
 "SpanishSpain" = "Español (España)";
 "SpanishArgentina" = "Español (Argentina)";
 "Swedish" = "Svenska";
+"TurkishTurkey" = "Türkçe (Türkiye)";
 "Ukrainian" = "Українська";
 "Welsh" = "Cymraeg";
+
 "Refresh View" = "Refresh View";
 "refreshview_manually" = "Manually";
 "refreshview_every_minute" = "Every minute";
@@ -345,6 +365,7 @@
 "TLS" = "TLS";
 
 /* Avatars */
+"Use Gravatar" = "Use Gravatar";
 "Alternate Avatar" = "Alternate Avatar";
 "none" =  "None";
 "identicon" = "Ident Icon";

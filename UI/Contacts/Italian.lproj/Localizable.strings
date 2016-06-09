@@ -4,7 +4,7 @@
 "Address" = "Indirizzo";
 "Photos" = "Foto";
 "Other" = "Altro";
-"Address Books" = "Rubrica";
+"Address Books" = "Rubriche";
 "Addressbook" = "Rubrica";
 "Addresses" = "Indirizzi";
 "Update" = "Aggiorna";
@@ -37,7 +37,7 @@
 "edit" = "modifica";
 "invalidemailwarn" = "L'indirizzo email specificato non è valido";
 "new" = "nuovo";
-"Preferred Phone" = "Telefono lavoro";
+"Preferred Phone" = "Telefono preferito";
 "Move To" = "Sposta in ";
 "Copy To" = "Copia in ";
 "Add to" = "Aggiungi a";
@@ -89,7 +89,7 @@
 "Prefers to receive messages formatted as" = "Formato preferito per i messaggi di posta";
 "Categories" = "Categorie";
 "First" = "Nome";
-"Last" = "Ultimo";
+"Last" = "Cognome";
 "Nickname" = "Soprannome";
 "Telephone" = "Telefono";
 "Work" = "Lavoro";
@@ -126,6 +126,8 @@
 "Name of the Address Book" = "Nome della rubrica";
 "Are you sure you want to delete the selected address book?"
 = "Sei sicuro di voler cancellare la rubrica selezionata?";
+"Are you sure you want to delete the addressbook \"%{0}\"?"
+= "Sei sicuro di voler cancellare la rubrica \"%{0}\"?";
 "You cannot remove nor unsubscribe from a public addressbook."
 = "Non puoi rimuovere una rubrica pubblica.";
 "You cannot remove nor unsubscribe from your personal addressbook."
@@ -187,7 +189,7 @@
 "Links to this Address Book" = "Link a questa rubrica";
 "Authenticated User Access" = "Tutti gli utenti autenticati";
 "CardDAV URL" = "CardDAV URL";
-"Options" = "Opzion";
+"Options" = "Opzioni";
 "Rename" = "Rinomina";
 "Subscriptions" = "Sottosrizioni";
 "Global Addressbooks" = "Rubrica globale";
@@ -209,8 +211,8 @@
 "New Phone Number" = "Nuovo numero di telefono";
 "URL" = "URL";
 "New URL" = "Nuovo URL";
-"street" = "strada";
-"Postoffice" = "Ufficio postale";
+"street" = "via";
+"Postoffice" = "Casella postale";
 "Region" = "Regione";
 "Postal Code" = "Codice postale";
 "New Address" = "Nuovo indirizzo";
@@ -225,4 +227,7 @@
 "Add Screen Name" = "Aggiungi Instant Messanger";
 "Synchronization" = "Sincronizzazione";
 "Synchronize" = "Sincronizza";
-"Successfully subscribed to address book" = "Sottoscrizione ad una rubrica effettuata correttamente";
+"Sucessfully subscribed to address book" = "Sottoscrizione ad una rubrica effettuata correttamente";
+
+/* Aria label for scope of search on contacts */
+"Search scope" = "Ambito di ricerca";

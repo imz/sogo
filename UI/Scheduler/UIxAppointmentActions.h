@@ -21,8 +21,9 @@
 #ifndef UIXAPPOINTMENTACTIONS_H
 #define UIXAPPOINTMENTACTIONS_H
 
+#import <SOGoUI/SOGoDirectAction.h>
 
-@interface UIxAppointmentActions : WODirectAction
+@interface UIxAppointmentActions : SOGoDirectAction
 
 @end
 

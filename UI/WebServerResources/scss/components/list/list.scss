@@ -17,19 +17,28 @@ $sg-avatar-width: 40px;
 // Circle diamter of color chips
 $sg-color-chip-width: 16px;
 
+
+/*------------------------------------*\
+    MD-LIST-ITEM
+\*------------------------------------*/
+
 md-list-item {
-  &.md-with-secondary {
-    &.md-accent.md-bg {
-      .md-button {
-        // List items with a secondary button must have a transparent background when highlighted
-        // in order to honor the contrast color
-        background-color: transparent;
-      }
-    }
+
+  // Gain some space with secondary action button;
+  // Impact: list with checkbox in sidevav of Calendar module
+  &.md-with-secondary ._md-list-item-inner {
+    padding-right: $bl;
   }
 
-  .md-list-item-inner {
-    flex-grow: 1; // use all column space
+  // Fix for md-menu visibility when set as a secondary action in a list item
+  &._md-button-wrap > div.md-button:first-child > .md-button:first-child {
+    z-index: $z-index-sidenav - 2;
+  }
+  ._md-secondary-container {
+    z-index: $z-index-sidenav - 1;
+  }
+
+  ._md-list-item-inner {
     overflow: hidden;
 
     // Gain some space since we want small list items
@@ -43,12 +52,13 @@ md-list-item {
   }
 
   .sg-item-name {
-    font-size: sg-size(button);
-    max-width: 75%; // leave some place for a secondary button
-    text-transform: initial;
-    overflow: hidden;
     align-items: flex-start;
+    font-size: sg-size(button);
+    line-height: $list-item-height;
+    max-width: 75%; // leave some place for a secondary button
+    overflow: hidden;
     text-overflow: ellipsis;
+    text-transform: initial;
     white-space: nowrap;
   }
   .sg-inline-list-icon-label {
@@ -56,13 +66,18 @@ md-list-item {
   }
 }
 
+
+/*------------------------------------*\
+    MD-SIDENAV
+\*------------------------------------*/
+
 .md-sidenav-left {
   md-list {
     padding: 0;
   }
 
   // Remove padding of input fields in the sidenav for better transitions between read and edit mode of a folder
-  md-input-container {
+  md-input-container:not(.md-icon-left) {
     margin: 0;
     padding: 0;
     .md-input {
@@ -71,14 +86,28 @@ md-list-item {
   }
 
   md-list-item {
-    .md-button {
-      margin: 0;
-      transition: background-color $swift-ease-in-duration $swift-ease-in-timing-function;
-    }
     // Gain some space on the right side of the folder icon
-    .md-list-item-inner > md-icon:first-child,
-    .md-list-item-inner > md-checkbox:first-child {
+    ._md-list-item-inner > md-icon:first-child,
+    ._md-list-item-inner > md-checkbox:first-child {
       margin-right: $bl * 2;
+    }
+
+    .md-button,
+    &.md-clickable {
+      margin: 0;
+      transition: background-color $swift-ease-in-duration $swift-ease-in-timing-function,
+      color $swift-linear-duration $swift-linear-timing-function;
+    }
+
+    &.md-clickable:not([disabled]):hover {
+      background-color: rgba($colorGrey500, 0.2); // See button-theme.scss
+    }
+
+    &[disabled] {
+      color: rgba(0,0,0,0.38) !important; // = {{foreground-3}}; See button-theme.scss
+      md-icon {
+        color: rgba(0,0,0,0.38);
+      }
     }
   }
 }
@@ -95,6 +124,7 @@ md-list-item {
 .md-tile-right {
   padding-right: $item-padding-right;
 }
+
 // The right tile for a list item (avatar container)
 // ----------------------------------------------------------------------------
 
@@ -121,38 +151,34 @@ div.md-tile-left {
   min-width: $sg-md-grid-pitch + $baseline-grid;
 }
 
-.sg-section-list {
-  md-list-item {
-    &.md-button-wrap {
-      > .md-button:first-child {
-        .md-list-item-inner {
-          // Expect the container to include a sg-tile-icons
-          padding-right: 0px;
-        }
-      }
-    }
-  }
+.sg-section-list md-list-item._md-button-wrap > .md-button:first-child ._md-list-item-inner {
+  // Expect the container to include a sg-tile-icons (Mailer module)
+  padding-right: 0px;
 }
 
 .sg {
   &-color-chip {
-    display: block;
-    border-radius: 50%;
-    margin: 0 $bl;
     border-color: white;
+    border-radius: 50%;
     border-style: solid;
-    width: $sg-color-chip-width;
+    display: block;
     height: $sg-color-chip-width;
+    margin: 0 $bl;
+    width: $sg-color-chip-width;
   }
 
   &-tile-content {
     flex: 1;
     overflow: hidden; // required in Firefox
-    .sg-tile-date {
+    .sg-tile-date, .sg-tile-size {
+      flex-shrink: 0;
       font-size: sg-size(body);
       font-weight: $sg-font-light;
       line-height: $sg-line-height-2;
-      flex-shrink: 0;
+      margin-left: 3px;
+    }
+    .sg-tile-size {
+      font-size: sg-size(caption);
     }
     .#{$md}-subhead {
       @extend .#{$md}-body-1;
@@ -173,20 +199,19 @@ div.md-tile-left {
       }
     }
   }
+
   // Small tile of vertically-aligned icons
   &-tile-icons {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: start;
-    width: (2 * $mg);
+    justify-content: center;
+    width: (3 * $bl);
     height: (2 + $sg-font-size-1) * 4; // (vertical padding + icon size) * max number of icons
   }
 
   &-counter-badge {
-    border-left-width: 1px;
-    border-left-color: $colorGrey500;
-    border-style: solid;
+    border-left: 1px solid $colorGrey500;
     margin: 0;
     padding: 0 rem(0.500);
     font-size: $sg-font-size-1;
@@ -200,6 +225,8 @@ div.md-tile-left {
       font-size: $sg-font-size-1;
       //color: $colorGray;
       margin: 1px 2px;
+      min-height: $sg-font-size-1;
+      min-width: $sg-font-size-1;
     }
   }
 
@@ -210,12 +237,25 @@ div.md-tile-left {
     }
   }
 
+  &-sortable-chosen {
+    background-color: white;
+  }
+
   &-sortable-ghost {
     opacity: 0.5;
   }
 
-  &-sortable-chosen {
-    background-color: white;
+  &-list-sortable {
+    ._md-secondary-container > .md-menu {
+      .md-button {
+        display: none;
+      }
+      &:before {
+        @extend .material-icons;
+        content: "\e8fe";
+        cursor: move;
+      }
+    }
   }
 }
 
@@ -236,21 +276,15 @@ div.md-tile-left {
   }
 }
 
-sg-avatar-image {
-  img {
-    border-radius: 50%;
-  }
-}
-
 // Avatar placeholder
 // ------------------------------------
 .md-avatar:before,
 .md-avatar md-icon,
 sg-avatar-image md-icon,
-.sg-avatar-list {
+sg-avatar-image .material-icons {
+  color: rgba(0, 0, 0, 0.26);
   font-family: 'Material Icons';
   font-size: $sg-avatar-width;
-  color: rgba(0, 0, 0, 0.26);
 }
 .sg-avatar-list {
   &:before {
@@ -262,9 +296,36 @@ sg-avatar-image md-icon,
     content: "\e80b"; // public
   }
 }
-.sg-avatar-selected {
+
+/*------------------------------------*\
+    SG-AVATAR-IMAGE DIRECTIVE
+\*------------------------------------*/
+
+sg-avatar-image img {
+  border-radius: 50%;
+}
+
+/*------------------------------------*\
+    SELECTABLE AVATARS
+\*------------------------------------*/
+
+.sg-list-selectable .sg-avatar-selectable,
+.sg-avatar-selectable:hover {
+  font-family: 'Material Icons';
+  font-size: $sg-avatar-width;
+  height: 100%;
   &:before {
-    content: "\e5ca"; // check
+    color: inherit;
+    content: "\e835"; // check box outline
+    font-size: $icon-size;
+    margin: 0 ($sg-avatar-width - $icon-size)/2;
+  }
+  &.sg-avatar-selected:before {
+    content: "\e834"; // check box
+  }
+
+  > * {
+    display: none;
   }
 }
 //.md-tile-left-accepted:before {

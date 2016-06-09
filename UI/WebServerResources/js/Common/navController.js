@@ -9,13 +9,13 @@
   /**
    * @ngInject
    */
-  navController.$inject =  ['$rootScope', '$scope', '$timeout', '$interval', '$http', '$mdSidenav', '$mdToast', '$mdMedia', '$log', 'sgConstant', 'sgSettings', 'Alarm'];
-  function navController($rootScope, $scope, $timeout, $interval, $http, $mdSidenav, $mdToast, $mdMedia, $log, sgConstant, sgSettings, Alarm) {
+  navController.$inject =  ['$rootScope', '$scope', '$timeout', '$interval', '$http', '$window', '$mdSidenav', '$mdToast', '$mdMedia', '$log', 'sgConstant', 'sgSettings', 'Alarm'];
+  function navController($rootScope, $scope, $timeout, $interval, $http, $window, $mdSidenav, $mdToast, $mdMedia, $log, sgConstant, sgSettings, Alarm) {
 
     $scope.isPopup = sgSettings.isPopup;
     $scope.activeUser = sgSettings.activeUser();
     $scope.baseURL = sgSettings.baseURL();
-    $scope.leftIsClose = $mdMedia(sgConstant.xs);
+    $scope.leftIsClose = !$mdMedia(sgConstant['gt-md']);
 
     // Show current day in top bar
     $scope.currentDay = window.currentDay;
@@ -29,11 +29,22 @@
     }, window.currentDay.secondsBeforeTomorrow * 1000);
 
     $scope.toggleLeft = function() {
-      $scope.leftIsClose = leftIsClose();
-      $mdSidenav('left').toggle()
-        .then(function () {
-          $log.debug("toggle left is done");
-        });
+      if ($scope.isGtMedium) {
+        // Left sidenav is toggled while sidenav is locked open; bypass $mdSidenav
+        $scope.leftIsClose = !$scope.leftIsClose;
+      }
+      else {
+        $scope.leftIsClose = leftIsClose();
+        // Fire a window resize when opening the sidenav on a small device.
+        // This is a fix until the following issue is officially resolved:
+        // https://github.com/angular/material/issues/7309
+        if ($scope.leftIsClose)
+          angular.element($window).triggerHandler('resize');
+        $mdSidenav('left').toggle()
+          .then(function () {
+            $log.debug("toggle left is done");
+          });
+      }
     };
     $scope.toggleRight = function() {
       $mdSidenav('right').toggle()
@@ -52,7 +63,7 @@
     //   detail.toggleClass('sg-close');
     // };
     $scope.$watch(function() {
-      return $mdMedia(sgConstant['gt-sm']);
+      return $mdMedia(sgConstant['gt-md']);
     }, function(newVal) {
       $scope.isGtMedium = newVal;
       if (newVal) {

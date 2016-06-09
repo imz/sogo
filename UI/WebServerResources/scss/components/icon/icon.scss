@@ -44,7 +44,7 @@
 
 // Define CSS styles to use ng-class with md-icon
 md-icon {
-  transition: 240ms;
+  transition: transform 240ms;
   &.sg-icon-toolbar-bg {
     font-size: 84px;
     opacity: 0.2;
@@ -61,6 +61,9 @@ md-icon {
   }
   &.md-rotate-180 {
     transform: rotate(180deg);
+  }
+  &.md-rotate-180-ccw {
+    transform: rotate(-180deg);
   }
 //   &.icon-add:before {
 //     content: "\e317";

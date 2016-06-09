@@ -126,6 +126,7 @@ extern NSString *SOGoWeekStartFirstFullWeek;
 - (void) setRefreshViewCheck: (NSString *) newValue;
 - (NSString *) refreshViewCheck;
 
+- (BOOL) gravatarEnabled;
 - (void) setAlternateAvatar: (NSString *) newValue;
 - (NSString *) alternateAvatar;
 
@@ -198,6 +199,9 @@ extern NSString *SOGoWeekStartFirstFullWeek;
 
 - (void) setCalendarShouldDisplayWeekend: (BOOL) newValue;
 - (BOOL) calendarShouldDisplayWeekend;
+
+- (void) setCalendarWeekdays: (NSArray *) newValues;
+- (NSArray *) calendarWeekdays;
 
 - (void) setCalendarEventsDefaultClassification: (NSString *) newValue;
 - (NSString *) calendarEventsDefaultClassification;

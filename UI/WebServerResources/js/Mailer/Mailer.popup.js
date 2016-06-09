@@ -4,7 +4,7 @@
 (function() {
   'use strict';
 
-  angular.module('SOGo.MailerUI', ['ui.router', 'ck', 'angularFileUpload', 'SOGo.Common', 'SOGo.ContactsUI', 'SOGo.SchedulerUI', 'ngAnimate', 'SOGo.PreferencesUI'])
+  angular.module('SOGo.MailerUI', ['ngCookies', 'ui.router', 'ck', 'angularFileUpload', 'SOGo.Common', 'SOGo.ContactsUI', 'SOGo.SchedulerUI', 'ngAnimate', 'SOGo.PreferencesUI'])
     .config(configure)
     .run(runBlock)
     .controller('MessageEditorControllerPopup', MessageEditorControllerPopup);
@@ -179,7 +179,7 @@
       // Message is available from the parent window
       message = new Message(stateMailbox.$account.id,
                             stateMailbox,
-                            window.opener.$messageController.message.$omit());
+                            window.opener.$messageController.message.$omit({privateAttributes: true}));
       return $q.when(message);
     }
     else {

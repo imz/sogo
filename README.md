@@ -48,6 +48,7 @@ SOGo and its associated components are available in various languages. The follo
 * Hungarian - Sándor Kuti
 * Icelandic - Anna Jonna Armannsdottir
 * Italian - Alessio Fattorini
+* Lithuanian - Mantas Liobė
 * Macedonian - Miroslav Jovanovic
 * Norwegian (Bokmål) - Jan Ivar Karlsen
 * Norwegian (Nynorsk) - Altibox
@@ -58,6 +59,7 @@ SOGo and its associated components are available in various languages. The follo
 * Spanish (Argentina) - Federico Alberto Sayd
 * Spanish (Spain) - Dominique Couot
 * Swedish - Peter Johansson
+* Turkish (Turkey) - Sinan Kurşunoğlu
 * Ukrainian - Oleksa Stasevych
 * Welsh - Iona Bailey
  

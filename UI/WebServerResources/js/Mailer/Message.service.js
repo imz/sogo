@@ -39,8 +39,9 @@
    * @desc The factory we'll use to register with Angular
    * @returns the Message constructor
    */
-  Message.$factory = ['$q', '$timeout', '$log', 'sgSettings', 'Gravatar', 'Resource', 'Preferences', function($q, $timeout, $log, Settings, Gravatar, Resource, Preferences) {
+  Message.$factory = ['$q', '$timeout', '$log', 'sgSettings', 'sgMessage_STATUS', 'Gravatar', 'Resource', 'Preferences', function($q, $timeout, $log, Settings, Message_STATUS, Gravatar, Resource, Preferences) {
     angular.extend(Message, {
+      STATUS: Message_STATUS,
       $q: $q,
       $timeout: $timeout,
       $log: $log,
@@ -72,6 +73,13 @@
     angular.module('SOGo.MailerUI', ['SOGo.Common']);
   }
   angular.module('SOGo.MailerUI')
+    .constant('sgMessage_STATUS', {
+      NOT_LOADED:      0,
+      DELAYED_LOADING: 1,
+      LOADING:         2,
+      LOADED:          3,
+      DELAYED_MS:      300
+    })
     .factory('Message', Message.$factory);
 
   /**
@@ -81,16 +89,18 @@
    * @param {string} search - the search string to match
    * @returns a collection of strings
    */
-  Message.filterTags = function(query) {
+  Message.filterTags = function(query, excludedTags) {
     var re = new RegExp(query, 'i'),
         results = [];
 
     _.forEach(_.keys(Message.$tags), function(tag) {
       var pair = Message.$tags[tag];
       if (pair[0].search(re) != -1) {
-        results.push({ name: tag, description: pair[0], color: pair[1] });
+        if (!_.includes(excludedTags, tag))
+          results.push({ name: tag, description: pair[0], color: pair[1] });
       }
     });
+
     return results;
   };
 
@@ -101,23 +111,26 @@
    * @returns a string representing the path relative to the mail module
    */
   Message.prototype.$absolutePath = function(options) {
-    if (angular.isUndefined(this.id) || options) {
+    var _this = this, id = this.id;
+
+    function buildPath() {
       var path;
-      path = _.map(this.$mailbox.path.split('/'), function(component) {
+      path = _.map(_this.$mailbox.path.split('/'), function(component) {
         return 'folder' + component.asCSSIdentifier();
       });
-      path.splice(0, 0, this.accountId); // insert account ID
-      if (options && options.asDraft && this.draftId) {
-        path.push(this.draftId); // add draft ID
-      }
-      else {
-        path.push(this.uid); // add message UID
-      }
-
-      this.id = path.join('/');
+      path.splice(0, 0, _this.accountId); // insert account ID
+      return path.join('/');
     }
 
-    return this.id;
+    if (angular.isUndefined(this.id) || options && options.nocache) {
+      this.id = buildPath() + '/' + this.uid; // add message UID
+      id = this.id;
+    }
+    if (options && options.asDraft && this.draftId) {
+      id = buildPath() + '/' + this.draftId; // add draft ID
+    }
+
+    return id;
   };
 
   /**
@@ -127,15 +140,22 @@
    * @param {number} uid - the new message UID
    */
   Message.prototype.$setUID = function(uid) {
-    var oldUID = (this.uid || -1);
+    var oldUID = (this.uid || -1), _this = this, index;
 
     if (oldUID != parseInt(uid)) {
       this.uid = parseInt(uid);
+      this.$absolutePath({nocache: true});
       if (oldUID > -1) {
         oldUID = oldUID.toString();
         if (angular.isDefined(this.$mailbox.uidsMap[oldUID])) {
-          this.$mailbox.uidsMap[uid] = this.$mailbox.uidsMap[oldUID];
+          index = this.$mailbox.uidsMap[oldUID];
+          this.$mailbox.uidsMap[uid] = index;
           delete this.$mailbox.uidsMap[oldUID];
+
+          // Update messages list of mailbox
+          _.forEach(['from', 'to', 'subject'], function(attr) {
+            _this.$mailbox.$messages[index][attr] = _this[attr];
+          });
         }
       }
       else {
@@ -363,6 +383,12 @@
     return Message.$$resource.fetch(this.$absolutePath(), 'edit').then(function(data) {
       angular.extend(_this, data);
       return Message.$$resource.fetch(_this.$absolutePath({asDraft: true}), 'edit').then(function(data) {
+        // Try to match a known account identity from the specified "from" address
+        var identity = _.find(_this.$mailbox.$account.identities, function(identity) {
+          return data.from.toLowerCase().indexOf(identity.email) !== -1;
+        });
+        if (identity)
+          data.from = identity.full;
         Message.$log.debug('editable = ' + JSON.stringify(data, undefined, 2));
         angular.extend(_this.editable, data);
         return data.text;
@@ -486,13 +512,27 @@
   };
 
   /**
+   * @function $isLoading
+   * @memberof Message.prototype
+   * @returns true if the Message content is still being retrieved from server after a specific delay
+   * @see sgMessage_STATUS
+   */
+  Message.prototype.$isLoading = function() {
+    return this.$loaded == Message.STATUS.LOADING;
+  };
+
+  /**
    * @function $reload
    * @memberof Message.prototype
    * @desc Fetch the viewable message body along with other metadata such as the list of attachments.
+   * @param {object} [options] - set {useCache: true} to use already fetched data
    * @returns a promise of the HTTP operation
    */
   Message.prototype.$reload = function(options) {
     var futureMessageData;
+
+    if (options && options.useCache && this.$futureMessageData)
+      return this;
 
     futureMessageData = Message.$$resource.fetch(this.$absolutePath(options), 'view');
 
@@ -578,7 +618,7 @@
     return Message.$$resource.save(this.$absolutePath({asDraft: true}), data).then(function(response) {
       Message.$log.debug('save = ' + JSON.stringify(response, undefined, 2));
       _this.$setUID(response.uid);
-      _this.$reload({asDraft: false}); // fetch a new viewable version of the message
+      _this.$reload(); // fetch a new viewable version of the message
       _this.isNew = false;
     });
   };
@@ -620,6 +660,13 @@
   Message.prototype.$unwrap = function(futureMessageData) {
     var _this = this;
 
+    // Message is not loaded yet
+    this.$loaded = Message.STATUS.DELAYED_LOADING;
+    Message.$timeout(function() {
+      if (_this.$loaded != Message.STATUS.LOADED)
+        _this.$loaded = Message.STATUS.LOADING;
+    }, Message.STATUS.DELAYED_MS);
+
     // Resolve and expose the promise
     this.$futureMessageData = futureMessageData.then(function(data) {
       // Calling $timeout will force Angular to refresh the view
@@ -635,6 +682,7 @@
         angular.extend(_this, data);
         _this.$formatFullAddresses();
         _this.$loadUnsafeContent = false;
+        _this.$loaded = Message.STATUS.LOADED;
         return _this;
       });
     });
@@ -648,15 +696,30 @@
    * @desc Return a sanitized object used to send to the server.
    * @return an object literal copy of the Message instance
    */
-  Message.prototype.$omit = function() {
-    var message = {};
+  Message.prototype.$omit = function(options) {
+    var message = {},
+        privateAttributes = options && options.privateAttributes;
     angular.forEach(this, function(value, key) {
-      if (key != 'constructor' && key[0] != '$') {
+      if (key != 'constructor' && key[0] != '$' || privateAttributes) {
         message[key] = value;
       }
     });
 
     return message;
+  };
+
+  /**
+   * @function saveMessage
+   * @memberof Message.prototype
+   * @desc Download the current message
+   * @returns a promise of the HTTP operation
+   */
+  Message.prototype.saveMessage = function() {
+    var selectedUIDs;
+
+    selectedUIDs = [ this.uid ];
+
+    return Message.$$resource.download(this.$mailbox.id, 'saveMessages', {uids: selectedUIDs});
   };
 
 })();

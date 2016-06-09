@@ -338,9 +338,8 @@
 - (void) setAttributes: (NSDictionary *) data
              inContext: (WOContext *) context
 {
-  NSCalendarDate *aptStartDate, *aptEndDate, *allDayStartDate;
-  NSTimeZone *timeZone;
-  NSInteger offset, nbrDays;
+  NSCalendarDate *aptStartDate, *aptEndDate;
+  NSInteger nbrDays;
   iCalDateTime *startDate;
   iCalTimeZone *tz;
   SOGoUserDefaults *ud;
@@ -370,15 +369,18 @@
     {
       if (isAllDay)
         {
+          // Remove the vTimeZone when dealing with an all-day event.
+          startDate = (iCalDateTime *)[self uniqueChildWithTag: @"dtstart"];
+          tz = [startDate timeZone];
+          if (tz)
+            {
+              [startDate setTimeZone: nil];
+              [(iCalDateTime *)[self uniqueChildWithTag: @"dtend"] setTimeZone: nil];
+              [[self parent] removeChild: tz];
+            }
+
           nbrDays = ((float) abs ([aptEndDate timeIntervalSinceDate: aptStartDate]) / 86400) + 1;
-          // Convert all-day start date to GMT (floating date)
-          ud = [[context activeUser] userDefaults];
-          timeZone = [ud timeZone];
-          offset = [timeZone secondsFromGMTForDate: aptStartDate];
-          allDayStartDate = [aptStartDate dateByAddingYears: 0 months: 0 days: 0
-                                                      hours: 0 minutes: 0
-                                                    seconds: offset];
-          [self setAllDayWithStartDate: allDayStartDate
+          [self setAllDayWithStartDate: aptStartDate
                               duration: nbrDays];
         }
       else
@@ -410,18 +412,6 @@
               [startDate setTimeZone: tz];
               [(iCalDateTime *)[self uniqueChildWithTag: @"dtend"] setTimeZone: tz];
             }
-        }
-    }
-  else //  if (![[self clientObject] isNew])
-    {
-      // Remove the vTimeZone when dealing with an all-day event.
-      startDate = (iCalDateTime *)[self uniqueChildWithTag: @"dtstart"];
-      tz = [startDate timeZone];
-      if (tz)
-        {
-          [startDate setTimeZone: nil];
-          [(iCalDateTime *)[self uniqueChildWithTag: @"dtend"] setTimeZone: nil];
-          [[self parent] removeChild: tz];
         }
     }
 }

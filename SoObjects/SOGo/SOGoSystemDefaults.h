@@ -1,6 +1,6 @@
 /* SOGoSystemDefaults.h - this file is part of SOGo
  *
- * Copyright (C) 2009-2015 Inverse inc.
+ * Copyright (C) 2009-2016 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,8 +65,10 @@
 
 - (BOOL) uixDebugEnabled;
 - (BOOL) easDebugEnabled;
+- (BOOL) xsrfValidationEnabled;
 
 - (NSString *) pageTitle;
+- (NSString *) helpURL;
 
 - (NSArray *) supportedLanguages;
 - (NSString *) loginSuffix;
@@ -96,6 +98,11 @@
 - (int) maximumRecipientCount;
 - (int) maximumSubmissionInterval;
 - (int) messageSubmissionBlockInterval;
+
+- (int) maximumRequestCount;
+- (int) maximumRequestInterval;
+- (int) requestBlockInterval;
+
 
 - (int) maximumPingInterval;
 - (int) maximumSyncInterval;

@@ -64,6 +64,12 @@
 /* No mailbox is selected (usually resulting from an IMAP connection problem) */
 "No mailbox selected" = "No mailbox selected";
 
+/* Mailbox actions */
+/* Compact Folder success message */
+"Folder compacted" = "Folder compacted";
+/* Empty Trash success message */
+"Trash emptied" = "Trash emptied";
+
 /* acls */
 "Access rights to" = "Access rights to";
 "For user" = "For user";
@@ -95,6 +101,7 @@
 "Body"          = "Body";
 "Open" = "Open";
 "Select All" = "Select All";
+"Select Message" = "Select Message";
 "Attach Web Page..." = "Attach Web Page...";
 "file" = "file";
 "files" = "files";
@@ -340,3 +347,6 @@
 "Your email has been saved" = "Your email has been saved";
 "Your email has been sent" = "Your email has been sent";
 "Folder compacted" = "Folder compacted";
+
+/* Aria label for scope of search on messages */
+"Search scope" = "Search scope";

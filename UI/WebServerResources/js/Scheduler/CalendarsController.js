@@ -20,13 +20,28 @@
     vm.renameFolder = renameFolder;
     vm.share = share;
     vm.importCalendar = importCalendar;
-    vm.exportCalendar = exportCalendar;
     vm.showOnly = showOnly;
     vm.showAll = showAll;
     vm.showLinks = showLinks;
     vm.showProperties = showProperties;
     vm.subscribeToFolder = subscribeToFolder;
     vm.today = today;
+
+    vm.filter = { name: '' };
+    vm.toggleSortableMode = toggleSortableMode;
+    vm.resetSort = resetSort;
+    vm.sortableCalendars = {
+      disabled: true,
+      animation: 150,
+      draggable: 'md-list-item',
+      handle: '.md-menu',
+      ghostClass: 'sg-sortable-ghost',
+      chosenClass: 'sg-sortable-chosen',
+      setData: sortable_setData,
+      onEnd: sortable_onEnd
+    };
+    vm.sortableSubscriptions = angular.copy(vm.sortableCalendars);
+    vm.sortableWebCalendars = angular.copy(vm.sortableCalendars);
 
     Preferences.ready().then(function() {
       vm.categories = _.map(Preferences.defaults.SOGoCalendarCategories, function(name) {
@@ -65,13 +80,32 @@
             promises.push(calendar.$setActivation());
           });
         }
-        if (commonList.length > 0)
+        if (promises.length > 0 || commonList.length != newList.length || commonList.length != oldList.length)
           Calendar.$q.all(promises).then(function() {
             $rootScope.$emit('calendars:list');
           });
       },
       true // compare for object equality
     );
+
+    function sortable_setData(dataTransfer, dragEl) {
+      dataTransfer.clearData();
+    }
+
+    function sortable_onEnd() {
+      Calendar.saveFoldersOrder(_.flatMap(Calendar.$findAll(), 'id'));
+    }
+
+    function toggleSortableMode() {
+      vm.sortableCalendars.disabled = !vm.sortableCalendars.disabled;
+      vm.sortableSubscriptions.disabled = !vm.sortableSubscriptions.disabled;
+      vm.sortableWebCalendars.disabled = !vm.sortableWebCalendars.disabled;
+      vm.filter.name = '';
+    }
+
+    function resetSort() {
+      Calendar.saveFoldersOrder();
+    }
 
     function newCalendar(ev) {
       Dialog.prompt(l('New calendar'), l('Name of the Calendar'))
@@ -93,8 +127,48 @@
     function addWebCalendar() {
       Dialog.prompt(l('Subscribe to a web calendar...'), l('URL of the Calendar'), {inputType: 'url'})
         .then(function(url) {
-          Calendar.$addWebCalendar(url);
+          Calendar.$addWebCalendar(url).then(function(calendar) {
+            if (angular.isObject(calendar)) {
+              // Web calendar requires HTTP authentication
+              $mdDialog.show({
+                parent: angular.element(document.body),
+                clickOutsideToClose: true,
+                escapeToClose: true,
+                templateUrl: 'UIxWebCalendarAuthDialog',
+                controller: WebCalendarAuthDialogController,
+                controllerAs: '$WebCalendarAuthDialogController',
+                locals: {
+                  url: url,
+                  calendar: calendar
+                }
+              });
+            }
+          });
         });
+
+      /**
+       * @ngInject
+       */
+      WebCalendarAuthDialogController.$inject = ['scope', '$mdDialog', 'url', 'calendar'];
+      function WebCalendarAuthDialogController(scope, $mdDialog, url, calendar) {
+        var vm = this,
+            parts = url.split("/"),
+            hostname = parts[2];
+
+        vm.title = l("Please identify yourself to %{0}").formatted(hostname);
+        vm.authenticate = function(form) {
+          if (form.$valid || !form.$error.required) {
+            calendar.setCredentials(vm.username, vm.password).then(function(message) {
+              $mdDialog.hide();
+            }, function(reason) {
+              form.password.$setValidity('credentials', false);
+            });
+          }
+        };
+        vm.cancel = function() {
+          $mdDialog.cancel();
+        };
+      }
     }
 
     function confirmDelete(folder) {
@@ -107,7 +181,7 @@
           });
       }
       else {
-        Dialog.confirm(l('Warning'), l('Are you sure you want to delete the calendar <em>%{0}</em>?', folder.name),
+        Dialog.confirm(l('Warning'), l('Are you sure you want to delete the calendar "%{0}"?', folder.name),
                        { ok: l('Delete') })
           .then(function() {
             folder.$delete()
@@ -204,10 +278,6 @@
           return isTextFile;
         }
       }
-    }
-
-    function exportCalendar(calendar) {
-      window.location.href = ApplicationBaseURL + '/' + calendar.id + '.ics' + '/export';
     }
 
     function showOnly(calendar) {

@@ -173,6 +173,16 @@
   };
 
   /**
+   * @function selectFolder
+   * @memberof Mailbox.prototype
+   * @desc Mark the folder as selected in the constructor unless virtual mode is active
+   */
+  Mailbox.prototype.selectFolder = function() {
+    if (!Mailbox.$virtualMode)
+      Mailbox.selectedFolder = this;
+  };
+
+  /**
    * @function getLength
    * @memberof Mailbox.prototype
    * @desc Used by md-virtual-repeat / md-on-demand
@@ -236,6 +246,16 @@
    */
   Mailbox.prototype.isSelectedMessage = function(messageId) {
     return this.selectedMessage == messageId;
+  };
+
+  /**
+   * @function hasSelectedMessage
+   * @memberof Mailbox.prototype
+   * @desc Check if a message is selected.
+   * @returns true if the a message is selected
+   */
+  Mailbox.prototype.hasSelectedMessage = function() {
+    return angular.isDefined(this.selectedMessage);
   };
 
   /**
@@ -531,6 +551,31 @@
   };
 
   /**
+   * @function saveSelectedMessages
+   * @memberof Mailbox.prototype
+   * @desc Download the selected messages
+   * @returns a promise of the HTTP operation
+   */
+  Mailbox.prototype.saveSelectedMessages = function() {
+    var selectedMessages, selectedUIDs;
+
+    selectedMessages = _.filter(this.$messages, function(message) { return message.selected; });
+    selectedUIDs = _.map(selectedMessages, 'uid');
+
+    return Mailbox.$$resource.download(this.id, 'saveMessages', {uids: selectedUIDs});
+  };
+
+  /**
+   * @function exportFolder
+   * @memberof Mailbox.prototype
+   * @desc Export this mailbox
+   * @returns a promise of the HTTP operation
+   */
+  Mailbox.prototype.exportFolder = function() {
+    return Mailbox.$$resource.download(this.id, 'exportFolder');
+  };
+
+  /**
    * @function $delete
    * @memberof Mailbox.prototype
    * @desc Delete the mailbox from the server
@@ -555,7 +600,7 @@
    * @return the index of the first deleted message
    */
   Mailbox.prototype.$_deleteMessages = function(uids, messages) {
-    var _this = this, selectedMessages, selectedUIDs, unseen, firstIndex = this.$messages.length;
+    var _this = this, selectedUIDs, _$messages, unseen, firstIndex = this.$messages.length;
 
     // Decrement the unseen count
     unseen = _.filter(messages, function(message, i) { return !message.isread; });
@@ -681,8 +726,8 @@
       _this.$shadowData = _this.$omit();
       Mailbox.$log.debug(JSON.stringify(data, undefined, 2));
       return data;
-    }, function(data) {
-      Mailbox.$log.error(JSON.stringify(data, undefined, 2));
+    }, function(response) {
+      Mailbox.$log.error(JSON.stringify(response.data, undefined, 2));
       // Restore previous version
       _this.$reset();
     });
@@ -705,15 +750,7 @@
    * @return an object literal copy of the Mailbox instance
    */
   Mailbox.prototype.$omit = function() {
-    var mailbox = {};
-    angular.forEach(this, function(value, key) {
-      if (key != 'constructor' &&
-          key != 'children' &&
-          key[0] != '$') {
-        mailbox[key] = value;
-      }
-    });
-    return mailbox;
+    return { name: this.name };
   };
 
   /**

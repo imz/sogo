@@ -4,7 +4,7 @@
 (function() {
   'use strict';
 
-  angular.module('SOGo.MailerUI', ['ui.router', 'ck', 'angularFileUpload', 'SOGo.Common', 'SOGo.ContactsUI', 'SOGo.SchedulerUI', 'ngAnimate', 'SOGo.PreferencesUI'])
+  angular.module('SOGo.MailerUI', ['ngCookies', 'ui.router', 'ck', 'angularFileUpload', 'SOGo.Common', 'SOGo.ContactsUI', 'SOGo.SchedulerUI', 'ngAnimate', 'SOGo.PreferencesUI'])
     .config(configure)
     .run(runBlock);
 
@@ -65,7 +65,9 @@
           stateMailbox: stateVirtualMailboxOfMessage,
           stateMessages: stateMessages,
           stateMessage: stateMessage
-        }
+        },
+        onEnter: onEnterMessage,
+        onExit: onExitMessage
       })
       .state('mail.account.inbox', {
         url: '/inbox',
@@ -192,7 +194,7 @@
       return mailbox;
     };
 
-    if (Mailbox.selectedFolder)
+    if (Mailbox.selectedFolder && !Mailbox.$virtualMode)
       Mailbox.selectedFolder.$isLoading = true;
 
     mailbox = _find(stateAccount.$mailboxes);
@@ -277,7 +279,7 @@
     });
 
     if (message) {
-      return message.$reload();
+      return message.$reload({useCache: true});
     }
     else {
       // Message not found
@@ -298,7 +300,7 @@
    */
   onExitMessage.$inject = ['stateMailbox'];
   function onExitMessage(stateMailbox) {
-    stateMailbox.selectedMessage = -1;
+    delete stateMailbox.selectedMessage;
   }
 
   /**

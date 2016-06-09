@@ -69,6 +69,7 @@
 
 #import "SOGoDraftObject.h"
 
+
 static NSString *contentTypeValue = @"text/plain; charset=utf-8";
 static NSString *htmlContentTypeValue = @"text/html; charset=utf-8";
 static NSString *headerKeys[] = {@"subject", @"to", @"cc", @"bcc", 
@@ -91,6 +92,7 @@ static NSString *headerKeys[] = {@"subject", @"to", @"cc", @"bcc",
 //
 @interface NSMutableData (DataCleanupExtension)
 
+- (unichar) characterAtIndex: (int) theIndex;
 - (NSRange) rangeOfCString: (const char *) theCString;
 - (NSRange) rangeOfCString: (const char *) theCString
 		  options: (unsigned int) theOptions
@@ -98,6 +100,32 @@ static NSString *headerKeys[] = {@"subject", @"to", @"cc", @"bcc",
 @end
 
 @implementation NSMutableData (DataCleanupExtension)
+
+- (unichar) characterAtIndex: (int) theIndex
+{
+  const char *bytes;
+  int i, len;
+
+  len = [self length];
+
+  if (len == 0 || theIndex >= len)
+    {
+      [[NSException exceptionWithName: NSRangeException
+                    reason: @"Index out of range."
+                    userInfo: nil] raise];
+
+      return (unichar)0;
+    }
+
+  bytes = [self bytes];
+
+  for (i = 0; i < theIndex; i++)
+    {
+      bytes++;
+    }
+
+  return (unichar)*bytes;
+}
 
 - (NSRange) rangeOfCString: (const char *) theCString
 {
@@ -306,11 +334,7 @@ static NSString    *userAgent      = nil;
     {
       // newHeaders come from Web form; convert priority to MIME header representation
       priority = [newHeaders objectForKey: @"priority"];
-      if (!priority || ![priority length] || [priority intValue] == 3)
-        {
-          [headers removeObjectForKey: @"X-Priority"];
-        }
-      else if ([priority intValue] == 1)
+      if ([priority intValue] == 1)
         {
           [headers setObject: @"1 (Highest)"  forKey: @"X-Priority"];
         }
@@ -322,9 +346,13 @@ static NSString    *userAgent      = nil;
         {
           [headers setObject: @"4 (Low)"  forKey: @"X-Priority"];
         }
-      else
+      else if ([priority intValue] == 5)
         {
           [headers setObject: @"5 (Lowest)"  forKey: @"X-Priority"];
+        }
+      else
+        {
+          [headers removeObjectForKey: @"X-Priority"];
         }
       if (priority)
         {
@@ -707,6 +735,7 @@ static NSString    *userAgent      = nil;
 //
 - (void) _fillInReplyAddresses: (NSMutableDictionary *) _info
 		    replyToAll: (BOOL) _replyToAll
+               fromSentMailbox: (BOOL) _fromSentMailbox
 		      envelope: (NGImap4Envelope *) _envelope
 {
   /*
@@ -718,8 +747,6 @@ static NSString    *userAgent      = nil;
     Note: we cannot check reply-to, because Cyrus even sets a reply-to in the
           envelope if none is contained in the message itself! (bug or
           feature?)
-    
-    TODO: what about sender (RFC 822 3.6.2)
   */
   NSMutableArray *to, *addrs, *allRecipients;
   NSArray *envelopeAddresses;
@@ -761,7 +788,9 @@ static NSString    *userAgent      = nil;
 
   addrs = [NSMutableArray array];
   envelopeAddresses = [_envelope replyTo];
-  if ([envelopeAddresses count])
+  if (_fromSentMailbox)
+    [addrs setArray: [_envelope to]];
+  else if ([envelopeAddresses count])
     [addrs setArray: envelopeAddresses];
   else
     [addrs setArray: [_envelope from]];
@@ -831,7 +860,10 @@ static NSString    *userAgent      = nil;
   while ((currentKey = [attachmentKeys nextObject]))
     {
       body = [fetch objectForKey: [currentKey lowercaseString]];
-      [bodies addObject: [body objectForKey: @"data"]];
+      if (body)
+        [bodies addObject: [body objectForKey: @"data"]];
+      else
+        [bodies addObject: [NSData data]];
     }
 
   return bodies;
@@ -893,6 +925,10 @@ static NSString    *userAgent      = nil;
     [info setObject: msgid forKey: @"message-id"];
 
   addresses = [NSMutableArray array];
+  [self _addEMailsOfAddresses: [sourceEnvelope from] toArray: addresses];
+  if ([addresses count])
+    [info setObject: [addresses objectAtIndex: 0] forKey: @"from"];
+  addresses = [NSMutableArray array];
   [self _addEMailsOfAddresses: [sourceEnvelope to] toArray: addresses];
   [info setObject: addresses forKey: @"to"];
   addresses = [NSMutableArray array];
@@ -928,17 +964,21 @@ static NSString    *userAgent      = nil;
 - (void) fetchMailForReplying: (SOGoMailObject *) sourceMail
 			toAll: (BOOL) toAll
 {
+  BOOL fromSentMailbox;
   NSString *msgID;
   NSMutableDictionary *info;
   NGImap4Envelope *sourceEnvelope;
 
+  fromSentMailbox = [[sourceMail container] isKindOfClass: [SOGoSentFolder class]];
   [sourceMail fetchCoreInfos];
 
   info = [NSMutableDictionary dictionaryWithCapacity: 16];
   [info setObject: [sourceMail subjectForReply] forKey: @"subject"];
 
   sourceEnvelope = [sourceMail envelope];
-  [self _fillInReplyAddresses: info replyToAll: toAll
+  [self _fillInReplyAddresses: info
+                   replyToAll: toAll
+              fromSentMailbox: fromSentMailbox
                      envelope: sourceEnvelope];
   msgID = [sourceEnvelope messageID];
   if ([msgID length] > 0)
@@ -1115,7 +1155,7 @@ static NSString    *userAgent      = nil;
       pmime = [self pathToAttachmentWithName: [NSString stringWithFormat: @".%@.mime", name]];
       if (![[mimeType dataUsingEncoding: NSUTF8StringEncoding] writeToFile: pmime atomically: YES])
         {
-          [[NSFileManager defaultManager] removeItemAtPath: p error: nil];
+          [[NSFileManager defaultManager] removeFileAtPath: p  handler: nil];
           return [NSException exceptionWithHTTPStatus: 500 /* Server Error */
                                                reason: @"Could not write attachment to draft!"];
         }
@@ -1259,7 +1299,7 @@ static NSString    *userAgent      = nil;
     {
       s = [self mimeTypeForExtension:[_name pathExtension]];
       if ([_name length] > 0)
-	s = [s stringByAppendingFormat: @"; name=\"%@\"", _name];
+	s = [s stringByAppendingFormat: @"; name=\"%@\"", [_name stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""]];
     }
 
   return s;
@@ -1285,7 +1325,7 @@ static NSString    *userAgent      = nil;
     cdtype = @"attachment";
 
   cd = [cdtype stringByAppendingString: @"; filename=\""];
-  cd = [cd stringByAppendingString: _name];
+  cd = [cd stringByAppendingString: [_name stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""]];
   cd = [cd stringByAppendingString: @"\""];
 
   // TODO: add size parameter (useful addition, RFC 2183)
@@ -1782,6 +1822,7 @@ static NSString    *userAgent      = nil;
 //
 //
 //
+/*
 - (NSException *) sendMail
 {
   SOGoUserDefaults *ud;
@@ -1843,6 +1884,7 @@ static NSString    *userAgent      = nil;
     }
   return [self sendMailAndCopyToSent: YES];
 }
+*/
 
 //
 //
@@ -1855,9 +1897,9 @@ static NSString    *userAgent      = nil;
   NSURL *sourceIMAP4URL;
   NSException *error;
   NSData *message;
-  NSRange r1, r2;
-  
-  /* send mail */
+  NSRange r1;
+
+  unsigned int limit;
 
   // We strip the BCC fields prior sending any mails
   NGMimeMessageGenerator *generator;
@@ -1871,21 +1913,32 @@ static NSString    *userAgent      = nil;
   //
 #warning FIXME - we should fix the case issue when we switch to Pantomime
   cleaned_message = [NSMutableData dataWithData: message];
+
+  // We search only in the headers so we start at 0 until
+  // we find \r\n\r\n, which is the headers delimiter
   r1 = [cleaned_message rangeOfCString: "\r\n\r\n"];
+  limit = r1.location-1;
   r1 = [cleaned_message rangeOfCString: "\r\nbcc: "
                                options: 0
-                                 range: NSMakeRange(0,r1.location-1)];
+                                 range: NSMakeRange(0,limit)];
       
   if (r1.location != NSNotFound)
     {
       // We search for the first \r\n AFTER the Bcc: header and
       // replace the whole thing with \r\n.
-      r2 = [cleaned_message rangeOfCString: "\r\n"
-                                   options: 0
-                                     range: NSMakeRange(NSMaxRange(r1)+1,[cleaned_message length]-NSMaxRange(r1)-1)];
-      [cleaned_message replaceBytesInRange: NSMakeRange(r1.location, NSMaxRange(r2)-r1.location)
-                                 withBytes: "\r\n"
-                                    length: 2];
+      unsigned int i;
+
+      for (i = r1.location+7; i < limit; i++)
+        {
+          if ([cleaned_message characterAtIndex: i] == '\r' &&
+              (i+1 < limit && [cleaned_message characterAtIndex: i+1] == '\n') &&
+              (i+2 < limit && !isspace([cleaned_message characterAtIndex: i+2])))
+            break;
+        }
+
+      [cleaned_message replaceBytesInRange: NSMakeRange(r1.location, i-r1.location)
+                                 withBytes: NULL
+                                    length: 0];
     }
 
   dd = [[context activeUser] domainDefaults];

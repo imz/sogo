@@ -17,10 +17,8 @@
     vm.selectCard = selectCard;
     vm.toggleCardSelection = toggleCardSelection;
     vm.newComponent = newComponent;
-    vm.notSelectedComponent = notSelectedComponent;
     vm.unselectCards = unselectCards;
     vm.confirmDeleteSelectedCards = confirmDeleteSelectedCards;
-    vm.saveSelectedCards = saveSelectedCards;
     vm.copySelectedCards = copySelectedCards;
     vm.selectAll = selectAll;
     vm.sort = sort;
@@ -29,14 +27,15 @@
     vm.newMessage = newMessage;
     vm.newMessageWithSelectedCards = newMessageWithSelectedCards;
     vm.newMessageWithRecipient = newMessageWithRecipient;
-    vm.mode = { search: false };
+    vm.mode = { search: false, multiple: 0 };
     
     function selectCard(card) {
-      $state.go('app.addressbook.card.view', {addressbookId: stateAddressbook.id, cardId: card.id});
+      $state.go('app.addressbook.card.view', {cardId: card.id});
     }
     
     function toggleCardSelection($event, card) {
       card.selected = !card.selected;
+      vm.mode.multiple += card.selected? 1 : -1;
       $event.preventDefault();
       $event.stopPropagation();
     }
@@ -79,12 +78,11 @@
       }
     }
 
-    function notSelectedComponent(currentCard, type) {
-      return (currentCard && currentCard.c_component == type && !currentCard.selected);
-    }
-
     function unselectCards() {
-      _.forEach(vm.selectedFolder.$cards, function(card) { card.selected = false; });
+      _.forEach(vm.selectedFolder.$cards, function(card) {
+        card.selected = false;
+      });
+      vm.mode.multiple = 0;
     }
     
     function confirmDeleteSelectedCards() {
@@ -99,12 +97,6 @@
         });
     }
 
-    function saveSelectedCards() {
-      var selectedCards = _.filter(vm.selectedFolder.$cards, function(card) { return card.selected; });
-      var selectedUIDs = _.map(selectedCards, 'id');
-      $window.location.href = ApplicationBaseURL + '/' + vm.selectedFolder.id + '/export?uid=' + selectedUIDs.join('&uid=');
-    }
-
     function copySelectedCards(folder) {
       var selectedCards = _.filter(vm.selectedFolder.$cards, function(card) { return card.selected; });
       vm.selectedFolder.$copyCards(selectedCards, folder).then(function() {
@@ -116,6 +108,7 @@
       _.forEach(vm.selectedFolder.$cards, function(card) {
         card.selected = true;
       });
+      vm.mode.multiple = vm.selectedFolder.$cards.length;
     }
 
     function sort(field) {
@@ -133,15 +126,16 @@
 
     function newMessage($event, recipients) {
       Account.$findAll().then(function(accounts) {
-        var account = _.filter(accounts, function(o) {
+        var account = _.find(accounts, function(o) {
           if (o.id === 0)
             return o;
-        })[0];
+        });
 
         // We must initialize the Account with its mailbox
         // list before proceeding with message's creation
         account.$getMailboxes().then(function(mailboxes) {
           account.$newMessage().then(function(message) {
+            angular.extend(message.editable, { to: recipients });
             $mdDialog.show({
               parent: angular.element(document.body),
               targetEvent: $event,
@@ -151,9 +145,8 @@
               controller: 'MessageEditorController',
               controllerAs: 'editor',
               locals: {
-                stateAccounts: accounts,
-                stateMessage: message,
-                stateRecipients: recipients
+                stateAccount: account,
+                stateMessage: message
               }
             });
           });
@@ -162,7 +155,7 @@
     }
 
     function newMessageWithRecipient($event, recipient, fn) {
-      var recipients = [{full: fn + ' <' + recipient + '>'}];
+      var recipients = [fn + ' <' + recipient + '>'];
       vm.newMessage($event, recipients);
       $event.stopPropagation();
       $event.preventDefault();
@@ -173,31 +166,30 @@
       var promises = [], recipients = [];
 
       _.forEach(selectedCards, function(card) {
-        if (card.c_component == 'vcard' && card.c_mail.length) {
-          recipients.push({full: card.c_cn + ' <' + card.c_mail + '>'});
-        }
-        else if (card.$isList()) {
+        if (card.$isList({expandable: true})) {
           // If the list's members were already fetch, use them
           if (angular.isDefined(card.refs) && card.refs.length) {
             _.forEach(card.refs, function(ref) {
               if (ref.email.length)
-                recipients.push({full: ref.c_cn + ' <' + ref.email + '>'});
+                recipients.push(ref.$shortFormat());
             });
           }
           else {
-            promises.push(vm.selectedFolder.$getCard(card.id).then(function(card) {
-              return card.$futureCardData.then(function(data) {
-                _.forEach(data.refs, function(ref) {
-                  if (ref.email.length)
-                    recipients.push({full: ref.c_cn + ' <' + ref.email + '>'});
-                });
+            promises.push(card.$reload().then(function(card) {
+              _.forEach(card.refs, function(ref) {
+                if (ref.email.length)
+                  recipients.push(ref.$shortFormat());
               });
             }));
           }
         }
+        else if (card.c_mail.length) {
+          recipients.push(card.$shortFormat());
+        }
       });
 
       $q.all(promises).then(function() {
+        recipients = _.uniq(recipients);
         if (recipients.length)
           vm.newMessage($event, recipients);
       });

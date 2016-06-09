@@ -178,19 +178,6 @@
 
   /**
    * @memberOf AddressBook
-   * @desc Fetch list of cards and return an AddressBook instance.
-   * @param {string} addressbookId - the addressbook identifier
-   * @returns an AddressBook object instance
-   */
-  AddressBook.$find = function(addressbookId) {
-    var futureAddressBookData = AddressBook.$Preferences.ready().then(function() {
-      return AddressBook.$$resource.fetch(addressbookId, 'view', AddressBook.$query);
-    });
-    return new AddressBook(futureAddressBookData);
-  };
-
-  /**
-   * @memberOf AddressBook
    * @desc Subscribe to another user's addressbook and add it to the list of addressbooks.
    * @param {string} uid - user id
    * @param {string} path - path of folder for specified user
@@ -457,10 +444,12 @@
                   return this == card.id;
                 };
 
-            // First entry of 'headers' are keys
-            fields = _.invokeMap(response.headers[0], 'toLowerCase');
-            idFieldIndex = fields.indexOf('id');
-            response.headers.splice(0, 1);
+            if (response.headers) {
+              // First entry of 'headers' are keys
+              fields = _.invokeMap(response.headers[0], 'toLowerCase');
+              idFieldIndex = fields.indexOf('id');
+              response.headers.splice(0, 1);
+            }
 
             if (excludedCards)
               // Remove excluded cards from results
@@ -481,7 +470,7 @@
             // Add new cards matching the search query
             _.forEach(results, function(cardId, index) {
               if (_.isUndefined(_.find(cards, _.bind(compareIds, cardId)))) {
-                var data = { id: cardId };
+                var data = { pid: addressbookId, id: cardId };
                 var card = new AddressBook.$Card(data, search);
                 cards.splice(index, 0, card);
               }
@@ -633,6 +622,23 @@
   };
 
   /**
+   * @function $exportCards
+   * @memberof AddressBook.prototype
+   * @desc Export the selected/all cards
+   * @returns a promise of the HTTP operation
+   */
+  AddressBook.prototype.exportCards = function(selectedOnly) {
+    var selectedUIDs;
+
+    if (selectedOnly) {
+      var selectedCards = _.filter(this.$cards, function(card) { return card.selected; });
+      selectedUIDs = _.map(selectedCards, 'id');
+    }
+
+    return AddressBook.$$resource.download(this.id, 'export', (angular.isDefined(selectedUIDs) ? {uids: selectedUIDs} : null), {type: 'application/octet-stream'});
+  };
+
+  /**
    * @function $unwrap
    * @memberof AddressBook.prototype
    * @desc Unwrap a promise and instanciate new Card objects using received data.
@@ -667,7 +673,7 @@
 
           // Instanciate Card objects
           _.reduce(_this.ids, function(cards, card, i) {
-            var data = { id: card };
+            var data = { pid: _this.id, id: card };
 
             // Build map of ID <=> index
             _this.idsMap[data.id] = i;
@@ -696,6 +702,7 @@
             _this.$cards = [];
             angular.forEach(response.headers, function(data) {
               var o = _.zipObject(headers, data);
+              angular.extend(o, { pid: _this.id });
               _this.$cards.push(new AddressBook.$Card(o));
             });
           }

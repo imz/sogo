@@ -1,3 +1,122 @@
+3.1.2 (2016-06-06)
+------------------
+
+Enhancements
+ - [web] updated Angular Material to version 1.1.0rc5
+
+Bug fixes
+ - [web] fixed error handling when renaming a mailbox
+ - [web] fixed user removal from ACLs in Administration module (#3713)
+ - [web] fixed event classification icon (private/confidential) in month view (#3711)
+ - [web] CKEditor: added the pastefromword plugin (#2295, #3313)
+ - [web] fixed loading of card from global addressbooks
+ - [web] fixed negative offset when saving an all-day event (#3717)
+
+3.1.1 (2016-06-02)
+------------------
+
+Enhancements
+ - [web] expose all email addresses in autocompletion of message editor (#3443)
+ - [web] Gravatar service can now be disabled (#3600)
+ - [web] collapsable mail accounts (#3493)
+ - [web] show progress indicator when loading messages and cards
+ - [web] display messages sizes in list of Mail module
+ - [web] link event's attendees email addresses to mail composer
+ - [web] respect SOGoSearchMinimumWordLength when searching for events or tasks
+ - [web] updated CKEditor to version 4.5.9
+ - [web] CKEditor: switched to the minimalist skin
+ - [web] CKEditor: added the base64image plugin
+
+Bug fixes
+ - [core] strip X- tags when securing content (#3695)
+ - [web] fixed creation of chip on blur (sgTransformOnBlur directive)
+ - [web] fixed composition of new messages from Contacts module
+ - [web] fixed autocompletion of LDAP-based groups (#3673)
+ - [web] fixed month view when current month covers six weeks (#3663)
+ - [web] fixed negative offset when converting a regular event to an all-day event (#3655)
+ - [web] fixed event classification icon (private/confidential) in day/week/multicolumn views
+ - [web] fixed display of mailboxes list on mobiles (#3654)
+ - [web] restored Catalan and Slovak translations (#3687)
+ - [web] fixed restore of mailboxes expansion state when multiple IMAP accounts are configured
+ - [web] improved CSS sanitizer for HTML messages (#3700)
+ - [web] fixed toolbar of mail editor when sender address was too long (#3705)
+ - [web] fixed decoding of filename in attachments (quotes and Cyrillic characters) (#2272)
+ - [web] fixed recipients when replying from a message in the Sent mailbox (#2625)
+ - [eas] when using EAS/ItemOperations, use IMAP PEEK operation
+
+3.1.0 (2016-05-18)
+------------------
+
+New features
+ - [core] new database structure options to make SOGo use a total of nine tables
+ - [core] new user-based rate-limiting support for all SOGo requests (#3188)
+ - [web] toolbar of all-day events can be expanded to display all events
+ - [web] added AngularJS's XSRF support (#3246)
+ - [web] calendars list can be reordered and filtered
+ - [web] user can limit the calendars view to specific week days (#1841)
+
+Enhancements
+ - [web] updated Angular Material to version 1.1.0rc4
+ - [web] added Lithuanan (lt) translation - thanks to Mantas Liobė
+ - [web] added Turkish (Turkey) (tr_TR) translation - thanks to Sinan Kurşunoğlu
+ - [web] we now "cc" delegates during invitation updates (#3195)
+ - [web] new SOGoHelpURL preference to set a custom URL for SOGo help (#2768)
+ - [web] now able to copy/move events and also duplicate them (#3196)
+ - [web] improved preferences validation and now check for unsaved changes
+ - [web] display events and tasks priorities in list and day/week views (#3162)
+ - [web] style events depending on the user participation state
+ - [web] style transparent events (show time as free) (#3192)
+ - [web] improved input parsing of time picker (#3659)
+ - [web] restored support for Web calendars that require authentication
+
+Bug fixes
+ - [core] properly escape wide characters (#3616)
+ - [core] avoid double-appending domains in cache for multi-domain configurations (#3614)
+ - [core] fixed multidomain issue with non-unique ID accross domains (#3625)
+ - [core] fixed bogus headers generation when stripping folded bcc header (#3664)
+ - [core] fixed issue with multi-value org units (#3630)
+ - [core] sanity checks for events with bogus timezone offsets
+ - [web] fixed missing columns in SELECT statements (PostgreSQL)
+ - [web] fixed display of ghosts when dragging events
+ - [web] fixed management of mail labels in Preferences module
+ - [web] respect super user privileges to create in any calendar and addressbook (#3533)
+ - [web] properly null-terminate IS8601-formatted dates (#3539)
+ - [web] display CC/BCC fields in message editor when initialized with values
+ - [web] fixed message initialization in popup window (#3583)
+ - [web] create chip (recipient) on blur (#3470)
+ - [web] fixed position of warning when JavaScript is disabled (#3449)
+ - [web] respect the LDAP attributes mapping in the list view
+ - [web] handle empty body data when forwarding mails (#3581)
+ - [web] show repeating events when we ask for "All" or "Future" events (#69)
+ - [web] show the To instead of From when we are in the Sent folder (#3547)
+ - [web] fixed handling of mail tags in mail viewer
+ - [web] avoid marking mails as read when archiving a folder (#2792)
+ - [web] fixed crash when sending a message with a special priority
+ - [web] fixed saving of a custom weekly recurrence definition
+ - [web] properly escape the user's display name (#3617)
+ - [web] avoid returning search results on objects without read permissions (#3619)
+ - [web] restore priority of event or task in component editor
+ - [web] fixed menu content visibility when printing an email (#3584)
+ - [web] retired CSS reset so the style of HTML messages is respected (#3582)
+ - [web] fixed messages archiving as zip file
+ - [web] adapted time picker to match changes of md calendar picker
+ - [web] fixed sender addresses of draft when using multiple IMAP accounts (#3577)
+ - [web] create a new message when clicking on a "mailto" link (#3588)
+ - [web] fixed handling of Web calendars option "reload on login"
+ - [web] add recipient chip when leaving an input field (to/cc/bcc) (#3470)
+ - [dav] we now handle the default classifications for tasks (#3541)
+ - [eas] properly unfold long mail headers (#3152)
+ - [eas] correctly set EAS message class for S/MIME messages (#3576)
+ - [eas] handle FilterType changes using EAS (#3543)
+ - [eas] handle Dovecot's mail_shared_explicit_inbox parameter
+ - [eas] prevent concurrent Sync ops from same device (#3603)
+ - [eas] handle EAS loop termination when SOGo is being shutdown (#3604)
+ - [eas] now cache heartbeat interval and folders list during Ping ops (#3606)
+ - [eas] sanitize non-us-ascii 7bit emails (#3592)
+ - [eas] properly escape organizer name (#3615)
+ - [eas] correctly set answered/forwarded flags during smart operations
+ - [eas] don't mark calendar invitations as read when fetching messages
+
 3.0.2 (2016-03-04)
 ------------------
 
@@ -21,13 +140,13 @@ Enhancements
  - [web] loading an LDAP-based addressbook is now instantaneous when listRequiresDot is disabled (#438, #3464)
  - [web] improve display of messages with many recipients
  - [web] colorize categories chips in event and task viewers
- - [web] initial stylesheet for printing
+ - [web] initial stylesheet for printing (#3484)
  - [web] updated lodash to version 4.6.1
  - [i18n] updated French and Finnish translations
  - [eas] now support EAS MIME truncation
 
 Bug fixes
- - [web] handle birthday dates before 1970
+ - [web] handle birthday dates before 1970 (#3567)
  - [web] safe-guarding against bogus value coming from the quick tables
  - [web] apply search filters when automatically reloading current mailbox (#3507)
  - [web] fixed virtual repeater when moving up in messages list
@@ -50,6 +169,7 @@ Bug fixes
  - [web] keep specified task status when not completed (#3499)
  - [eas] allow EAS attachments get on 2nd-level mailboxes (#3505)
  - [eas] fix EAS bday shift (#3518)
+ - [eas] encode CR in EAS payload (#3626)
 
 3.0.1 (2016-02-05)
 ------------------

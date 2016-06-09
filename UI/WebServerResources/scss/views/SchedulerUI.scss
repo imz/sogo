@@ -31,13 +31,9 @@ $quarter_height: 10px;
     }
 
     // The color chip is smaller; adjust the "selected" icon accordingly
-    .sg-avatar-selected {
-      &:before {
-        margin-left: -($bl);
-      }
-      &.md-avatar:first-child {
-        margin-right: 0;
-      }
+    .sg-list-selectable .sg-avatar-selectable:before,
+    .sg-avatar-selectable:hover:before {
+      margin: 0 (($sg-color-chip-width + 2*$bl) - $icon-size)/2;
     }
   }
 
@@ -62,16 +58,16 @@ $quarter_height: 10px;
 
   // The days labels appear in the toolbar
   md-toolbar {
-    min-height: 0;
+    flex-shrink: 0;
     &.daysView, &.monthView {
       background-color: #fff;
       z-index: $z-index-toolbar - 1;
       .days {
-        margin-left: $hours_margin;
         &:not([sg-calendar-scroll-view$="allday"]) {
           overflow-y: scroll;
         }
         &.dayLabels {
+          flex-shrink: 0;
           min-height: 0;
           .day {
             padding-left: 1%;
@@ -80,6 +76,13 @@ $quarter_height: 10px;
             }
           }
         }
+      }
+    }
+    &.monthView {
+      // Toolbar of month view
+      min-height: 0;
+      > div {
+        overflow-y: scroll;
       }
     }
     &[sg-view$=dayview] {
@@ -91,17 +94,12 @@ $quarter_height: 10px;
         }
       }
     }
-    &.monthView {
-      // Toolbar of month view
-      > div {
-        overflow-y: scroll;
-      }
-    }
   }
 
   // The all-day events appear in the shrinkable toolbar, bellow the days labels
   .allDaysView {
     border-bottom: 1px solid sg-color($sogoPaper, 300);
+    flex-shrink: 0;
     max-height: $sg-font-size-4 * 6;
     min-height: 0;
     overflow: hidden;
@@ -147,6 +145,24 @@ $quarter_height: 10px;
     }
   }
 
+  // Toolbar of all-day events when expanded to display all events
+  .allDaysView__expanded {
+    max-height: none;
+    min-height: 0;
+  }
+
+  // Side column on the left of the days labels and all-day events;
+  // Contains the toggle button to collapse/expand the toolbar
+  .allDaysView--sidenav {
+    border-bottom: 1px solid sg-color($sogoPaper, 300);
+    min-width: $hours_margin;
+    width: $hours_margin;
+    .md-icon-button {
+      position: absolute;
+      bottom: 0;
+    }
+  }
+
   md-card {
     // All views wrap a md-card
     position: absolute;
@@ -160,6 +176,7 @@ $quarter_height: 10px;
   }
 
   md-content[sg-calendar-scroll-view] {
+    background-color: #fff;
     overflow-y: scroll;
     overflow-x: hidden;
   }
@@ -170,9 +187,10 @@ $quarter_height: 10px;
     flex-direction: row;
     align-items: stretch;
     .day {
+      border-left: 1px solid sg-color($sogoPaper, 300);
       flex-grow: 1;
       flex-basis: 0;
-      border-left: 1px solid sg-color($sogoPaper, 300);
+      overflow: hidden;
       .clickableHourCell {
         height: $quarter_height * 4;
         border-bottom: 1px solid sg-color($sogoPaper, 300);
@@ -240,6 +258,7 @@ $quarter_height: 10px;
     left: 0;
     right: 0;
     opacity: 0.9; // When events from a same calendar overlap, it creates a border to help distinguish the events
+    outline: none;
     user-select: none;
     transition: $swift-linear;
     $i: 0;
@@ -275,12 +294,54 @@ $quarter_height: 10px;
       }
     }
 
+    // User participation status is "needs action"
+    &--needs-action {
+      border-width: 1px;
+      border-style: dashed;
+      opacity: 0.7;
+    }
+
+    // User participation status is "tentative"
+    &--tentative {
+      opacity: 0.7;
+    }
+
+    // User has declined the invitation
+    &--declined {
+      opacity: 0.4;
+    }
+
+    // Event is transparent (not opaque)
+    &--transparent {
+      &:before {
+        content: "";
+        display: block;
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom: 0;
+        background-origin: border-box;
+        background-image: linear-gradient(
+            to right bottom,
+            rgba(255, 255, 255, 0),
+            rgba(255, 255, 255, .15) 50%,
+            rgba(255, 255, 255, 0) 50%,
+            rgba(255, 255, 255, 0)
+          );
+      }
+    }
+
     .eventInside {
       overflow: hidden;
     }
 
     .material-icons {
-     font-size: $sg-font-size-2;
+      font-size: $sg-font-size-2;
+      min-height: $sg-font-size-2;
+      min-width: $sg-font-size-2;
     }
 
     .icons md-icon {
@@ -413,6 +474,7 @@ $quarter_height: 10px;
   .monthView {
     .dayLabels {
       // Cells of week days of all the same width
+      border-bottom: 1px solid $colorGrey100;
       flex: 1 1 0;
       text-align: center;
     }
@@ -483,6 +545,17 @@ $quarter_height: 10px;
         }
       }
     }
+  }
+
+  .sg-priority {
+    background-color: $colorGrey200;
+    border-radius: 50%;
+    color: $colorGrey700;
+    display: inline-block;
+    font-size: 11px;
+    font-weight: bold;
+    line-height: 1;
+    padding: 2px 5px;
   }
 
   .minutes15, .minutes30, .minutes45 {

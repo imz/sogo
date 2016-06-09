@@ -215,12 +215,10 @@ gpgcheck=0
 Some of the softwares on which SOGo depends are available from the
 repository of RepoForge (previously known as RPMforge). To add RepoForge
 to your packages sources, download and install the appropriate RPM
-package
-from http://packages.sw.be/rpmforge-release/.
+package from http://packages.sw.be/rpmforge-release/.
 Also make sure you enabled the "rpmforge-extras" repository.
 
-For more information on using RepoForge,
-visit http://repoforge.org/use/.
+For more information on using RepoForge, visit http://repoforge.org/use/.
 
 Software Installation
 ~~~~~~~~~~~~~~~~~~~~~
@@ -368,6 +366,13 @@ Defaults to 10 (minutes).
 
 Do not set this too low as child processes replying to clients on a slow
 internet connection could be killed prematurely.
+
+|S |WOMaxUploadSize
+|Parameter used to set the maximum allowed size for content being
+sent to SOGo using a PUT or a POST call. This can also limit the file
+attachment size being uploaded to SOGo when composing a mail. The
+value is in kilobyte. By default, the value is 0, or disabled so no
+limit will be set.
 
 |S |SxVMemLimit
 |Parameter used to set the maximum amount of memory (in
@@ -572,6 +577,8 @@ for SOGo. Possible values are:
 * `Basque`
 * `BrazilianPortuguese`
 * `Catalan`
+* `ChineseTaiwan`
+* `Croatian`
 * `Czech`
 * `Danish`
 * `Dutch`
@@ -582,14 +589,19 @@ for SOGo. Possible values are:
 * `Hungarian`
 * `Icelandic`
 * `Italian`
+* `Lithuanian`
+* `Macedonian`
 * `NorwegianBokmal`
 * `NorwegianNynorsk`
 * `Polish`
+* `Portuguese`
 * `Russian`
 * `Slovak`
-* `SpanishSpain`
+* `Slovenian`
 * `SpanishArgentina`
+* `SpanishSpain`
 * `Swedish`
+* `TurkishTurkey`
 * `Ukrainian`
 * `Welsh`
 
@@ -715,6 +727,25 @@ Default value is `0`, or disabled.
 |Number of seconds, default to `300` (or 5 minutes). Note that
 _SOGoCacheCleanupInterval_ must be set to a value equal or higher than
 _SOGoFailedLoginBlockInterval_.
+
+|S |SOGoMaximumRequestCount
+|Parameter used to control the number of requests a user can send to the SOGo
+server in _SOGoMaximumRequestInterval_ seconds or more. If conditions are met
+or exceeded, the user will not be able to perform requests on the SOGo server
+for _SOGoRequestBlockInterval_ seconds and will receive 429 HTTP responses for
+any requests being made. Default value is 0, or disabled
+
+|S |SOGoMaximumRequestInterval
+|Number of seconds, defaults to `30`.
+
+|S |SOGoRequestBlockInterval
+|Number of seconds, defaults to 300 (or 5 minutes). Note that _SOGoCacheCleanupInterval_
+must be set to a value equal or higher than _SOGoRequestBlockInterval_.
+
+|D |SOGoXSRFValidationEnabled
+|Parameter used to enable or not XSRF (also known as CSRF) protection in SOGo.
+Default value is `NO`, or disabled.
+
 |=======================================================================
 
 Authentication using LDAP
@@ -841,11 +872,11 @@ would be:
     CNFieldName = cn;
     IDFieldName = cn;
     UIDFieldName = cn;
-    baseDN = "ou=groups,dc=inverse,dc=ca”;
+    baseDN = "ou=groups,dc=inverse,dc=ca";
     bindDN = "cn=sogo,ou=services,dc=inverse,dc=ca";
     bindPassword = zot;
     canAuthenticate = YES;
-    displayName = “Inverse Groups”;
+    displayName = "Inverse Groups";
     hostname = ldap://127.0.0.1:389;
     id = inverse_groups;
     isAddressBook = YES;
@@ -1328,6 +1359,29 @@ supported, such as MySQL and Oracle.
 First, make sure that your PostgreSQL server has TCP/IP connections
 support enabled.
 
+[TIP]
+===============================
+SOGo stores the database hostname together with table references inside
+several database tables. To prevent possible future issues when moving
+the database to another host, it is best practice to add a local alias name to
+your `/etc/hosts` file, and using this in `/etc/sogo/sogo.conf` instead of the
+actual name of your server or localhost. When the database host name changes,
+you can now simply change the hosts file instead of updating several table
+columns replacing the old hostname. An example entry for `/etc/hosts` when
+running the database on the same host, registering `127.0.0.1` not only for
+`localhost`, but also the `db-alias` alias:
+
+ 127.0.0.1		localhost db-alias
+
+In the SOGo configuration, use the alias name instead of the real IP address or
+host name, for example
+
+----
+SOGoProfileURL =
+    "postgresql://sogo:sogo@db-alias:5432/sogo/sogo_user_profile";
+----
+===============================
+
 Create the database user and schema using the following commands:
 
 ----
@@ -1388,8 +1442,45 @@ _SOGoEnableEMailAlarms_ is set to `YES`. For PostgreSQL, the database
 URL could be set to something like:
 `postgresql://sogo:sogo@localhost:5432/sogo/sogo_alarms_folder`
 
+|S |OCSStoreURL
+|Parameter used to set the database URL so that SOGo can use to start
+all content data. You must also set `OCSAclURL` and `OCSCacheFolderURL`
+if you set this parameter. Using these parameters will allow SOGo to use
+a total of nine database tables - and prevent SOGo from creating three
+database tables per collection.
+
+For PostgresSQL, set the database URL to something like:
+`postgresql://sogo:@localhost:5432/sogo/sogo_store`.
+
+|S |OCSAclURL
+|Parameter used to set the database URL so that SOGo can use to start
+all ACL data. You must also set `OCSStoreURL` and `OCSCacheFolderURL`
+if you set this parameter.
+
+For PostgresSQL, set the database URL to something like:
+`postgresql://sogo:@localhost:5432/sogo/sogo_acl`.
+
+|S |OCSCacheFolderURL
+|Parameter used to set the database URL so that SOGo can use to start
+all cache data. You must also set `OCSStoreURL` and `OCSAclURL`
+if you set this parameter.
+
+For PostgresSQL, set the database URL to something like:
+`postgresql://sogo:@localhost:5432/sogo/sogo_cache_folder`.
+
 See the "EMail reminders" section in this document for more information.
 |=======================================================================
+
+
+[NOTE]
+Any non-URL safe characters in username/password must be URL-encoded.
+For example, if your SOGo database password is `so%go`, you must set
+the value in your preferences to `so%25go` - where `%` is encoded
+to `%25`.
+
+In addition to the seven tables described above, two other tables get
+created in the database: `sogo_quick_appointment` and `sogo_quick_contact`
+which store calendar and contact information.
 
 If you're using MySQL, make sure in your `my.cnf` file you have:
 
@@ -1405,6 +1496,72 @@ default-character-set=utf8
 [mysql]
 default-character-set=utf8
 ----
+
+MySQL complete Unicode compliance
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+By default MySQL only supports a subset of UTF-8, meaning that characters such
+as emoji are not handled properly.  Some extra steps at installation can be
+undertaken to leverage full Unicode support under MySQL.
+
+IMPORTANT: Switching to complete Unicode compliance on an already-deployed SOGo
+is out of scope of this document, as it would typically involve delicate manual
+operations on the database system.
+
+Requirements:
+
+* MySQL >= 5.5
+* SOGo >= 3.1.0
+
+Strongly suggested MySQL configuration settings (innodb* parameters are
+mandatory):
+
+----
+[client]
+default-character-set          = utf8mb4
+
+[mysql]
+default-character-set          = utf8mb4
+
+[mysqld]
+character-set-client-handshake = FALSE
+character-set-server           = utf8mb4
+collation-server               = utf8mb4_unicode_ci
+innodb_file_per_table          = TRUE
+innodb_file_format             = barracuda
+innodb_large_prefix            = TRUE
+----
+
+CAUTION: Changing InnoDB parameters on an already deployed database server can
+cause severe data loss.  Do not blindly edit MySQL parameters without reading
+and understanding the implication of such changes.
+
+A parameter must be added to `sogo.conf` to turn on complete Unicode
+compliance:
+
+----
+MySQL4Encoding = "utf8mb4";
+----
+
+SOGo automatically creates missing database tables on start but slightly
+different table creation parameters are needed for complete Unicode compliance;
+meaning that before SOGo runs for the first time, all database tables must
+already exist.  A MySQL script to achieve just that is provided in the SOGo
+distribution under `Scripts/mysql-utf8mb4.sql` and you can deploy it with
+a command such as:
+
+----
+mysql -hHOST -uUSER -p -D SOGO < Scripts/mysql-utf8mb4.sql
+----
+
+Where `HOST`, `USER` and `SOGO` are your MySQL host, username and database name
+respectively.
+
+Once SOGo is running, you can test correctness by creating an event such as
+“Lunch with &#127829; and fries” and seeing it properly displayed in the SOGo
+calendar.
+
+Ensure the computer used for the test has emoji fonts installed.
 
 Authentication using SQL
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1771,6 +1928,11 @@ behaviour of SOGo.
 
 Defaults to `SOGo` when unset.
 
+|S |SOGoHelpURL
+|Parameter used to define the URL to online help for SOGo. When set,
+an additional icon will appear near the logout button in SOGo's
+web interface. The URL will always be open in a separate page.
+
 |U |SOGoLoginModule
 |Parameter used to specify which module to show after login. Possible
 values are:
@@ -1810,6 +1972,16 @@ interface)
 SOGo webmail interface. The parameter is an array, for example:
 
 `SOGoMailListViewColumnsOrder = (Flagged, Attachment, Priority, From, Subject, Unread, Date, Size);`
+
+|D |SOGoExternalAvatarsEnabled
+|Parameter used to enable fetching of avatars from remote services.
+
+Defaults to `YES` when unset.
+
+|U |SOGoGravatarEnabled
+|Parameter used to activate fetching of avatars from http://gravatar.com/[Gravatar].
+
+Defaults to `YES` when unset.
 
 |D |SOGoVacationEnabled
 |Parameter used to activate the edition from the preferences window of a

@@ -6,22 +6,22 @@
   /**
    * @ngInject
    */
-  MessageEditorController.$inject = ['$window', '$stateParams', '$mdConstant', '$mdDialog', '$mdToast', 'FileUploader', 'stateAccounts', 'stateMessage', 'stateRecipients', 'encodeUriFilter', '$timeout', 'Dialog', 'AddressBook', 'Card', 'Preferences'];
-  function MessageEditorController($window, $stateParams, $mdConstant, $mdDialog, $mdToast, FileUploader, stateAccounts, stateMessage, stateRecipients, encodeUriFilter, $timeout, Dialog, AddressBook, Card, Preferences) {
+  MessageEditorController.$inject = ['$window', '$stateParams', '$mdConstant', '$mdDialog', '$mdToast', 'FileUploader', 'stateAccount', 'stateMessage', 'encodeUriFilter', '$timeout', 'Dialog', 'AddressBook', 'Card', 'Preferences'];
+  function MessageEditorController($window, $stateParams, $mdConstant, $mdDialog, $mdToast, FileUploader, stateAccount, stateMessage, encodeUriFilter, $timeout, Dialog, AddressBook, Card, Preferences) {
     var vm = this, semicolon = 186;
 
     vm.addRecipient = addRecipient;
     vm.autocomplete = {to: {}, cc: {}, bcc: {}};
     vm.autosave = null;
     vm.autosaveDrafts = autosaveDrafts;
-    vm.hideCc = true;
-    vm.hideBcc = true;
+    vm.hideCc = (stateMessage.editable.cc.length === 0);
+    vm.hideBcc = (stateMessage.editable.bcc.length === 0);
     vm.cancel = cancel;
     vm.save = save;
     vm.send = send;
     vm.removeAttachment = removeAttachment;
     vm.contactFilter = contactFilter;
-    vm.identities = _.map(_.flatten(_.map(stateAccounts, 'identities')), 'full');
+    vm.identities = _.map(stateAccount.identities, 'full');
     vm.recipientSeparatorKeys = [$mdConstant.KEY_CODE.ENTER, $mdConstant.KEY_CODE.TAB, $mdConstant.KEY_CODE.COMMA, semicolon];
     vm.uploader = new FileUploader({
       url: stateMessage.$absolutePath({asDraft: true}) + '/save',
@@ -77,10 +77,6 @@
     else if (angular.isDefined(stateMessage)) {
       vm.message = stateMessage;
       addAttachments();
-    }
-
-    if (angular.isDefined(stateRecipients)) {
-      vm.message.editable.to = _.union(vm.message.editable.to, _.map(stateRecipients, 'full'));
     }
 
     /**
@@ -151,6 +147,7 @@
     function save() {
       var ctrls = $parentControllers();
       vm.message.$save().then(function(data) {
+        vm.message.$rawSource = null;
         if (ctrls.draftMailboxCtrl) {
           // We're saving a draft from a popup window.
           // Reload draft mailbox
@@ -200,8 +197,20 @@
     }
 
     function contactFilter($query) {
-      AddressBook.$filterAll($query);
-      return AddressBook.$cards;
+      return AddressBook.$filterAll($query).then(function(cards) {
+        // Divide the matching cards by email addresses so the user can select
+        // the recipient address of her choice
+        var explodedCards = [];
+        _.forEach(_.invokeMap(cards, 'explode'), function(manyCards) {
+          _.forEach(manyCards, function(card) {
+            explodedCards.push(card);
+          });
+        });
+        // Remove duplicates
+        return _.uniqBy(explodedCards, function(card) {
+          return card.$$fullname + ' ' + card.$$email;
+        });
+      });
     }
 
     function addRecipient(contact, field) {
@@ -212,7 +221,7 @@
 
       recipients = vm.message.editable[field];
 
-      if (contact.$isList()) {
+      if (contact.$isList({expandable: true})) {
         // If the list's members were already fetch, use them
         if (angular.isDefined(contact.refs) && contact.refs.length) {
           _.forEach(contact.refs, function(ref) {

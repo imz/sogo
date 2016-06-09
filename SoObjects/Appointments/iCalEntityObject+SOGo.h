@@ -46,7 +46,7 @@ extern NSNumber *iCalDistantFutureNumber;
 
 - (iCalPerson *) participantForUser:  (SOGoUser *) theUser
                            attendee: (iCalPerson *) theAttendee;
-- (NSArray *) attendeeUIDs;
+/* - (NSArray *) attendeeUIDs; */
 - (BOOL) isStillRelevant;
 
 - (id) itipEntryWithMethod: (NSString *) method;
@@ -56,8 +56,6 @@ extern NSNumber *iCalDistantFutureNumber;
 - (int) priorityNumber;
 - (NSDictionary *) createdBy;
 
-- (NSCalendarDate *) dateFromString: (NSString *) dateString
-                          inContext: (WOContext *) context;
 - (void) adjustDate: (NSCalendarDate **) date
      withTimeString: (NSString *) timeString
           inContext: (WOContext *) context;

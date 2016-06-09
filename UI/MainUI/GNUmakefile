@@ -6,7 +6,7 @@ BUNDLE_NAME = MainUI
 
 MainUI_PRINCIPAL_CLASS = MainUIProduct
 
-MainUI_LANGUAGES = Arabic Basque BrazilianPortuguese Catalan ChineseTaiwan Croatian Czech Danish Dutch English Finnish French German Hungarian Icelandic Italian Macedonian NorwegianBokmal NorwegianNynorsk Polish Portuguese Russian Slovak Slovenian SpanishSpain SpanishArgentina Swedish Ukrainian Welsh
+MainUI_LANGUAGES = $(SOGO_LANGUAGES)
 
 MainUI_OBJC_FILES += \
 	MainUIProduct.m		\
@@ -26,6 +26,12 @@ MainUI_RESOURCE_FILES += 	\
 	SOGoProfile-oracle.sql \
 	OCSFolderInfo.sql \
 	OCSFolderInfo-oracle.sql \
+	OCSStore.sql \
+	OCSStore-mysql.sql \
+	OCSAcl-mysql.sql \
+	OCSAcl-postgresql.sql \
+	OCSCacheFolder-mysql.sql \
+	OCSCacheFolder-postgresql.sql
 
 MainUI_LOCALIZED_RESOURCE_FILES += \
 	Locale Localizable.strings

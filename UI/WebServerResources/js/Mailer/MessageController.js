@@ -6,8 +6,8 @@
   /**
    * @ngInject
    */
-  MessageController.$inject = ['$window', '$scope', '$state', '$mdDialog', 'stateAccounts', 'stateAccount', 'stateMailbox', 'stateMessage', 'encodeUriFilter', 'sgSettings', 'sgFocus', 'Dialog', 'Calendar', 'Component', 'Account', 'Mailbox', 'Message'];
-  function MessageController($window, $scope, $state, $mdDialog, stateAccounts, stateAccount, stateMailbox, stateMessage, encodeUriFilter, sgSettings, focus, Dialog, Calendar, Component, Account, Mailbox, Message) {
+  MessageController.$inject = ['$window', '$scope', '$state', '$mdMedia', '$mdDialog', 'sgConstant', 'stateAccounts', 'stateAccount', 'stateMailbox', 'stateMessage', 'encodeUriFilter', 'sgSettings', 'sgFocus', 'Dialog', 'Calendar', 'Component', 'Account', 'Mailbox', 'Message'];
+  function MessageController($window, $scope, $state, $mdMedia, $mdDialog, sgConstant, stateAccounts, stateAccount, stateMailbox, stateMessage, encodeUriFilter, sgSettings, focus, Dialog, Calendar, Component, Account, Mailbox, Message) {
     var vm = this, messageDialog = null, popupWindow = null;
 
     // Expose controller
@@ -23,7 +23,8 @@
     vm.showFlags = stateMessage.flags && stateMessage.flags.length > 0;
     vm.$showDetailedRecipients = false;
     vm.toggleDetailedRecipients = toggleDetailedRecipients;
-    vm.doDelete = doDelete;
+    vm.filterMailtoLinks = filterMailtoLinks;
+    vm.deleteMessage = deleteMessage;
     vm.close = close;
     vm.reply = reply;
     vm.replyAll = replyAll;
@@ -32,7 +33,6 @@
     vm.openPopup = openPopup;
     vm.closePopup = closePopup;
     vm.newMessage = newMessage;
-    vm.saveMessage = saveMessage;
     vm.toggleRawSource = toggleRawSource;
     vm.showRawSource = false;
     vm.print = print;
@@ -61,6 +61,33 @@
             var message = _.find(ctrls.mailboxCtrl.selectedFolder.$messages, { uid: vm.message.uid });
             message.isflagged = isflagged;
           });
+        }
+      });
+    }
+    else {
+      // Flatten new tags when coming from the predefined list of tags (Message.$tags) and
+      // sync tags with server when adding or removing a tag.
+      $scope.$watchCollection('viewer.message.flags', function(_newTags, _oldTags) {
+        var newTags, oldTags, tags;
+        if (_newTags || _oldTags) {
+          newTags = _newTags || [];
+          oldTags = _oldTags || [];
+          _.forEach(newTags, function(tag, i) {
+            if (angular.isObject(tag))
+              newTags[i] = tag.name;
+          });
+          if (newTags.length > oldTags.length) {
+            tags = _.difference(newTags, oldTags);
+            _.forEach(tags, function(tag) {
+              vm.message.addTag(tag);
+            });
+          }
+          else if (newTags.length < oldTags.length) {
+            tags = _.difference(oldTags, newTags);
+            _.forEach(tags, function(tag) {
+              vm.message.removeTag(tag);
+            });
+          }
         }
       });
     }
@@ -94,7 +121,38 @@
       $event.preventDefault();
     }
 
-    function doDelete() {
+    function filterMailtoLinks($event) {
+      var href, match, to, cc, bcc, subject, body, data;
+      if ($event.target.tagName == 'A' && 'href' in $event.target.attributes) {
+        href = $event.target.attributes.href.value;
+        match = /^mailto:([^\?]+)/.exec(href);
+        if (match) {
+          // Recipients
+          to = _.map(decodeURIComponent(match[1]).split(','), function(email) {
+            return '<' + email + '>';
+          });
+          data = { to: to };
+          // Subject & body
+          _.forEach(['subject', 'body'], function(param) {
+            var re = new RegExp(param + '=([^&]+)');
+            param = (param == 'body')? 'text' : param;
+            match = re.exec(href);
+            if (match)
+              data[param] = [decodeURIComponent(match[1])];
+          });
+          // Recipients
+          _.forEach(['cc', 'bcc'], function(param) {
+            var re = new RegExp(param + '=([^&]+)');
+            match = re.exec(href);
+            if (match)
+              data[param] = [decodeURIComponent(match[1])];
+          });
+          newMessage($event, data); // will stop event propagation
+        }
+      }
+    }
+
+    function deleteMessage() {
       var mailbox, message, state, nextMessage, previousMessage,
           parentCtrls = $parentControllers();
 
@@ -134,7 +192,7 @@
           }
 
           try {
-            if (nextMessage) {
+            if (nextMessage && $mdMedia(sgConstant['gt-md'])) {
               state.go('mail.account.mailbox.message', { messageId: nextMessage.uid });
               if (nextIndex < mailbox.$topIndex)
                 mailbox.$topIndex = nextIndex;
@@ -142,7 +200,10 @@
                 mailbox.$topIndex = nextIndex - (mailbox.$lastVisibleIndex - mailbox.$topIndex);
             }
             else {
-              state.go('mail.account.mailbox');
+              state.go('mail.account.mailbox').then(function() {
+                message = null;
+                delete mailbox.selectedMessage;
+              });
             }
           }
           catch (error) {}
@@ -151,11 +212,8 @@
       });
     }
 
-    function showMailEditor($event, message, recipients) {
+    function showMailEditor($event, message) {
       if (messageDialog === null) {
-        if (!angular.isDefined(recipients))
-          recipients = [];
-
         messageDialog = $mdDialog
           .show({
             parent: angular.element(document.body),
@@ -166,10 +224,8 @@
             controller: 'MessageEditorController',
             controllerAs: 'editor',
             locals: {
-              stateAccounts: vm.accounts,
               stateAccount: vm.account,
-              stateMessage: message,
-              stateRecipients: recipients
+              stateMessage: message
             }
           })
           .finally(function() {
@@ -235,21 +291,19 @@
         $window.close();
     }
 
-    function newMessage($event, recipient) {
-      var message = vm.account.$newMessage();
-      showMailEditor($event, message, [recipient]);
+    function newMessage($event, editableContent) {
+      vm.account.$newMessage().then(function(message) {
+        angular.extend(message.editable, editableContent);
+        showMailEditor($event, message);
+      });
       $event.stopPropagation();
       $event.preventDefault();
     }
 
-    function saveMessage() {
-      window.location.href = ApplicationBaseURL + '/' + vm.mailbox.id + '/saveMessages?uid=' + vm.message.uid;
-    }
-
     function toggleRawSource($event) {
-      if (!vm.showRawSource && !vm.rawSource) {
+      if (!vm.showRawSource && !vm.message.$rawSource) {
         Message.$$resource.post(vm.message.id, "viewsource").then(function(data) {
-          vm.rawSource = data;
+          vm.message.$rawSource = data;
           vm.showRawSource = true;
         });
       }

@@ -6,8 +6,8 @@
   <div class="view-list" layout="column">
 
     <!-- in virtual mailbox mode -->
-    <md-toolbar class="md-whiteframe-z1"
-                ng-hide="!app.showingAdvancedSearch || mailbox.selectedFolder.$selectedCount() > 0">
+    <md-toolbar class="md-whiteframe-z1 md-hue-3"
+                ng-hide="!app.showingAdvancedSearch || mailbox.mode.multiple">
       <div class="md-toolbar-tools">
         <md-input-container class="md-flex">
           <label><var:string label:value="Search messages in"/></label>
@@ -51,6 +51,7 @@
           </md-menu-content>
         </md-menu>
         <md-button class="sg-icon-button"
+                   label:aria-label="Search"
                    ng-click="app.toggleAdvancedSearch()"
                    ng-disabled="app.search.params.length == 0">
           <md-icon ng-class="{'icon-stop': app.service.selectedFolder.$isLoading,
@@ -60,7 +61,7 @@
     </md-toolbar>
     <!-- single-selection toolbars -->
     <md-toolbar class="md-accent md-hue-1"
-                ng-hide="app.showingAdvancedSearch || mailbox.selectedFolder.$selectedCount() > 0">
+                ng-hide="app.showingAdvancedSearch || mailbox.mode.multiple">
       <!-- sort mode (default) -->
       <div class="md-toolbar-tools" ng-hide="mailbox.mode.search">
         <md-button class="sg-icon-button" label:aria-label="Search"
@@ -133,7 +134,7 @@
           </div>
         </md-input-container>
         <md-input-container flex="25">
-          <md-select>
+          <md-select label:aria-label="Search scope">
             <md-option value="subject" selected="selected"><var:string label:value="Subject"/></md-option>
             <md-option value="from"><var:string label:value="Sender"/></md-option>
             <md-option value="subject_or_from"><var:string label:value="Subject or Sender"/></md-option>
@@ -145,7 +146,8 @@
     </md-toolbar>
 
     <!-- multiple-selection mode -->
-    <md-toolbar class="md-hue-1 sg-toolbar-secondary" ng-show="mailbox.selectedFolder.$selectedCount() > 0">
+    <md-toolbar class="md-hue-1 sg-toolbar-secondary"
+                ng-show="mailbox.mode.multiple">
       <div class="md-toolbar-tools">
         <md-button class="sg-icon-button" ng-click="mailbox.unselectMessages()">
           <md-icon>arrow_back</md-icon>
@@ -179,7 +181,7 @@
               </md-button>
             </md-menu-item>
             <md-menu-item>
-              <md-button ng-click="mailbox.saveSelectedMessages()">
+              <md-button ng-click="mailbox.selectedFolder.saveSelectedMessages()">
                 <var:string label:value="Save As..."/>
               </md-button>
             </md-menu-item>
@@ -257,24 +259,22 @@
         </span>
       </md-subheader>
       <md-virtual-repeat-container class="md-flex" md-top-index="mailbox.selectedFolder.$topIndex">
-        <md-list class="sg-section-list">
+        <md-list class="sg-section-list"
+                 ng-class="{ 'sg-list-selectable': mailbox.mode.multiple }">
           <md-list-item
-              class="md-default-theme md-accent md-hue-2"
-              ng-class="{'md-bg': mailbox.selectedFolder.isSelectedMessage(currentMessage.uid, currentMessage.$mailbox.path),
+              ng-class="{'md-default-theme md-accent md-bg md-hue-2': mailbox.selectedFolder.isSelectedMessage(currentMessage.uid, currentMessage.$mailbox.path),
                           unread: !currentMessage.isread}"
               md-virtual-repeat="currentMessage in mailbox.service.selectedFolder"
               md-on-demand="md-on-demand" md-item-size="56"
               ng-click="mailbox.selectMessage(currentMessage)"
               aria-label="{{currentMessage.subject}}">
-            <div class="md-secondary"
-                 ng-click="mailbox.toggleMessageSelection($event, currentMessage)"
-                 ng-switch="currentMessage.selected">
+            <div class="md-secondary sg-avatar-selectable"
+                 label:aria-label="Select Message"
+                 ng-class="{ 'sg-avatar-selected': currentMessage.selected }"
+                 ng-click="mailbox.toggleMessageSelection($event, currentMessage)">
               <sg-avatar-image class="md-avatar"
-                               ng-switch-when="false"
-                               sg-email="currentMessage.from[0].email"
+                               sg-email="mailbox.service.selectedFolder.type == 'sent' ? currentMessage.to[0].email : currentMessage.from[0].email"
                                size="40"><!-- avatar --></sg-avatar-image>
-              <div class="md-avatar sg-avatar-selected"
-                   ng-switch-when="true"><!-- selected avatar --></div>
             </div>
             <div class="sg-category"
                  ng-repeat="tag in currentMessage.flags | limitTo:5"
@@ -288,12 +288,13 @@
                            ng-show="currentMessage.priority.level == 1 ||
                                     currentMessage.priority.level == 2"
                            ng-class="{'md-warn': currentMessage.priority.level == 1}">error</md-icon>
-                  {{currentMessage.$shortAddress('from')}}
+                  {{mailbox.service.selectedFolder.type == 'sent' ? currentMessage.$shortAddress('to' ) : currentMessage.$shortAddress('from' )}}
                 </div>
                 <div class="sg-tile-date" ng-bind="currentMessage.relativedate"><!-- date --></div>
               </div>
               <div class="sg-md-body">
                 <div>{{currentMessage.subject}}</div>
+                <div class="sg-tile-size" ng-bind="currentMessage.size"><!-- size --></div>
               </div>
             </div>
             <div class="sg-tile-icons">
@@ -302,6 +303,11 @@
               <md-icon class="ng-hide" ng-show="currentMessage.isforwarded">forward</md-icon>
               <md-icon class="ng-hide" ng-show="currentMessage.hasattachment">attach_file</md-icon>
             </div>
+            <div class="sg-progress-linear-bottom">
+              <md-progress-linear class="md-accent"
+                                  md-mode="indeterminate"
+                                  ng-show="currentMessage.$isLoading()"><!-- message loading progress --></md-progress-linear>
+            </div>
           </md-list-item>
         </md-list>
       </md-virtual-repeat-container>
@@ -309,7 +315,7 @@
            ng-show="mailbox.service.selectedFolder.$isLoading">
         <md-progress-circular class="md-accent"
                               md-mode="indeterminate"
-                              md-diameter="32"><!-- progress --></md-progress-circular>
+                              md-diameter="32"><!-- mailbox loading progress --></md-progress-circular>
       </div>
       <md-button class="md-fab md-fab-bottom-right md-accent"
                  label:aria-label="Write a new message"
@@ -319,13 +325,16 @@
     </md-content>
   </div>
 
-  <div id="detailView" class="view-detail md-default-theme md-background md-bg md-hue-1"
+  <div id="detailView" class="view-detail"
        layout="column" layout-align="start center"
-       ng-class="{ 'sg-close': !mailbox.service.selectedFolder.selectedMessage }"
+       ng-class="{ 'sg-close': !mailbox.service.selectedFolder.hasSelectedMessage() }"
+       md-colors="::{backgroundColor: 'default-background-200'}"
        ui-view="message">
-    <md-content class="hide-xs md-flex layout-fill md-hue-1"
-                layout="column" layout-align="center center">
-      <div class="md-default-theme md-background md-fg md-hue-3 sg-md-title"><var:string label:value="No message selected"/></div>
+    <md-content class="hide show-gt-md md-flex"
+                md-colors="::{backgroundColor: 'default-background-200'}"
+                layout="column" layout-align="center center" layout-fill="layout-fill">
+      <div class="sg-md-title"
+           md-colors="::{color: 'default-background-500'}"><var:string label:value="No message selected"/></div>
     </md-content>
   </div>
 

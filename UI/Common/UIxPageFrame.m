@@ -112,20 +112,21 @@
   return (@"<!DOCTYPE html>");
 }
 
-/* Help URL/target */
-
+/* Help URL */
 - (NSString *) helpURL
 {
-  return [NSString stringWithFormat: @"help/%@.html", title];
-}
+  SOGoSystemDefaults *sd;
+  NSString *s;
 
-- (NSString *) helpWindowTarget
-{
-  return [NSString stringWithFormat: @"Help_%@", title];
+  sd = [SOGoSystemDefaults sharedSystemDefaults];
+
+  if ((s = [sd helpURL]))
+    return s;
+
+  return @"";
 }
 
 /* notifications */
-
 - (void) sleep
 {
   [item release];
@@ -465,8 +466,12 @@
 
 - (NSString *) userIdentification
 {
+  NSString *v;
+
   /* The "identification" term is used in the human sense here. */
-  return [[context activeUser] cn];
+  v = [[context activeUser] cn];
+
+  return (v ? v : @"");
 }
 
 - (NSString *) userEmail
@@ -621,10 +626,4 @@
 @end
 
 @implementation UIxSidenavToolbarTemplate
-@end
-
-@interface UIxTopnavToolbarTemplate : UIxComponent
-@end
-
-@implementation UIxTopnavToolbarTemplate
 @end

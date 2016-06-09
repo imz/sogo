@@ -6,8 +6,8 @@
   /**
    * @ngInject
    */
-  AddressBooksController.$inject = ['$state', '$scope', '$rootScope', '$stateParams', '$timeout', '$window', '$mdDialog', '$mdToast', '$mdMedia', '$mdSidenav', 'FileUploader', 'sgFocus', 'Card', 'AddressBook', 'Dialog', 'sgSettings', 'User', 'stateAddressbooks'];
-  function AddressBooksController($state, $scope, $rootScope, $stateParams, $timeout, $window, $mdDialog, $mdToast, $mdMedia, $mdSidenav, FileUploader, focus, Card, AddressBook, Dialog, Settings, User, stateAddressbooks) {
+  AddressBooksController.$inject = ['$state', '$scope', '$rootScope', '$stateParams', '$timeout', '$window', '$mdDialog', '$mdToast', '$mdMedia', '$mdSidenav', 'FileUploader', 'sgConstant', 'sgFocus', 'Card', 'AddressBook', 'Dialog', 'sgSettings', 'User', 'stateAddressbooks'];
+  function AddressBooksController($state, $scope, $rootScope, $stateParams, $timeout, $window, $mdDialog, $mdToast, $mdMedia, $mdSidenav, FileUploader, sgConstant, focus, Card, AddressBook, Dialog, Settings, User, stateAddressbooks) {
     var vm = this;
 
     vm.activeUser = Settings.activeUser;
@@ -19,7 +19,6 @@
     vm.save = save;
     vm.confirmDelete = confirmDelete;
     vm.importCards = importCards;
-    vm.exportCards = exportCards;
     vm.showLinks = showLinks;
     vm.showProperties = showProperties;
     vm.share = share;
@@ -31,7 +30,7 @@
         vm.editMode = false;
         AddressBook.$query.value = '';
         // Close sidenav on small devices
-        if ($mdMedia('xs'))
+        if (!$mdMedia(sgConstant['gt-md']))
           $mdSidenav('left').close();
         $state.go('app.addressbook', {addressbookId: folder.id});
       }
@@ -96,7 +95,7 @@
           });
       }
       else {
-        Dialog.confirm(l('Warning'), l('Are you sure you want to delete the addressbook <em>%{0}</em>?',
+        Dialog.confirm(l('Warning'), l('Are you sure you want to delete the addressbook "%{0}"?',
                                        vm.service.selectedFolder.name),
                        { ok: l('Delete') })
           .then(function() {
@@ -201,10 +200,6 @@
           return isTextFile;
         }
       }
-    }
-
-    function exportCards() {
-      $window.location.href = ApplicationBaseURL + '/' + vm.service.selectedFolder.id + '/exportFolder';
     }
 
     function showLinks(addressbook) {

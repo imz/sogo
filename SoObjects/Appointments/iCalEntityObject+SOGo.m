@@ -86,7 +86,7 @@ NSNumber *iCalDistantFutureNumber = nil;
                               nil];
 
   value = [self priority];
-  if ([value length]) [data setObject: value forKey: @"priority"];
+  if ([value length]) [data setObject: [NSNumber numberWithInteger: [value intValue]] forKey: @"priority"];
 
   value = [self location];
   if ([value length]) [data setObject: value forKey: @"location"];
@@ -171,36 +171,6 @@ NSNumber *iCalDistantFutureNumber = nil;
     [data setObject: attendees forKey: @"attendees"];
 
   return data;
-}
-
-// From [UIxDatePicker takeValuesFromRequest:inContext:]
-- (NSCalendarDate *) dateFromString: (NSString *) dateString
-                          inContext: (WOContext *) context
-{
-  NSInteger dateTZOffset, userTZOffset;
-  NSTimeZone *systemTZ, *userTZ;
-  SOGoUserDefaults *ud;
-  NSCalendarDate *date;
-
-  date = [NSCalendarDate dateWithString: dateString
-                         calendarFormat: @"%Y-%m-%d"];
-  if (!date)
-    [self warnWithFormat: @"Could not parse dateString: '%@'", dateString];
-
-  // We must adjust the date timezone because "dateWithString:..." uses the
-  // system timezone, which can be different from the user's. */
-  ud = [[context activeUser] userDefaults];
-  systemTZ = [date timeZone];
-  dateTZOffset = [systemTZ secondsFromGMTForDate: date];
-  userTZ = [ud timeZone];
-  userTZOffset = [userTZ secondsFromGMTForDate: date];
-  if (dateTZOffset != userTZOffset)
-    date = [date dateByAddingYears: 0 months: 0 days: 0
-                             hours: 0 minutes: 0
-                           seconds: (dateTZOffset - userTZOffset)];
-  [date setTimeZone: userTZ];
-
-  return date;
 }
 
 // From [UIxTimeDatePicker takeValuesFromRequest:inContext:]

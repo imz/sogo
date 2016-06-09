@@ -50,9 +50,10 @@ BuildRequires:  gcc-objc gnustep-base gnustep-make sope%{sope_major_version}%{so
 # saml is enabled everywhere except on el5 since its glib2 is prehistoric
 %define saml2_cfg_opts "--enable-saml2"
 %{?el5:%define saml2_cfg_opts ""}
-%{?el7:%define saml2_cfg_opts ""}
 %{?el6:Requires: lasso}
 %{?el6:BuildRequires: lasso-devel}
+%{?el7:Requires: lasso}
+%{?el7:BuildRequires: lasso-devel}
 
 %description
 SOGo is a groupware server built around OpenGroupware.org (OGo) and
@@ -387,13 +388,19 @@ rm -fr ${RPM_BUILD_ROOT}
 
 # **************************** pkgscripts *****************************
 %pre
+if ! getent group %sogo_user >& /dev/null; then
+  groupadd -f -r %sogo_user
+fi
 if ! id %sogo_user >& /dev/null; then
-  /usr/sbin/useradd -d %{_var}/lib/sogo -c "SOGo daemon" -s /sbin/nologin -M -r %sogo_user
+  /usr/sbin/useradd -d %{_var}/lib/sogo -c "SOGo daemon" -s /sbin/nologin -M -r -g %sogo_user %sogo_user
 fi
 
 %post
 # update timestamp on imgs,css,js to let apache know the files changed
 find %{_libdir}/GNUstep/SOGo/WebServerResources  -exec touch {} \;
+# make shells scripts in documentation directory executable
+find %{_docdir}/ -name '*.sh' -exec chmod a+x {} \;
+
 %if 0%{?_with_systemd}
   systemctl daemon-reload
   systemctl enable sogod

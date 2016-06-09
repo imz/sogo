@@ -514,6 +514,11 @@ NSString *SOGoWeekStartFirstFullWeek = @"FirstFullWeek";
   return [self stringForKey: @"SOGoRefreshViewCheck"];
 }
 
+- (BOOL) gravatarEnabled
+{
+  return [self boolForKey: @"SOGoGravatarEnabled"];
+}
+
 - (void) setAlternateAvatar: (NSString *) newValue
 {
   [self setObject: newValue forKey: @"SOGoAlternateAvatar"];
@@ -739,6 +744,16 @@ NSString *SOGoWeekStartFirstFullWeek = @"FirstFullWeek";
 - (NSDictionary *) calendarCategoriesColors
 {
   return [self objectForKey: @"SOGoCalendarCategoriesColors"];
+}
+
+- (void) setCalendarWeekdays: (NSArray *) newValues
+{
+  [self setObject: newValues forKey: @"SOGoCalendarWeekdays"];
+}
+
+- (NSArray *) calendarWeekdays
+{
+  return [self stringArrayForKey: @"SOGoCalendarWeekdays"];
 }
 
 - (void) setCalendarShouldDisplayWeekend: (BOOL) newValue

@@ -250,13 +250,16 @@ static NSArray *infoKeys = nil;
 
 - (NSString *) from
 {
-  NSDictionary *identity;
+  NSArray *identities;
 
   if (!from)
     {
-      identity = [[context activeUser] primaryIdentity];
-      from = [self _emailFromIdentity: identity];
-      [from retain];
+      identities = [[[self clientObject] mailAccountFolder] identities];
+      if ([identities count])
+        {
+          from = [self _emailFromIdentity: [identities objectAtIndex: 0]];
+          [from retain];
+        }
     }
 
   return from;
@@ -426,7 +429,7 @@ static NSArray *infoKeys = nil;
 {
   if (![_info isNotNull]) return;
   [self debugWithFormat:@"loading info ..."];
-  [self setValuesForKeysWithDictionary:_info];
+  [self setValuesForKeysWithDictionary: _info];
 }
 
 - (NSDictionary *) infoFromRequest
@@ -439,6 +442,7 @@ static NSArray *infoKeys = nil;
   filteredParams = [NSDictionary dictionaryWithObjects: [params objectsForKeys: infoKeys notFoundMarker: [NSNull null]]
                                                forKeys: infoKeys];
 
+  [self setFrom: [filteredParams objectForKey: @"from"]];
   [self setTo: [filteredParams objectForKey: @"to"]];
   [self setCc: [filteredParams objectForKey: @"cc"]];
   [self setBcc: [filteredParams objectForKey: @"bcc"]];
@@ -510,14 +514,6 @@ static NSArray *infoKeys = nil;
 //           ? @"remote" : @"local");
 // }
 
-/* requests */
-
-// - (BOOL) shouldTakeValuesFromRequest: (WORequest *) request
-// 			   inContext: (WOContext*) localContext
-// {
-//   return YES;
-// }
-
 /* actions */
 - (NSString *) _fixedFilename: (NSString *) filename
 {
@@ -527,10 +523,9 @@ static NSArray *infoKeys = nil;
   if (!attachedFiles)
     attachedFiles = [NSMutableArray new];
 
-  newFilename = filename;
-
-  baseFilename = [filename stringByDeletingPathExtension];
-  extension = [filename pathExtension];
+  newFilename = [filename stringByReplacingOccurrencesOfString:@"\\\"" withString:@"\""]; /* to real filename */
+  baseFilename = [newFilename stringByDeletingPathExtension];
+  extension = [newFilename pathExtension];
   variation = 0;
   while ([attachedFiles containsObject: newFilename])
     {
@@ -869,7 +864,7 @@ static NSArray *infoKeys = nil;
     {
       error = [self validateForSend];
       if (!error)
-        error = [co sendMail];
+        error = [co sendMailAndCopyToSent: YES];
       else
 	error = [self failedToSaveFormResponse: [error reason]];
     }

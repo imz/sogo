@@ -38,8 +38,6 @@
 #import <SOGo/SOGoUser.h>
 #import <SOGo/SOGoUserSettings.h>
 
-#import <UI/Common/WODirectAction+SOGo.h>
-
 #import "UIxMailFolderActions.h"
 
 @implementation UIxMailFolderActions
@@ -225,7 +223,6 @@
   SOGoUserSettings *us;
   WOResponse *response;
   NSException *error;
-
   BOOL moved;
 
   co = [self clientObject];
@@ -372,28 +369,27 @@
   SOGoMailFolder *co;
   WOResponse *response;
   NSArray *uids;
-  NSDictionary *jsonResponse;
-  NSString *value;
+  NSDictionary *data, *jsonResponse;
 
   co = [self clientObject];
-  value = [[context request] formValueForKey: @"uid"];
+  data = [[[context request] contentAsString] objectFromJSONString];
+  uids = [data objectForKey: @"uids"];
   response = nil;
 
-  if ([value length] > 0)
-  {
-    uids = [value componentsSeparatedByString: @","];
-    response = [co archiveUIDs: uids
-                inArchiveNamed: [self labelForKey: @"Saved Messages.zip" inContext: context]
-                     inContext: context];
-    if (!response)
-      response = [self responseWith204];
-  }
+  if ([uids count] > 0)
+    {
+      response = [co archiveUIDs: uids
+                  inArchiveNamed: [self labelForKey: @"Saved Messages.zip" inContext: context]
+                       inContext: context];
+      if (!response)
+        response = [self responseWith204];
+    }
   else
-  {
-    jsonResponse = [NSDictionary dictionaryWithObject: [self labelForKey: @"Missing 'uid' parameter." inContext: context]
-                                               forKey: @"message"];
-    response = [self responseWithStatus: 500 andJSONRepresentation: jsonResponse];
-  }
+    {
+      jsonResponse = [NSDictionary dictionaryWithObject: [self labelForKey: @"Missing 'uids' parameter." inContext: context]
+                                                 forKey: @"message"];
+      response = [self responseWithStatus: 500 andJSONRepresentation: jsonResponse];
+    }
 
   return response;
 }

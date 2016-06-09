@@ -38,6 +38,7 @@
     if (attrs.size) {
       imgElement.attr('width', attrs.size);
       imgElement.attr('height', attrs.size);
+      mdIconElement.css('font-size', attrs.size + 'px');
     }
 
     controller.img = imgElement;
@@ -59,7 +60,8 @@
         if (email && vm.urlEmail != email) {
           // Email has changed or doesn't match the current URL (this happens when using md-virtual-repeat)
           showGenericAvatar();
-          getGravatar(email);
+          if (Preferences.defaults.SOGoGravatarEnabled)
+            getGravatar(email);
         }
         else if (!email)
           showGenericAvatar();

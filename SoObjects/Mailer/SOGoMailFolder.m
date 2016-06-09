@@ -528,22 +528,23 @@ _compareFetchResultsByMODSEQ (id entry1, id entry2, void *data)
   if (!archiveName)
     archiveName = @"SavedMessages.zip";
 
-#warning this method should be rewritten according to our coding styles  
   spoolPath = [self userSpoolFolderPath];
-  if (![self ensureSpoolFolderPath]) {
-    [self errorWithFormat: @"spool directory '%@' doesn't exist", spoolPath];
-    error = [NSException exceptionWithHTTPStatus: 500 
-                                          reason: @"spool directory does not exist"];
-    return (WOResponse *)error;
+  if (![self ensureSpoolFolderPath])
+    {
+      [self errorWithFormat: @"spool directory '%@' doesn't exist", spoolPath];
+      error = [NSException exceptionWithHTTPStatus: 500
+                                            reason: @"spool directory does not exist"];
+      return (WOResponse *)error;
   }
 
   zipPath = [[SOGoSystemDefaults sharedSystemDefaults] zipPath];
   fm = [NSFileManager defaultManager];
-  if (![fm fileExistsAtPath: zipPath]) {
-    error = [NSException exceptionWithHTTPStatus: 500 
-                                          reason: @"zip not available"];
-    return (WOResponse *)error;
-  }
+  if (![fm fileExistsAtPath: zipPath])
+    {
+      error = [NSException exceptionWithHTTPStatus: 500
+                                            reason: @"zip not available"];
+      return (WOResponse *)error;
+    }
   
   zipTask = [[NSTask alloc] init];
   [zipTask setCurrentDirectoryPath: spoolPath];
@@ -553,17 +554,18 @@ _compareFetchResultsByMODSEQ (id entry1, id entry2, void *data)
   [zipTaskArguments addObject: @"SavedMessages.zip"];
 
   msgs = (NSDictionary *)[self fetchUIDs: uids  
-                                   parts: [NSArray arrayWithObject: @"RFC822"]];
+                                   parts: [NSArray arrayWithObject: @"BODY.PEEK[]"]];
   messages = [msgs objectForKey: @"fetch"];
 
-  for (i = 0; i < [messages count]; i++) {
-    content = [[messages objectAtIndex: i] objectForKey: @"message"];
-    fileName = [NSString stringWithFormat:@"%@/%@.eml", spoolPath, [uids objectAtIndex: i]];;
-    [content writeToFile: fileName atomically: YES];
+  for (i = 0; i < [messages count]; i++)
+    {
+      content = [[[messages objectAtIndex: i] objectForKey: @"body[]"] objectForKey: @"data"];
+      fileName = [NSString stringWithFormat:@"%@/%@.eml", spoolPath, [uids objectAtIndex: i]];;
+      [content writeToFile: fileName atomically: YES];
     
-    [zipTaskArguments addObject: 
-      [NSString stringWithFormat:@"%@.eml", [uids objectAtIndex: i]]];
-  }
+      [zipTaskArguments addObject:
+                          [NSString stringWithFormat:@"%@.eml", [uids objectAtIndex: i]]];
+    }
   
   [zipTask setArguments: zipTaskArguments];
   [zipTask launch];
@@ -572,16 +574,16 @@ _compareFetchResultsByMODSEQ (id entry1, id entry2, void *data)
   [zipTask release];
   
   zipContent = [[NSData alloc] initWithContentsOfFile: 
-    [NSString stringWithFormat: @"%@/SavedMessages.zip", spoolPath]];
+                           [NSString stringWithFormat: @"%@/SavedMessages.zip", spoolPath]];
   
-  for(i = 0; i < [zipTaskArguments count]; i++) {
-    fileName = [zipTaskArguments objectAtIndex: i];
-    [fm removeFileAtPath: 
-      [NSString stringWithFormat: @"%@/%@", spoolPath, fileName] handler: nil];
-  }
-  
-  response = [context response];
+  for (i = 0; i < [zipTaskArguments count]; i++)
+    {
+      fileName = [zipTaskArguments objectAtIndex: i];
+      [fm removeFileAtPath:
+            [NSString stringWithFormat: @"%@/%@", spoolPath, fileName] handler: nil];
+    }
 
+  response = [context response];
   baseName = [archiveName stringByDeletingPathExtension];
   extension = [archiveName pathExtension];
   if ([extension length] > 0)
@@ -595,14 +597,14 @@ _compareFetchResultsByMODSEQ (id entry1, id entry2, void *data)
   [response setHeader: [NSString stringWithFormat: @"application/zip;"
                                  @" name=\"%@\"",
                                  qpFileName]
-               forKey:@"content-type"];
+               forKey: @"content-type"];
   [response setHeader: [NSString stringWithFormat: @"attachment; filename=\"%@\"",
                                  qpFileName]
                forKey: @"Content-Disposition"];
   [response setContent: zipContent];
 
   [zipContent release];
-  
+
   return response;
 }
 
@@ -895,7 +897,7 @@ _compareFetchResultsByMODSEQ (id entry1, id entry2, void *data)
         }
     }
 
-  return error;
+  return (WOResponse *) error;
 }
 
 - (NSDictionary *) statusForFlags: (NSArray *) flags
@@ -2234,7 +2236,7 @@ _compareFetchResultsByMODSEQ (id entry1, id entry2, void *data)
 // 
 // FIXME: refactor MAPIStoreMailFolder.m - synchroniseCache to use this method
 //
-- (NSArray *) syncTokenFieldsWithProperties: (NSArray *) theProperties
+- (NSArray *) syncTokenFieldsWithProperties: (NSDictionary *) theProperties
                           matchingSyncToken: (NSString *) theSyncToken
                                    fromDate: (NSCalendarDate *) theStartDate
                                 initialLoad: (BOOL) initialLoadInProgress
@@ -2245,18 +2247,13 @@ _compareFetchResultsByMODSEQ (id entry1, id entry2, void *data)
   NSDictionary *d;
   id fetchResults;
 
-  int uidnext, highestmodseq, i; 
+  int highestmodseq = 0, i;
 
   allTokens = [NSMutableArray array];
 
-  if ([theSyncToken isEqualToString: @"-1"])
-    {
-      uidnext = highestmodseq = 0;
-    }
-  else
+  if (![theSyncToken isEqualToString: @"-1"])
     {
       a = [theSyncToken componentsSeparatedByString: @"-"];
-      uidnext = [[a objectAtIndex: 0] intValue];
       highestmodseq = [[a objectAtIndex: 1] intValue];
     }
   

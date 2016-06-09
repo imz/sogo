@@ -69,7 +69,8 @@
   content = [NSMutableString string];
   request = [context request];
   sourceFolder = [self clientObject];
-  contactsId = [request formValuesForKey: @"uid"];
+  contactsId = [[[[context request] contentAsString] objectFromJSONString] objectForKey: @"uids"];
+
   if (!contactsId)
     contactsId = [sourceFolder toOneRelationshipKeys];
 
@@ -111,7 +112,17 @@
 
   request = [context request];
   rc = [NSMutableDictionary dictionary];
-  data = [[[[[request httpRequest] body] parts] lastObject] body];
+  data = [[request httpRequest] body];
+
+  // We got an exception, that means the file upload limit
+  // has been reached.
+  if ([data isKindOfClass: [NSException class]])
+    {
+      response = [self responseWithStatus: 507];
+      return response;
+    }
+
+  data = [[[data parts] lastObject] body];
 
   fileContent = [[NSString alloc] initWithData: (NSData *) data 
                                       encoding: NSUTF8StringEncoding];

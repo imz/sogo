@@ -1,6 +1,5 @@
 /*
-  Copyright (C) 2005-2014 Inverse inc.
-  Copyright (C) 2004-2005 SKYRIX Software AG
+  Copyright (C) 2005-2016 Inverse inc.
 
   This file is part of SOGo
 
@@ -24,6 +23,7 @@
 #import <GDLAccess/EOAdaptorChannel.h>
 #import <GDLContentStore/GCSChannelManager.h>
 #import <GDLContentStore/GCSFolderManager.h>
+#import <GDLContentStore/GCSFolderType.h>
 #import <GDLContentStore/GCSAlarmsFolder.h>
 #import <GDLContentStore/GCSSessionsFolder.h>
 
@@ -211,34 +211,92 @@ static BOOL debugLeaks;
   [cm releaseChannel: tc];
 }
 
+- (void) _checkQuickTableWithTypeName: typeName
+                               withCm: (GCSChannelManager *) cm
+                             tableURL: (NSString *) url
+{
+  GCSFolderType *type;
+  NSString *sql;
+  NSString *tableName;
+  EOAdaptorChannel *channel;
+
+  channel = [cm acquireOpenChannelForURL: [NSURL URLWithString: url]];
+
+  tableName = [NSString stringWithFormat: @"sogo_quick_%@", typeName];
+  sql = [NSString stringWithFormat: @"SELECT count(*) FROM %@",
+                  tableName];
+  if ([channel evaluateExpressionX: sql])
+    {
+      type = [GCSFolderType folderTypeWithName: typeName];
+      if (type)
+        {
+          sql = [type sqlQuickCreateWithTableName: tableName];
+          if (![channel evaluateExpressionX: sql])
+            [self logWithFormat: @"sogo quick table %@ successfully created!",
+                  tableName];
+        }
+    }
+  else
+    [channel cancelFetch];
+
+  [cm releaseChannel:channel];
+}
+
+
+//
+// If OCSStoreURL is defined, we also check for OCSAclURL, OCSCacheFolderURL
+// and we create the combined quick tables.
+//
 - (BOOL) _checkMandatoryTables
 {
   GCSChannelManager *cm;
   GCSFolderManager *fm;
-  NSString *urlStrings[] = {@"SOGoProfileURL", @"OCSFolderInfoURL", nil};
-  NSString **urlString;
-  NSString *value;
+  NSArray *urlStrings;
+  NSArray *quickTypeStrings;
+  NSString *tmp, *value;
   SOGoSystemDefaults *defaults;
-  BOOL ok;
+  NSEnumerator *e;
+  BOOL ok, combined;
 
   defaults = [SOGoSystemDefaults sharedSystemDefaults];
   ok = YES;
+
+  if ([GCSFolderManager singleStoreMode])
+    {
+      urlStrings = [NSArray arrayWithObjects: @"SOGoProfileURL", @"OCSFolderInfoURL", @"OCSStoreURL", @"OCSAclURL", @"OCSCacheFolderURL", nil];
+      quickTypeStrings = [NSArray arrayWithObjects: @"contact", @"appointment", nil];
+      combined = YES;
+    }
+  else
+    {
+      urlStrings = [NSArray arrayWithObjects: @"SOGoProfileURL", @"OCSFolderInfoURL", nil];
+      combined = NO;
+    }
+
   cm = [GCSChannelManager defaultChannelManager];
 
-  urlString = urlStrings;
-  while (ok && *urlString)
+  e = [urlStrings objectEnumerator];
+  while (ok && (tmp = [e nextObject]))
     {
-      value = [defaults stringForKey: *urlString];
+      value = [defaults stringForKey: tmp];
       if (value)
-	{
-	  [self _checkTableWithCM: cm tableURL: value andType: *urlString];
-	  urlString++;
-	}
+	  [self _checkTableWithCM: cm tableURL: value andType: tmp];
       else
 	{
-	  [self errorWithFormat: @"No value specified for '%@'", *urlString];
+	  [self errorWithFormat: @"No value specified for '%@'", tmp];
 	  ok = NO;
 	}
+    }
+
+  if (combined)
+    {
+      e = [quickTypeStrings objectEnumerator];
+      while ((tmp = [e nextObject]))
+        {
+          [self _checkQuickTableWithTypeName: tmp
+                                      withCm: cm
+                                    tableURL: [defaults stringForKey: @"OCSFolderInfoURL"]];
+        }
     }
 
   if (ok)
@@ -416,8 +474,12 @@ static BOOL debugLeaks;
 {
   static NSArray *runLoopModes = nil;
   static BOOL debugOn = NO;
+
+  SOGoSystemDefaults *sd;
   WOResponse *resp;
   NSDate *startDate;
+  NSString *path;
+
   NSTimeInterval timeDelta;
 
   if (debugRequests)
@@ -427,6 +489,7 @@ static BOOL debugLeaks;
       startDate = [NSDate date];
     }
 
+  sd = [SOGoSystemDefaults sharedSystemDefaults];
   cache = [SOGoCache sharedCache];
 #ifdef GNUSTEP_BASE_LIBRARY
   if (debugLeaks)
@@ -440,6 +503,64 @@ static BOOL debugLeaks;
         }
     }
 #endif
+
+  // We check for rate-limiting settings - ignore anything actually
+  // sent to /SOGo/ (so unauthenticated requests).
+  path = [_request requestHandlerPath];
+  if ([path length] && [sd maximumRequestCount] > 0)
+    {
+      NSDictionary *requestCount;
+      NSString *username;
+      NSRange r;
+
+      r = [path rangeOfString: @"/"];
+
+      // We handle /sogo1/Calendar/.../ and "sogo1" as paths
+      if (r.length)
+        username = [path substringWithRange: NSMakeRange(0, r.location)];
+      else
+        username = path;
+
+      requestCount = [cache requestCountForLogin: username];
+
+      if (requestCount)
+        {
+          unsigned int  current_time, start_time, delta, block_time, request_count;
+
+          current_time = [[NSCalendarDate date] timeIntervalSince1970];
+          start_time = [[requestCount objectForKey: @"InitialDate"] unsignedIntValue];
+          delta = current_time - start_time;
+
+          block_time = [sd requestBlockInterval];
+          request_count = [[requestCount objectForKey: @"RequestCount"] intValue];
+
+          if ( request_count >= [sd maximumRequestCount] &&
+               delta < [sd maximumRequestInterval] &&
+               delta <= block_time )
+            {
+              resp = [WOResponse responseWithRequest: _request];
+              [resp setStatus: 429];
+              return resp;
+            }
+
+          if (delta > block_time)
+            {
+              [cache setRequestCount: 1
+                            forLogin: username
+                            interval: current_time];
+            }
+          else
+            [cache setRequestCount: (request_count+1)
+                          forLogin: username
+                          interval: start_time];
+        }
+      else
+        {
+          [cache setRequestCount: 1
+                        forLogin: username
+                        interval: 0];
+        }
+    }
 
   resp = [super dispatchRequest: _request];
   [cache killCache];

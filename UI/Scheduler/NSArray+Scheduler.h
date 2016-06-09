@@ -1,8 +1,6 @@
 /* NSArray+Scheduler.m - this file is part of SOGo
  *
- * Copyright (C) 2007-2010 Inverse inc.
- *
- * Author: Wolfgang Sourdeau <wsourdeau@inverse.ca>
+ * Copyright (C) 2007-2016 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,23 +27,25 @@
 #define eventFolderIndex            1
 #define eventCalendarNameIndex      2
 #define eventStatusIndex            3
-#define eventTitleIndex             4
-#define eventStartDateIndex         5
-#define eventEndDateIndex           6
-#define eventLocationIndex          7
-#define eventIsAllDayIndex          8
-#define eventClassificationIndex    9
-#define eventCategoryIndex         10
-#define eventPartMailsIndex        11
-#define eventPartStatesIndex       12
-#define eventOwnerIndex            13
-#define eventIsCycleIndex          14
-#define eventNextAlarmIndex        15
-#define eventRecurrenceIdIndex     16
-#define eventIsExceptionIndex      17
-#define eventEditableIndex         18
-#define eventErasableIndex         19
-#define eventOwnerIsOrganizerIndex 20
+#define eventIsOpaqueIndex          4
+#define eventTitleIndex             5
+#define eventStartDateIndex         6
+#define eventEndDateIndex           7
+#define eventLocationIndex          8
+#define eventIsAllDayIndex          9
+#define eventClassificationIndex   10
+#define eventCategoryIndex         11
+#define eventPriorityIndex         12
+#define eventPartMailsIndex        13
+#define eventPartStatesIndex       14
+#define eventOwnerIndex            15
+#define eventIsCycleIndex          16
+#define eventNextAlarmIndex        17
+#define eventRecurrenceIdIndex     18
+#define eventIsExceptionIndex      19
+#define eventEditableIndex         20
+#define eventErasableIndex         21
+#define eventOwnerIsOrganizerIndex 22
 
 // See [UIxCalListingActions initialize]
 #define taskNameIndex               0

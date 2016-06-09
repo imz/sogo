@@ -8,7 +8,7 @@
     xmlns:label="OGo:label"
     className="UIxPageFrame"
     title="title"
-    const:jsFiles="Common.js, Preferences.services.js, Contacts.services.js, Scheduler.services.js, Mailer.js, Mailer.services.js, vendor/ckeditor/ckeditor.js, vendor/ckeditor/ck.js, vendor/angular-file-upload.min.js">
+    const:jsFiles="Common.js, Preferences.services.js, Contacts.services.js, Scheduler.services.js, Mailer.js, Mailer.services.js, vendor/ckeditor/ckeditor.js, vendor/ckeditor/ck.js, vendor/angular-file-upload.min.js, vendor/FileSaver.min.js">
   <script type="text/javascript">
     var mailAccounts = <var:string value="mailAccounts" const:escapeHTML="NO" />;
     var userNames = <var:string value="userNames" const:escapeHTML="NO" />;
@@ -22,65 +22,72 @@
       SHOULD be a main tag
       Templates script tag wrappers go next
   -->
-  <main class="view layout-fill" ui-view="mailboxes" layout="row" ng-controller="navController"><!-- mailboxes list --></main>
+  <main class="view"
+        layout="row" layout-fill="layout-fill"
+        ui-view="mailboxes"
+        ng-controller="navController"><!-- mailboxes list --></main>
 
   <script type="text/ng-template" id="UIxMailMainFrame">
 
     <!-- Sidenav -->
-    <md-sidenav class="md-sidenav-left md-whiteframe-z1 layout-fill" layout="column"
+    <md-sidenav class="md-sidenav-left md-whiteframe-z1" layout="column" layout-fill="layout-fill"
                 md-component-id="left" md-is-locked-open="isGtMedium"
-                ng-class="{ 'sg-closed': leftIsClose }">
+                ng-class="{ 'sg-close': leftIsClose }">
       <var:component className="UIxSidenavToolbarTemplate" />
-      <md-content class="md-flex md-hue-2" layout="column" md-scroll-y="md-scroll-y">
-        <section class="md-flex" layout="column"
-                 ng-repeat="account in app.accounts track by account.id">
-          <md-subheader class="md-hue-2">
-            <div layout="row" layout-align="start center">
-              <md-button class="md-icon-button"
+      <md-content class="md-flex" layout="column" md-scroll-y="md-scroll-y"
+                  md-colors="::{ backgroundColor: 'default-background-300' }">
+        <section layout="column"
+                 ng-repeat="account in ::app.accounts track by account.id"
+                 ng-class="{ 'md-flex': account.$expanded }">
+          <md-list>
+            <md-list-item ng-click="app.toggleAccountState(account)">
+              <div class="sg-no-wrap">{{account.name}}</div>
+              <div class="md-flex"><!-- spacer --></div>
+              <md-button class="md-icon-button md-secondary"
                          ng-show="account.id == 0"
                          label:aria-label="Delegation..."
                          ng-click="app.delegate(account)">
                 <md-tooltip md-delay="300"><var:string label:value="Delegation..."/></md-tooltip>
                 <md-icon>people</md-icon>
               </md-button>
-              <div class="sg-no-wrap">{{account.name}}</div>
-              <div class="md-flex"><!-- spacer --></div>
-              <md-button class="sg-icon-button"
+              <md-button class="md-icon-button md-secondary"
                          label:aria-label="New Folder..."
                          ng-click="app.newFolder(account)">
                 <md-tooltip md-delay="300"><var:string label:value="New Folder..."/></md-tooltip>
                 <md-icon>add_circle_outline</md-icon>
               </md-button>
-            </div>
-          </md-subheader>
-          <div class="sg-quota" ng-if="account.$quota">
+            </md-list-item>
+          </md-list>
+          <div class="sg-quota ng-hide" ng-show="account.$quota">
             <md-progress-linear md-mode="determinate"
                                 ng-class="{ 'md-warn': account.$quota.percent > 70 }"
                                 value="{{account.$quota.percent}}"><!-- quota --></md-progress-linear>
             <div class="sg-md-caption md-default-theme md-fg md-primary"
+                 ng-show="account.$expanded"
                  ng-class="{ 'md-warn': account.$quota.percent > 70 }">{{account.$quota.description}}</div>
           </div>
-          <md-virtual-repeat-container class="md-flex">
+          <md-virtual-repeat-container ng-class="{ 'md-flex': account.$expanded }">
             <md-list>
-              <md-list-item md-virtual-repeat="folder in account.$flattenMailboxes()" md-item-size="48"
+              <md-list-item md-virtual-repeat="folder in account" md-item-size="48" md-on-demand="md-on-demand"
                             class="md-default-theme md-background md-hue-1"
-                            ng-class="{'md-bg': folder.id == app.service.selectedFolder.id}"
-                            ng-dblclick="app.editFolder(folder)">
+                            ng-class="{'md-bg': folder.id == app.service.selectedFolder.id}">
                 <div ng-class="'sg-child-level-' + folder.level">
-                  <md-icon ng-hide="folder.children.length">{{app.metadataForFolder(folder).icon}}</md-icon>
-                  <md-checkbox class="sg-folder"
+                  <md-icon class="ng-hide"
+                           ng-hide="folder.children.length">{{app.metadataForFolder(folder).icon}}</md-icon>
+                  <md-checkbox class="sg-folder ng-hide"
                                label:aria-label="Expanded"
                                ng-show="folder.children.length"
                                ng-model="folder.$expanded"
                                ng-change="account.$flattenMailboxes({ reload: true, saveState: true })"><!-- expanded --></md-checkbox>
                 </div>
-                <p class="sg-item-name"
+                <p class="sg-item-name ng-hide"
                    ng-click="app.selectFolder($event, account, folder)"
+                   ng-dblclick="app.editFolder(folder)"
                    ng-show="app.editMode != folder.path">
                   {{app.metadataForFolder(folder).name}}
-                  <span class="sg-counter-badge" ng-show="folder.unseenCount">{{folder.unseenCount}}</span>
+                  <span class="sg-counter-badge ng-hide" ng-show="folder.unseenCount">{{folder.unseenCount}}</span>
                 </p>
-                <md-input-container class="md-flex"
+                <md-input-container class="md-flex ng-hide"
                                     ng-show="app.editMode == folder.path">
                   <input class="sg-item-name" type="text"
                          label:aria-label="Enter the new name of your folder"
@@ -90,7 +97,8 @@
                          sg-enter="app.saveFolder(folder)"
                          sg-escape="app.revertEditing(folder)"/>
                 </md-input-container>
-                <md-menu ng-show="app.service.selectedFolder.path == folder.path">
+                <md-menu class="ng-hide"
+                         ng-show="app.service.selectedFolder.id == folder.id">
                   <md-icon label:aria-label="Options"
                            ng-click="$mdOpenMenu($event)"
                            md-menu-origin="md-menu-origin">more_vert</md-icon>
@@ -127,7 +135,7 @@
                       </md-button>
                     </md-menu-item>
                     <md-menu-item>
-                      <md-button type="button" ng-click="app.exportMails(folder)">
+                      <md-button type="button" ng-click="folder.exportFolder()">
                         <var:string label:value="Export"/>
                       </md-button>
                     </md-menu-item>
@@ -174,13 +182,15 @@
       </md-content>
     </md-sidenav>
 
-    <section layout="column" class="layout-fill" ui-view="mailbox">
+    <section layout="column" layout-fill="layout-fill" ui-view="mailbox">
       <md-toolbar layout="row" layout-align="space-between center" class="toolbar-main">
-        <var:component className="UIxTopnavToolbarTemplate"/>
+        <var:component className="UIxTopnavToolbar"/>
       </md-toolbar>
-      <md-content class="md-flex layout-fill md-hue-1"
-                  layout="column" layout-align="center center">
-        <div class="md-default-theme md-background md-fg md-hue-3 sg-md-title">
+      <md-content class="md-flex"
+                  md-colors="::{backgroundColor: 'default-background-200'}"
+                  layout="column" layout-align="center center" layout-fill="layout-fill">
+        <div class="sg-md-title"
+             md-colors="::{color: 'default-background-500'}">
           <var:string label:value="No mailbox selected"/>
         </div>
       </md-content>
@@ -190,11 +200,11 @@
   <script type="text/ng-template" id="UIxMailFolderTemplate">
     <md-toolbar layout="row" layout-align="space-between center" class="toolbar-main"
                 ng-hide="app.showingAdvancedSearch">
-      <var:component className="UIxTopnavToolbarTemplate"/>
+      <var:component className="UIxTopnavToolbar"/>
     </md-toolbar>
 
     <!-- Advanced search toolbar -->
-    <md-toolbar layout="column" class="md-tall toolbar-main"
+    <md-toolbar layout="column" class="md-tall toolbar-main md-hue-3"
                 ng-show="app.showingAdvancedSearch">
       <div class="md-toolbar-tools">
         <div layout="column" class="md-flex">
@@ -226,7 +236,8 @@
       <div class="md-toolbar-tools">
         <md-chips class="md-flex"
                   ng-model="app.search.params"
-                  md-transform-chip="app.newSearchParam($chip)">
+                  md-transform-chip="app.newSearchParam($chip)"
+                  sg-transform-on-blur="sg-transform-on-blur">
           <input sg-focus-on="advancedSearch" type="text"
                  ng-disabled="app.currentSearchParam.length == 0"
                  sg-placeholder="app.search.options[app.currentSearchParam]"/>

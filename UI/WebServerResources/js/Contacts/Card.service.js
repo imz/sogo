@@ -70,9 +70,11 @@
   }
   angular.module('SOGo.ContactsUI')
     .constant('sgCard_STATUS', {
-      NOT_LOADED: 0,
-      LOADING: 1,
-      LOADED: 2
+      NOT_LOADED:      0,
+      DELAYED_LOADING: 1,
+      LOADING:         2,
+      LOADED:          3,
+      DELAYED_MS:      300
     })
     .factory('Card', Card.$factory);
 
@@ -165,6 +167,33 @@
   };
 
   /**
+   * @function $isLoading
+   * @memberof Card.prototype
+   * @returns true if the Card definition is still being retrieved from server after a specific delay
+   * @see sgCard_STATUS
+   */
+  Card.prototype.$isLoading = function() {
+    return this.$loaded == Card.STATUS.LOADING;
+  };
+
+  /**
+   * @function $reload
+   * @memberof Message.prototype
+   * @desc Fetch the viewable message body along with other metadata such as the list of attachments.
+   * @returns a promise of the HTTP operation
+   */
+  Card.prototype.$reload = function() {
+    var futureCardData;
+
+    if (this.$futureCardData)
+      return this;
+
+    futureCardData = Card.$$resource.fetch([this.pid, this.id].join('/'), 'view');
+
+    return this.$unwrap(futureCardData);
+  };
+
+  /**
    * @function $save
    * @memberof Card.prototype
    * @desc Save the card to the server.
@@ -202,14 +231,28 @@
     }
   };
 
-  Card.prototype.$fullname = function() {
-    var fn = this.c_cn || '', names;
+  /**
+   * @function export
+   * @memberof Card.prototype
+   * @desc Download the current card
+   * @returns a promise of the HTTP operation
+   */
+  Card.prototype.export = function() {
+    var selectedIDs;
+
+    selectedIDs = [ this.id ];
+
+    return Card.$$resource.download(this.pid, 'export', {uids: selectedIDs}, {type: 'application/octet-stream'});
+  };
+
+  Card.prototype.$fullname = function(options) {
+    var fn = this.c_cn || '', html = options && options.html, names;
     if (fn.length === 0) {
       names = [];
       if (this.c_givenname && this.c_givenname.length > 0)
         names.push(this.c_givenname);
       if (this.nickname && this.nickname.length > 0)
-        names.push('<em>' + this.nickname + '</em>');
+        names.push((html?'<em>':'') + this.nickname + (html?'</em>':''));
       if (this.c_sn && this.c_sn.length > 0)
         names.push(this.c_sn);
       if (names.length > 0)
@@ -271,6 +314,9 @@
       else if (this.emails && this.emails.length) {
         email = this.emails[0].value;
       }
+      else if (this.c_mail && this.c_mail.length) {
+        email = this.c_mail[0];
+      }
       else {
         email = '';
       }
@@ -297,8 +343,10 @@
     return this.c_component == 'vcard';
   };
 
-  Card.prototype.$isList = function() {
-    return this.c_component == 'vlist';
+  Card.prototype.$isList = function(options) {
+    // isGroup attribute means it's a group of a LDAP source (not expandable on the client-side)
+    var condition = (!options || !options.expandable || options.expandable && !this.isgroup);
+    return this.c_component == 'vlist' && condition;
   };
 
   Card.prototype.$addOrgUnit = function(orgUnit) {
@@ -406,6 +454,27 @@
   };
 
   /**
+   * @function explode
+   * @memberof Card.prototype
+   * @desc Create a new Card associated to each email address of this card.
+   * @return an array of Card instances
+   */
+  Card.prototype.explode = function() {
+    var _this = this, cards = [], data;
+
+    if (this.emails.length > 1) {
+      data = this.$omit();
+      _.forEach(this.emails, function(email) {
+        var card = new Card(angular.extend({}, data, {emails: [email]}));
+        cards.push(card);
+      });
+      return cards;
+    }
+    else
+      return [this];
+  };
+
+  /**
    * @function $reset
    * @memberof Card.prototype
    * @desc Reset the original state the card's data.
@@ -458,7 +527,11 @@
     var _this = this;
 
     // Card is not loaded yet
-    this.$loaded = Card.STATUS.LOADING;
+    this.$loaded = Card.STATUS.DELAYED_LOADING;
+    Card.$timeout(function() {
+      if (_this.$loaded != Card.STATUS.LOADED)
+        _this.$loaded = Card.STATUS.LOADING;
+    }, Card.STATUS.DELAYED_MS);
 
     // Expose the promise
     this.$futureCardData = futureCardData.then(function(data) {
@@ -470,9 +543,10 @@
         _this.refs[i] = new Card(o);
       });
       if (_this.birthday) {
-        _this.birthday = new Date(_this.birthday * 1000);
         Card.$Preferences.ready().then(function() {
-          _this.$birthday = Card.$Preferences.$mdDateLocaleProvider.formatDate(_this.birthday);
+          var dlp = Card.$Preferences.$mdDateLocaleProvider;
+          _this.birthday = _this.birthday.parseDate(dlp, '%Y-%m-%d');
+          _this.$birthday = dlp.formatDate(_this.birthday);
         });
       }
       // Mark card as loaded
@@ -482,6 +556,8 @@
 
       return _this;
     });
+
+    return this.$futureCardData;
   };
 
   /**
@@ -510,9 +586,9 @@
     // We convert back our birthday object
     if (!deep) {
       if (card.birthday)
-        card.birthday = card.birthday.getTime()/1000;
+        card.birthday = card.birthday.format(Card.$Preferences.$mdDateLocaleProvider, '%Y-%m-%d');
       else
-        card.birthday = 0;
+        card.birthday = '';
     }
 
     return card;

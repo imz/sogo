@@ -84,6 +84,9 @@
 @interface SOGoMailItalianReply : SOGoMailReply
 @end
 
+@interface SOGoMailLithuanianReply : SOGoMailReply
+@end
+
 @interface SOGoMailMacedonianReply : SOGoMailReply
 @end
 
@@ -99,6 +102,15 @@
 @interface SOGoMailPortugueseReply : SOGoMailReply
 @end
 
+@interface SOGoMailRussianReply : SOGoMailReply
+@end
+
+@interface SOGoMailSlovakReply : SOGoMailReply
+@end
+
+@interface SOGoMailSlovenianReply : SOGoMailReply
+@end
+
 @interface SOGoMailSpanishSpainReply : SOGoMailReply
 @end
 
@@ -108,13 +120,7 @@
 @interface SOGoMailSwedishReply : SOGoMailReply
 @end
 
-@interface SOGoMailRussianReply : SOGoMailReply
-@end
-
-@interface SOGoMailSlovakReply : SOGoMailReply
-@end
-
-@interface SOGoMailSlovenianReply : SOGoMailReply
+@interface SOGoMailTurkishTurkeyReply : SOGoMailReply
 @end
 
 @interface SOGoMailUkrainianReply : SOGoMailReply

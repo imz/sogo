@@ -1778,11 +1778,18 @@ static NSArray *childRecordFields = nil;
   userRoles = [roles objectEnumerator];
   while ((currentRole = [userRoles nextObject]))
     {
-      SQL = [NSString stringWithFormat: @"INSERT INTO %@"
-                      @" (c_object, c_uid, c_role)"
-                      @" VALUES ('/%@', '%@', '%@')",
-                      [folder aclTableName],
-                      objectPath, uid, currentRole];
+      if ([GCSFolderManager singleStoreMode])
+        SQL = [NSString stringWithFormat: @"INSERT INTO %@"
+                        @" (c_object, c_uid, c_role, c_folder_id)"
+                        @" VALUES ('/%@', '%@', '%@', %@)",
+                        [folder aclTableName],
+                        objectPath, uid, currentRole, [folder folderId]];
+      else
+        SQL = [NSString stringWithFormat: @"INSERT INTO %@"
+                        @" (c_object, c_uid, c_role)"
+                        @" VALUES ('/%@', '%@', '%@')",
+                        [folder aclTableName],
+                        objectPath, uid, currentRole];
       [channel evaluateExpressionX: SQL];
     }
 
@@ -2069,7 +2076,7 @@ static NSArray *childRecordFields = nil;
       methodSel = SOGoSelectorForPropertyGetter (*currentProperty);
       if (methodSel && [sogoObject respondsToSelector: methodSel])
         *currentValue = [[sogoObject performSelector: methodSel]
-                          stringByEscapingXMLString];
+                          safeStringByEscapingXMLString];
       currentProperty++;
       currentValue++;
     }

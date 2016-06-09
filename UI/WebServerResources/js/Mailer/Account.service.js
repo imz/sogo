@@ -86,7 +86,35 @@
       o.id = i;
       collection[i] = new Account(o);
     });
+    Account.$accounts = collection;
+
     return collection;
+  };
+
+  /**
+   * @function getLength
+   * @memberof Account.prototype
+   * @desc Used by md-virtual-repeat / md-on-demand
+   * @returns the number of mailboxes in the account
+   */
+  Account.prototype.getLength = function() {
+    return this.$flattenMailboxes().length;
+  };
+
+  /**
+   * @function getItemAtIndex
+   * @memberof Account.prototype
+   * @desc Used by md-virtual-repeat / md-on-demand
+   * @returns the mailbox at the specified index
+   */
+  Account.prototype.getItemAtIndex = function(index) {
+    var expandedMailboxes;
+
+    expandedMailboxes = this.$flattenMailboxes();
+    if (index >= 0 && index < expandedMailboxes.length)
+      return expandedMailboxes[index];
+
+    return null;
   };
 
   /**
@@ -105,6 +133,7 @@
     else {
       return Account.$Mailbox.$find(this).then(function(data) {
         _this.$mailboxes = data;
+        _this.$expanded = false;
 
         // Set expanded folders from user's settings
         Account.$Preferences.ready().then(function() {
@@ -123,10 +152,13 @@
               expandedFolders = angular.fromJson(Account.$Preferences.settings.Mail.ExpandedFolders);
             else
               expandedFolders = Account.$Preferences.settings.Mail.ExpandedFolders;
+            _this.$expanded = (expandedFolders.indexOf('/' + _this.id) >= 0);
             if (expandedFolders.length > 0) {
               _visit(_this.$mailboxes);
             }
           }
+          if (Account.$accounts)
+            _this.$expanded |= (Account.$accounts.length == 1); // Always expand single account
           _this.$flattenMailboxes({reload: true});
         });
 
@@ -139,7 +171,10 @@
    * @function $flattenMailboxes
    * @memberof Account.prototype
    * @desc Get a flatten array of the mailboxes.
-   * @param {object} [options] - force a reload
+   * @param {object} [options] - the following boolean attributes are available:
+   *   - reload: rebuild the flatten array of mailboxes from the original tree representation (this.$mailboxes)
+   *   - all: return all mailboxes, ignoring their expanstion state
+   *   - saveState: save expansion state of mailboxes to the server
    * @returns an array of Mailbox instances
    */
   Account.prototype.$flattenMailboxes = function(options) {
@@ -163,12 +198,18 @@
       if (!options || !options.all) {
         _this.$$flattenMailboxes = allMailboxes;
         if (options && options.saveState) {
-          _.reduce(allMailboxes, function(expandedFolders, mailbox) {
-            if (mailbox.$expanded) {
-              expandedFolders.push('/' + mailbox.id);
+          // Save expansion state of mailboxes to the server
+          _.forEach(Account.$accounts, function(account) {
+            if (account.$expanded) {
+              expandedMailboxes.push('/' + account.id);
             }
-            return expandedFolders;
-          }, expandedMailboxes);
+            _.reduce(account.$$flattenMailboxes, function(expandedFolders, mailbox) {
+              if (mailbox.$expanded) {
+                expandedFolders.push('/' + mailbox.id);
+              }
+              return expandedFolders;
+            }, expandedMailboxes);
+          });
           Account.$$resource.post(null, 'saveFoldersState', expandedMailboxes);
         }
       }

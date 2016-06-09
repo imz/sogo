@@ -1,6 +1,6 @@
 /* UIxCalListingActions.m - this file is part of SOGo
  *
- * Copyright (C) 2006-2015 Inverse inc.
+ * Copyright (C) 2006-2016 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +35,8 @@
 #import <NGExtensions/NSObject+Logs.h>
 #import <NGExtensions/NSString+misc.h>
 
+#import <SOPE/NGCards/iCalRecurrenceRule.h>
+
 #import <SOGo/SOGoDateFormatter.h>
 #import <SOGo/SOGoPermissions.h>
 #import <SOGo/SOGoUser.h>
@@ -46,8 +48,6 @@
 #import <SOGo/WOResourceManager+SOGo.h>
 #import <Appointments/SOGoAppointmentFolders.h>
 #import <Appointments/SOGoWebAppointmentFolder.h>
-
-#import <UI/Common/WODirectAction+SOGo.h>
 
 #import "NSArray+Scheduler.h"
 
@@ -77,9 +77,9 @@ static NSArray *tasksFields = nil;
   {
     eventsFields = [NSArray arrayWithObjects: @"c_name", @"c_folder",
                     @"calendarName",
-                    @"c_status", @"c_title", @"c_startdate",
+                    @"c_status", @"c_isopaque", @"c_title", @"c_startdate",
                     @"c_enddate", @"c_location", @"c_isallday",
-                    @"c_classification", @"c_category",
+                    @"c_classification", @"c_category", @"c_priority",
                     @"c_partmails", @"c_partstates", @"c_owner",
                     @"c_iscycle", @"c_nextalarm",
                     @"c_recurrence_id", @"isException", @"viewable", @"editable",
@@ -116,6 +116,7 @@ static NSArray *tasksFields = nil;
     ASSIGN (userTimeZone, [[user userDefaults] timeZone]);
     dayBasedView = NO;
     currentView = nil;
+    ASSIGN (enabledWeekDays, [[user userDefaults] calendarWeekdays]);
   }
   
   return self;
@@ -127,6 +128,7 @@ static NSArray *tasksFields = nil;
   [request release];
   [componentsData release];
   [userTimeZone release];
+  [enabledWeekDays release];
   [super dealloc];
 }
 
@@ -212,31 +214,31 @@ static NSArray *tasksFields = nil;
   value = [request formValueForKey: @"value"];
   param = [request formValueForKey: @"filterpopup"];
   if ([param length])
-  {
-    [self _setupDatesWithPopup: param andUserTZ: userTimeZone];
-  }
+    {
+      [self _setupDatesWithPopup: param andUserTZ: userTimeZone];
+    }
   else
-  {
-    param = [request formValueForKey: @"sd"];
-    if ([param length] > 0)
-      startDate = [[NSCalendarDate dateFromShortDateString: param
+    {
+      param = [request formValueForKey: @"sd"];
+      if ([param length] > 0)
+        startDate = [[NSCalendarDate dateFromShortDateString: param
+                                          andShortTimeString: nil
+                                                  inTimeZone: userTimeZone] beginOfDay];
+      else
+        startDate = nil;
+    
+      param = [request formValueForKey: @"ed"];
+      if ([param length] > 0)
+        endDate = [[NSCalendarDate dateFromShortDateString: param
                                         andShortTimeString: nil
-                                                inTimeZone: userTimeZone] beginOfDay];
-    else
-      startDate = nil;
+                                                inTimeZone: userTimeZone] endOfDay];
+      else
+        endDate = nil;
     
-    param = [request formValueForKey: @"ed"];
-    if ([param length] > 0)
-      endDate = [[NSCalendarDate dateFromShortDateString: param
-                                      andShortTimeString: nil
-                                              inTimeZone: userTimeZone] endOfDay];
-    else
-      endDate = nil;
-    
-    param = [request formValueForKey: @"view"];
-    currentView = param;
-    dayBasedView = ![param isEqualToString: @"monthview"];
-  }
+      param = [request formValueForKey: @"view"];
+      currentView = param;
+      dayBasedView = ![param isEqualToString: @"monthview"];
+    }
 }
 
 - (void) _fixComponentTitle: (NSMutableDictionary *) component
@@ -352,7 +354,7 @@ static NSArray *tasksFields = nil;
   NSMutableDictionary *newInfo;
   NSMutableArray *infos, *quickInfos, *allInfos, *quickInfosName;
   NSNull *marker;
-  NSString *owner, *role, *calendarName, *iCalString, *recurrenceTime, *categories;
+  NSString *owner, *role, *calendarName, *iCalString, *recurrenceTime, *categories, *weekDay;
   NSRange match;
   iCalCalendar *calendar;
   iCalEntityObject *master;
@@ -360,13 +362,14 @@ static NSArray *tasksFields = nil;
   SOGoAppointmentFolders *clientObject;
   SOGoUser *ownerUser;
   
-  BOOL isErasable, folderIsRemote, quickInfosFlag = NO;
+  BOOL isErasable, folderIsRemote, quickInfosFlag, searchByTitleOrContent;
   int i;
   
   infos = [NSMutableArray array];
   marker = [NSNull null];
   clientObject = [self clientObject];
-  
+  quickInfosFlag = searchByTitleOrContent = NO;
+
   folders = [[clientObject subFolders] objectEnumerator];
   while ((currentFolder = [folders nextObject]))
     {
@@ -384,15 +387,18 @@ static NSArray *tasksFields = nil;
                                                           title: value
                                                       component: component
                                               additionalFilters: criteria] objectEnumerator];
+              searchByTitleOrContent = ([value length] > 0);
             }
           else if ([criteria isEqualToString:@"entireContent"])
             {
               // First search : Through the quick table inside the location, category and title columns
               quickInfos = (NSMutableArray *)[currentFolder fetchCoreInfosFrom: startDate
-                                                          to: endDate
-                                                       title: value
-                                                   component: component
-                                           additionalFilters: criteria];
+                                                                            to: endDate
+                                                                         title: value
+                                                                     component: component
+                                                             additionalFilters: criteria];
+
+              searchByTitleOrContent = ([value length] > 0);
         
               // Save the c_name in another array to compare with
               if ([quickInfos count] > 0)
@@ -405,9 +411,9 @@ static NSArray *tasksFields = nil;
         
               // Second research : Every objects except for those already in the quickInfos array
               allInfos = (NSMutableArray *)[currentFolder fetchCoreInfosFrom: startDate
-                                                        to: endDate
-                                                     title: nil
-                                                 component: component];
+                                                                          to: endDate
+                                                                       title: nil
+                                                                   component: component];
               if (quickInfosFlag == YES)
                 {
                   for (i = ([allInfos count] - 1); i >= 0 ; i--) {
@@ -415,8 +421,7 @@ static NSArray *tasksFields = nil;
                       [allInfos removeObjectAtIndex:i];
                   }
                 }
-        
-        
+
               for (i = 0; i < [allInfos count]; i++)
                 {
                   iCalString = [[allInfos objectAtIndex:i] objectForKey:@"c_content"];
@@ -434,7 +439,7 @@ static NSArray *tasksFields = nil;
                 }
         
               currentInfos = [quickInfos objectEnumerator];
-            }
+            } // else if ([criteria isEqualToString:@"entireContent"])
           else
             {
               currentInfos = [[currentFolder fetchCoreInfosFrom: startDate
@@ -450,6 +455,11 @@ static NSArray *tasksFields = nil;
 
           while ((newInfo = [currentInfos nextObject]))
             {
+              // Skip components that appear on disabled weekdays
+              weekDay = iCalWeekDayString[[[newInfo objectForKey: @"startDate"] dayOfWeek]];
+              if ([enabledWeekDays count] && ![enabledWeekDays containsObject: weekDay])
+                continue;
+
               if ([fields containsObject: @"viewable"])
                 {
                   if ([owner isEqualToString: userLogin])
@@ -460,7 +470,14 @@ static NSArray *tasksFields = nil;
                                                                     forUser : userLogin];
 
                       if ([role isEqualToString: @"ComponentDAndTViewer"])
-                        [newInfo setObject: [NSNumber numberWithInt: 0]  forKey: @"viewable"];
+                        {
+                          // We skip results that could lead to information "exposure".
+                          // See http://sogo.nu/bugs/view.php?id=3619
+                          if (searchByTitleOrContent)
+                            continue;
+
+                          [newInfo setObject: [NSNumber numberWithInt: 0]  forKey: @"viewable"];
+                        }
                       else
                         [newInfo setObject: [NSNumber numberWithInt: 1]  forKey: @"viewable"];
                     }
@@ -628,7 +645,7 @@ static NSArray *tasksFields = nil;
   NSDictionary *data;
   NSEnumerator *folders;
   unsigned int browserTime, laterTime;
-  
+
   // We look for alarms in the next 48 hours
   browserTime = [[[context request] formValueForKey: @"browserTime"] intValue];
   laterTime = browserTime + 60*60*48;
@@ -737,6 +754,7 @@ static NSArray *tasksFields = nil;
  * @apiSuccess (Success 200) {String} events.c_folder            Calendar ID
  * @apiSuccess (Success 200) {String} events.calendarName        Human readable name of calendar
  * @apiSuccess (Success 200) {Number} events.c_status            0: Cancelled, 1: Normal, 2: Tentative
+ * @apiSuccess (Success 200) {Number} events.c_isopaque          1 if event is opaque (not transparent)
  * @apiSuccess (Success 200) {String} events.c_title             Title
  * @apiSuccess (Success 200) {String} events.c_startdate         Epoch time of start date
  * @apiSuccess (Success 200) {String} events.c_enddate           Epoch time of end date
@@ -744,6 +762,7 @@ static NSArray *tasksFields = nil;
  * @apiSuccess (Success 200) {Number} events.c_isallday          1 if event lasts all day
  * @apiSuccess (Success 200) {Number} events.c_classification    0: Public, 1: Private, 2: Confidential
  * @apiSuccess (Success 200) {String} events.c_category          Category
+ * @apiSuccess (Success 200) {Number} events.c_priority          Priority (0 to 9)
  * @apiSuccess (Success 200) {String[]} events.c_partmails       Participants email addresses
  * @apiSuccess (Success 200) {String[]} events.c_partstates      Participants states
  * @apiSuccess (Success 200) {String} events.c_owner             Event's owner
@@ -760,26 +779,35 @@ static NSArray *tasksFields = nil;
  */
 - (WOResponse *) eventsListAction
 {
+  BOOL isAllDay;
   NSArray *oldEvent;
+  NSCalendarDate *date;
   NSDictionary *data;
   NSEnumerator *events;
   NSMutableArray *fields, *newEvents, *newEvent;
+  NSString *sort, *ascending, *weekDay;
   unsigned int interval;
-  BOOL isAllDay;
-  NSString *sort, *ascending;
-  
+
   [self _setupContext];
   [self saveFilterValue: @"EventsFilterState"];
   [self saveSortValue: @"EventsSortingState"];
-  
+
   newEvents = [NSMutableArray array];
   events = [[self _fetchFields: eventsFields
             forComponentOfType: @"vevent"] objectEnumerator];
   while ((oldEvent = [events nextObject]))
   {
+    interval = [[oldEvent objectAtIndex: eventStartDateIndex] intValue];
+    date = [NSCalendarDate dateWithTimeIntervalSince1970: interval];
+    [date setTimeZone: userTimeZone];
+
+    // Skip components that appear on disabled weekdays
+    weekDay = iCalWeekDayString[[date dayOfWeek]];
+    if ([enabledWeekDays count] && ![enabledWeekDays containsObject: weekDay])
+        continue;
+
     newEvent = [NSMutableArray arrayWithArray: oldEvent];
     isAllDay = [[oldEvent objectAtIndex: eventIsAllDayIndex] boolValue];
-    interval = [[oldEvent objectAtIndex: eventStartDateIndex] intValue];
     [newEvent addObject: [self _formattedDateForSeconds: interval
                                               forAllDay: isAllDay]];
     interval = [[oldEvent objectAtIndex: eventEndDateIndex] intValue];
@@ -858,7 +886,7 @@ static inline void _feedBlockWithMonthBasedData (NSMutableDictionary *block, uns
                                         number: (NSNumber *) number
                                          onDay: (unsigned int) dayStart
                                 recurrenceTime: (unsigned int) recurrenceTime
-                                     userState: (iCalPersonPartStat) userState
+                                     userState: (NSString *) userState
 {
   NSMutableDictionary *block;
   
@@ -872,22 +900,22 @@ static inline void _feedBlockWithMonthBasedData (NSMutableDictionary *block, uns
   if (recurrenceTime)
     [block setObject: [NSNumber numberWithInt: recurrenceTime]
               forKey: @"recurrenceTime"];
-  if (userState != iCalPersonPartStatOther)
-    [block setObject: [NSNumber numberWithInt: userState]
+  if (userState != nil)
+    [block setObject: userState
               forKey: @"userState"];
   
   return block;
 }
 
-static inline iCalPersonPartStat _userStateInEvent (NSArray *event)
+static inline NSString* _userStateInEvent (NSArray *event)
 {
   unsigned int count, max;
-  iCalPersonPartStat state;
+  NSString *state;
   NSArray *participants, *states;
   SOGoUser *user;
   
   participants = nil;
-  state = iCalPersonPartStatOther;
+  state = nil;
   
   participants = [event objectAtIndex: eventPartMailsIndex];
 
@@ -899,10 +927,10 @@ static inline iCalPersonPartStat _userStateInEvent (NSArray *event)
       max = [participants count];
       user = [SOGoUser userWithLogin: [event objectAtIndex: eventOwnerIndex]
                                roles: nil];
-      while (state == iCalPersonPartStatOther && count < max)
+      while (state == nil && count < max)
         {
           if ([user hasEmail: [participants objectAtIndex: count]])
-            state = [[states objectAtIndex: count] intValue];
+            state = [states objectAtIndex: count];
           else
             count++;
         }
@@ -919,7 +947,7 @@ static inline iCalPersonPartStat _userStateInEvent (NSArray *event)
   eventEnd, computedEventEnd, offset, recurrenceTime, swap;
   NSMutableArray *currentDay;
   NSMutableDictionary *eventBlock;
-  iCalPersonPartStat userState;
+  NSString *userState;
   
   eventStart = [[event objectAtIndex: eventStartDateIndex] intValue];
   if (eventStart < 0)
@@ -957,8 +985,7 @@ static inline iCalPersonPartStat _userStateInEvent (NSArray *event)
         offset = 0;
       }
       else
-        offset = ((currentStart - startSecs)
-                  / dayLength);
+        offset = ((currentStart - startSecs) / dayLength);
       if (offset >= [blocks count])
         [self errorWithFormat: @"event '%@' has a computed offset that"
          @" overflows the amount of blocks (skipped)",
@@ -1299,15 +1326,16 @@ _computeBlocksPosition (NSArray *blocks)
 {
   int count, max;
   NSArray *events, *event, *calendars;
+  NSCalendarDate *currentDate;
   NSDictionary *eventsBlocks, *calendar;
-  NSMutableArray *allDayBlocks, *blocks, *currentDay, *eventsForCalendar, *eventsByCalendars;
+  NSMutableArray *allDayBlocks, *blocks, *days, *currentDay, *eventsForCalendar, *eventsByCalendars;
   NSNumber *eventNbr;
   NSString *calendarName, *calendarId;
   BOOL isAllDay;
   int i, j;
-  
+
   [self _setupContext];
-  
+
   events = [self _fetchFields: eventsFields forComponentOfType: @"vevent"];
   
   if ([currentView isEqualToString: @"multicolumndayview"])
@@ -1319,6 +1347,7 @@ _computeBlocksPosition (NSArray *blocks)
       calendar = [calendars objectAtIndex:i];
       calendarName = [calendar objectForKey: @"name"];
       calendarId = [calendar objectForKey: @"id"];
+      days = [NSMutableArray array];
       eventsForCalendar = [NSMutableArray array];
       [self _prepareEventBlocks: &blocks withAllDays: &allDayBlocks];
       for (j = 0; j < [events count]; j++) {
@@ -1333,7 +1362,8 @@ _computeBlocksPosition (NSArray *blocks)
                                    eventsFields, @"eventsFields",
                                    eventsForCalendar, @"events",
                                    allDayBlocks, @"allDayBlocks",
-                                   blocks, @"blocks", nil];
+                                   blocks, @"blocks",
+                                   days, @"days", nil];
       max = [eventsForCalendar count];
       for (count = 0; count < max; count++)
       {
@@ -1345,12 +1375,20 @@ _computeBlocksPosition (NSArray *blocks)
         else
           [self _fillBlocks: blocks withEvent: event withNumber: eventNbr];
       }
+
+      currentDate = [[startDate copy] autorelease];
+      [currentDate setTimeZone: userTimeZone];
       max = [blocks count];
       for (count = 0; count < max; count++)
       {
         currentDay = [blocks objectAtIndex: count];
         [currentDay sortUsingSelector: @selector (compareEventByStart:)];
         [self _addBlocksWidth: currentDay];
+
+        [days addObject: [NSDictionary dictionaryWithObjectsAndKeys:
+                                         [currentDate shortDateString], @"date",
+                                            [NSNumber numberWithInt: count], @"number", nil]];
+        currentDate = [currentDate addYear:0 month:0 day:1 hour:0 minute:0 second:0];
       }
       [eventsByCalendars addObject: eventsBlocks];
     }
@@ -1358,12 +1396,14 @@ _computeBlocksPosition (NSArray *blocks)
   }
   else
   {
+    days = [NSMutableArray array];
     [self _prepareEventBlocks: &blocks withAllDays: &allDayBlocks];
     eventsBlocks = [NSDictionary dictionaryWithObjectsAndKeys:
                                    eventsFields, @"eventsFields",
                                  events, @"events",
                                  allDayBlocks, @"allDayBlocks",
-                                 blocks, @"blocks", nil];
+                                 blocks, @"blocks",
+                                 days, @"days", nil];
     max = [events count];
     for (count = 0; count < max; count++)
     {
@@ -1380,14 +1420,44 @@ _computeBlocksPosition (NSArray *blocks)
       else
         [self _fillBlocks: blocks withEvent: event withNumber: eventNbr];
     }
-    
+
+    currentDate = [[startDate copy] autorelease];
+    [currentDate setTimeZone: userTimeZone];
     max = [blocks count];
     for (count = 0; count < max; count++)
     {
       currentDay = [blocks objectAtIndex: count];
       [currentDay sortUsingSelector: @selector (compareEventByStart:)];
       [self _addBlocksWidth: currentDay];
+
+      [days addObject: [NSDictionary dictionaryWithObjectsAndKeys:
+                                       [currentDate shortDateString], @"date",
+                                          [NSNumber numberWithInt: count], @"number", nil]];
+      currentDate = [currentDate addYear:0 month:0 day:1 hour:0 minute:0 second:0];
     }
+
+    if ([enabledWeekDays count] > 0 && [enabledWeekDays count] < 7)
+      {
+        // Remove the days that are disabled in the user's defaults
+        int weekDay, weekDayCount;
+
+        weekDayCount= [currentDate dayOfWeek];
+        for (count = max - 1; count >= 0; count--)
+          {
+            weekDayCount--;
+            if (weekDayCount < 0)
+              weekDay = ((weekDayCount % 7) + 7) % 7;
+            else
+              weekDay = weekDayCount;
+            if (![enabledWeekDays containsObject: iCalWeekDayString[weekDay]])
+              {
+                [allDayBlocks removeObjectAtIndex: count];
+                [blocks removeObjectAtIndex: count];
+                [days removeObjectAtIndex: count];
+              }
+          }
+      }
+
     return [self _responseWithData: [NSArray arrayWithObject: eventsBlocks]];
   }
 }
@@ -1474,7 +1544,7 @@ _computeBlocksPosition (NSArray *blocks)
   int statusCode;
   int startSecs;
   int endsSecs;
-  
+
   filteredTasks = [NSMutableArray array];
   
   [self _setupContext];
@@ -1561,9 +1631,8 @@ _computeBlocksPosition (NSArray *blocks)
   SOGoAppointmentFolder *folder;
   SOGoAppointmentFolders *co;
   NSArray *folders;
-  
   int i;
-  
+
   co = [self clientObject];
   folders = [co subFolders];
   activeTasksByCalendars = [NSMutableDictionary dictionaryWithCapacity: [folders count]];

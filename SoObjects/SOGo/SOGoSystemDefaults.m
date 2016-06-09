@@ -430,9 +430,26 @@ _injectConfigurationFromFile (NSMutableDictionary *defaultsDict,
   return [self boolForKey: @"SOGoEASDebugEnabled"];
 }
 
+- (BOOL) xsrfValidationEnabled
+{
+  id o;
+
+  if (!(o = [self objectForKey: @"SOGoXSRFValidationEnabled"]))
+    {
+      return YES;
+    }
+
+  return [o boolValue];
+}
+
 - (NSString *) pageTitle
 {
   return [self stringForKey: @"SOGoPageTitle"];
+}
+
+- (NSString *) helpURL
+{
+  return [self stringForKey: @"SOGoHelpURL"];
 }
 
 - (NSArray *) supportedLanguages
@@ -598,6 +615,42 @@ _injectConfigurationFromFile (NSMutableDictionary *defaultsDict,
   return v;
 }
 
+//
+// SOGo rate-limiting
+//
+- (int) maximumRequestCount
+{
+  return [self integerForKey: @"SOGoMaximumRequestCount"];
+}
+
+- (int) maximumRequestInterval
+{
+  int v;
+
+  v = [self integerForKey: @"SOGoMaximumRequestInterval"];
+
+  if (!v)
+    v = 30;
+
+  return v;
+}
+
+- (int) requestBlockInterval
+{
+  int v;
+
+  v = [self integerForKey: @"SOGoRequestBlockInterval"];
+
+  if (!v)
+    v = 300;
+
+  return v;
+}
+
+
+//
+// SOGo EAS settings
+//
 - (int) maximumPingInterval
 {
   int v;

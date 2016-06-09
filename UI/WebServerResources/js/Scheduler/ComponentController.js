@@ -6,14 +6,17 @@
   /**
    * @ngInject
    */
-  ComponentController.$inject = ['$rootScope', '$mdDialog', 'Calendar', 'Component', 'AddressBook', 'Alarm', 'stateComponent'];
-  function ComponentController($rootScope, $mdDialog, Calendar, Component, AddressBook, Alarm, stateComponent) {
+  ComponentController.$inject = ['$rootScope', '$mdDialog', 'Calendar', 'Component', 'AddressBook', 'Alarm', 'Account', 'stateComponent'];
+  function ComponentController($rootScope, $mdDialog, Calendar, Component, AddressBook, Alarm, Account, stateComponent) {
     var vm = this, component;
 
+    vm.calendarService = Calendar;
     vm.service = Component;
     vm.component = stateComponent;
     vm.close = close;
     vm.cardFilter = cardFilter;
+    vm.newMessageWithAllRecipients = newMessageWithAllRecipients;
+    vm.newMessageWithRecipient = newMessageWithRecipient;
     vm.edit = edit;
     vm.editAllOccurrences = editAllOccurrences;
     vm.reply = reply;
@@ -21,6 +24,8 @@
     vm.deleteOccurrence = deleteOccurrence;
     vm.deleteAllOccurrences = deleteAllOccurrences;
     vm.toggleRawSource = toggleRawSource;
+    vm.copySelectedComponent = copySelectedComponent;
+    vm.moveSelectedComponent = moveSelectedComponent;
 
     // Load all attributes of component
     if (angular.isUndefined(vm.component.$futureComponentData)) {
@@ -39,6 +44,50 @@
     function cardFilter($query) {
       AddressBook.$filterAll($query);
       return AddressBook.$cards;
+    }
+
+    function newMessageWithAllRecipients($event) {
+      var recipients = _.map(vm.component.attendees, function(attendee) {
+        return attendee.name + " <" + attendee.email + ">";
+      });
+      _newMessage($event, recipients);
+    }
+
+    function newMessageWithRecipient($event, name, email) {
+      _newMessage($event, [name + " <" + email + ">"]);
+    }
+
+    function _newMessage($event, recipients) {
+      Account.$findAll().then(function(accounts) {
+        var account = _.find(accounts, function(o) {
+          if (o.id === 0)
+            return o;
+        });
+
+        // We must initialize the Account with its mailbox
+        // list before proceeding with message's creation
+        account.$getMailboxes().then(function(mailboxes) {
+          account.$newMessage().then(function(message) {
+            angular.extend(message.editable, { to: recipients, subject: vm.component.summary });
+            $mdDialog.show({
+              parent: angular.element(document.body),
+              targetEvent: $event,
+              clickOutsideToClose: false,
+              escapeToClose: false,
+              templateUrl: '../Mail/UIxMailEditor',
+              controller: 'MessageEditorController',
+              controllerAs: 'editor',
+              locals: {
+                stateAccount: account,
+                stateMessage: message
+              }
+            });
+          });
+        });
+      });
+
+      $event.preventDefault();
+      $event.stopPropagation();
     }
 
     function edit() {
@@ -116,7 +165,7 @@
           clickOutsideToClose: true,
           escapeToClose: true,
           template: [
-            '<md-dialog flex="80" flex-xs="100" aria-label="' + l('View Raw Source') + '">',
+            '<md-dialog flex="40" flex-sm="80" flex-xs="100" aria-label="' + l('View Raw Source') + '">',
             '  <md-dialog-content class="md-dialog-content">',
             '    <pre>',
             data,
@@ -141,6 +190,20 @@
         }
       });
     }
+
+    function copySelectedComponent(calendar) {
+      vm.component.copyTo(calendar).then(function() {
+        $mdDialog.hide();
+        $rootScope.$emit('calendars:list');
+      });
+    }
+
+    function moveSelectedComponent(calendar) {
+      vm.component.moveTo(calendar).then(function() {
+        $mdDialog.hide();
+        $rootScope.$emit('calendars:list');
+      });
+    }
   }
 
   /**
@@ -162,6 +225,7 @@
     vm.addAttendee = addAttendee;
     vm.removeAttendee = removeAttendee;
     vm.addAttachUrl = addAttachUrl;
+    vm.priorityLevel = priorityLevel;
     vm.cancel = cancel;
     vm.save = save;
     vm.attendeeConflictError = false;
@@ -226,6 +290,17 @@
         vm.showAttendeesEditor = false;
     }
 
+    function priorityLevel() {
+      if (vm.component && vm.component.priority) {
+        if (vm.component.priority > 5)
+          return l('low');
+        else if (vm.component.priority > 4)
+          return l('normal');
+        else
+          return l('high');
+      }
+    }
+
     function save(form, options) {
       if (form.$valid) {
         vm.component.$save(options)
@@ -266,7 +341,6 @@
     function getHours() {
       var hours = [];
       for (var i = 0; i <= 23; i++) {
-        //hours.push(Component.timeFormat.formatTime(i, 0));
         hours.push(i.toString());
       }
       return hours;
@@ -289,17 +363,19 @@
     }
 
     function adjustStartTime() {
-      // Preserve the delta between the start and end dates
-      var delta;
-      delta = oldStartDate.valueOf() - vm.component.start.valueOf();
-      if (delta !== 0) {
-        oldStartDate = new Date(vm.component.start.getTime());
-        if (vm.component.type === 'appointment') {
-          vm.component.end = new Date(vm.component.start.getTime());
-          vm.component.end.addMinutes(vm.component.delta);
-          oldEndDate = new Date(vm.component.end.getTime());
+      if (vm.component.start) {
+        // Preserve the delta between the start and end dates
+        var delta;
+        delta = oldStartDate.valueOf() - vm.component.start.valueOf();
+        if (delta !== 0) {
+          oldStartDate = new Date(vm.component.start.getTime());
+          if (vm.component.type === 'appointment') {
+            vm.component.end = new Date(vm.component.start.getTime());
+            vm.component.end.addMinutes(vm.component.delta);
+            oldEndDate = new Date(vm.component.end.getTime());
+          }
+          updateFreeBusy();
         }
-        updateFreeBusy();
       }
     }
 
@@ -310,17 +386,19 @@
     }
 
     function adjustEndTime() {
-      // The end date must be after the start date
-      var delta = oldEndDate.valueOf() - vm.component.end.valueOf();
-      if (delta !== 0) {
+      if (vm.component.end) {
+        // The end date must be after the start date
+        var delta = oldEndDate.valueOf() - vm.component.end.valueOf();
+        if (delta !== 0) {
           delta = vm.component.start.minutesTo(vm.component.end);
-        if (delta < 0)
-          vm.component.end = new Date(oldEndDate.getTime());
-        else {
-          vm.component.delta = delta;
-          oldEndDate = new Date(vm.component.end.getTime());
+          if (delta < 0)
+            vm.component.end = new Date(oldEndDate.getTime());
+          else {
+            vm.component.delta = delta;
+            oldEndDate = new Date(vm.component.end.getTime());
+          }
+          updateFreeBusy();
         }
-        updateFreeBusy();
       }
     }
 

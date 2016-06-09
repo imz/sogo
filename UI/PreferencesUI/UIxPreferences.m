@@ -1,6 +1,6 @@
 /* UIxPreferences.m - this file is part of SOGo
  *
- * Copyright (C) 2007-2015 Inverse inc.
+ * Copyright (C) 2007-2016 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,6 +29,8 @@
 #import <NGExtensions/NSObject+Logs.h>
 
 #import <NGCards/iCalTimeZone.h>
+
+#import <SOPE/NGCards/iCalRecurrenceRule.h>
 
 #import <SOGo/NSArray+Utilities.h>
 #import <SOGo/NSDictionary+Utilities.h>
@@ -684,7 +686,7 @@ static NSArray *reminderValues = nil;
 //   SOGoUserSettings *us;
 //   NSMutableDictionary *moduleSettings;
 //   NSArray *whiteList;
-  
+
 //   us = [user userSettings];
 //   moduleSettings = [us objectForKey: @"Calendar"];
 //   whiteList = [moduleSettings objectForKey:@"PreventInvitationsWhitelist"];
@@ -695,7 +697,7 @@ static NSArray *reminderValues = nil;
 // {
 //   SOGoUserSettings *us;
 //   NSMutableDictionary *moduleSettings;
-  
+
 //   us = [user userSettings];
 //   moduleSettings = [us objectForKey: @"Calendar"];
 //   [moduleSettings setObject: whiteListString forKey: @"PreventInvitationsWhitelist"];
@@ -720,6 +722,28 @@ static NSArray *reminderValues = nil;
 //   moduleSettings = [us objectForKey: @"Calendar"];
 //   return [[moduleSettings objectForKey: @"PreventInvitations"] boolValue];
 // }
+
+- (NSArray *) shortWeekDaysList
+{
+  static NSArray *shortWeekDaysList = nil;
+
+  if (!shortWeekDaysList)
+    {
+      shortWeekDaysList = [locale objectForKey: NSShortWeekDayNameArray];
+      [shortWeekDaysList retain];
+    }
+
+  return shortWeekDaysList;
+}
+
+- (NSString *) valueForWeekDay
+{
+  unsigned int i;
+
+  i = [[self shortWeekDaysList] indexOfObject: item];
+
+  return iCalWeekDayString[i];
+}
 
 //
 // Used by wox template
@@ -866,7 +890,7 @@ static NSArray *reminderValues = nil;
         value = @"every_minute";
       else if (interval == 60)
         value = @"once_per_hour";
-      else if (interval == 2 || interval == 5 || interval == 10 
+      else if (interval == 2 || interval == 5 || interval == 10
                || interval == 20 || interval == 30)
         value = [NSString stringWithFormat: @"every_%d_minutes", interval];
       else
@@ -1393,6 +1417,11 @@ static NSArray *reminderValues = nil;
   return [self labelForKey: item];
 }
 
+- (BOOL) externalAvatarsEnabled
+{
+  return [[user domainDefaults] externalAvatarsEnabled];
+}
+
 - (NSArray *) alternateAvatar
 {
   // See: https://en.gravatar.com/site/implement/images/
@@ -1771,7 +1800,7 @@ static NSArray *reminderValues = nil;
 //
 - (void) _extractMainIdentity: (NSDictionary *) identity
                  inDictionary: (NSMutableDictionary *) target
-  
+
 {
   /* We perform some validation here as we have no guaranty on the input
      validity. */
@@ -1801,7 +1830,7 @@ static NSArray *reminderValues = nil;
             [target setObject: value  forKey: @"SOGoMailCustomEmail"];
           else
             [target removeObjectForKey: @"SOGoMailCustomEmail"];
-        
+
           value = [[identity objectForKey: @"fullName"]
                     stringByTrimmingSpaces];
           if ([value length] == 0
@@ -1854,11 +1883,11 @@ static NSArray *reminderValues = nil;
       action = [receipts objectForKey: @"receiptNonRecipientAction"];
       if ([self _validateReceiptAction: action])
         [target setObject: action  forKey: @"SOGoMailReceiptNonRecipientAction"];
-      
+
       action = [receipts objectForKey: @"receiptOutsideDomainAction"];
       if ([self _validateReceiptAction: action])
         [target setObject: action  forKey: @"SOGoMailReceiptOutsideDomainAction"];
-      
+
       action = [receipts objectForKey: @"receiptAnyAction"];
       if ([self _validateReceiptAction: action])
         [target setObject: action  forKey: @"SOGoMailReceiptAnyAction"];
@@ -2104,10 +2133,10 @@ static NSArray *reminderValues = nil;
 {
   id <WOActionResults> results;
   id o, v;
-  
+
   o = [[[context request] contentAsString] objectFromJSONString];
   results = nil;
-  
+
   // Proceed with data sanitization of the "defaults"
   if ((v = [o objectForKey: @"defaults"]))
     {
@@ -2132,7 +2161,15 @@ static NSArray *reminderValues = nil;
 
       if ([[v objectForKey: @"SOGoLongDateFormat"] isEqualToString: @"default"])
         [v removeObjectForKey: @"SOGoLongDateFormat"];
-      
+
+      if (![self externalAvatarsEnabled])
+        {
+          [v removeObjectForKey: @"SOGoGravatarEnabled"];
+          [[[user userDefaults] source] removeObjectForKey: @"SOGoGravatarEnabled"];
+          [v removeObjectForKey: @"SOGoAlternateAvatar"];
+          [[[user userDefaults] source] removeObjectForKey: @"SOGoAlternateAvatar"];
+        }
+
       //
       // We sanitize mail labels
       //
@@ -2142,20 +2179,20 @@ static NSArray *reminderValues = nil;
           // We encode correctly our keys
           sanitizedLabels = [NSMutableDictionary dictionary];
           allKeys = [newLabels allKeys];
-          
+
           for (i = 0; i < [allKeys count]; i++)
             {
               name = [allKeys objectAtIndex: i];
-              
+
               if (![name is7bitSafe])
                 name = [name stringByEncodingImap4FolderName];
-              
+
               name = [name lowercaseString];
-              
+
               [sanitizedLabels setObject: [newLabels objectForKey: [allKeys objectAtIndex: i]]
                                   forKey: name];
             }
-          
+
           [v setObject: sanitizedLabels  forKey: @"SOGoMailLabelsColors"];
         }
 
@@ -2178,23 +2215,23 @@ static NSArray *reminderValues = nil;
         }
 
       [[[user userDefaults] source] setValues: v];
-      
+
       if ([[user userDefaults] synchronize])
         {
           SOGoMailAccount *account;
           SOGoMailAccounts *folder;
           SOGoDomainDefaults *dd;
-          
+
           dd = [[context activeUser] domainDefaults];
 
           // We check if the Sieve server is available *ONLY* if at least one of the option is enabled
           if (!([dd sieveScriptsEnabled] || [dd vacationEnabled] || [dd forwardEnabled]) || [self _isSieveServerAvailable])
             {
-              
+
               folder = [[[context activeUser] homeFolderInContext: context]  mailAccountsFolder: @"Mail"
                                                                                       inContext: context];
               account = [folder lookupName: @"0" inContext: context acquire: NO];
-              
+
               if (![account updateFilters])
                 {
                   results = (id <WOActionResults>) [self responseWithStatus: 502
@@ -2206,7 +2243,7 @@ static NSArray *reminderValues = nil;
                          andJSONRepresentation: [NSDictionary dictionaryWithObjectsAndKeys: @"Service temporarily unavailable", @"message", nil]];
         }
     }
-  
+
   if ((v = [o objectForKey: @"settings"]))
     {
       [[[user userSettings] source] setValues: v];

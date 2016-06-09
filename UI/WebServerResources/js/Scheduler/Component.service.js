@@ -263,7 +263,7 @@
         startDate.setDate(1);
         startDate = startDate.beginOfWeek(firstDayOfWeek);
         endDate = new Date();
-        endDate.setTime(startDate.getTime());
+        endDate.setTime(date.getTime());
         endDate.setMonth(endDate.getMonth() + 1);
         endDate.addDays(-1);
         endDate = endDate.endOfWeek(firstDayOfWeek);
@@ -281,21 +281,26 @@
    * @returns a promise of a collection of objects describing the events blocks
    */
   Component.$eventsBlocks = function(view, startDate, endDate) {
-    var params, futureComponentData, i, j, dates = [],
+    var params, futureComponentData, i, j, dayDates = [], dayNumbers = [],
         deferred = Component.$q.defer();
 
     params = { view: view.toLowerCase(), sd: startDate.getDayString(), ed: endDate.getDayString() };
-    Component.$log.debug('eventsblocks ' + JSON.stringify(params, undefined, 2));
     futureComponentData = this.$$resource.fetch(null, 'eventsblocks', params);
     futureComponentData.then(function(views) {
       var reduceComponent, associateComponent;
 
       reduceComponent = function(objects, eventData, i) {
         var componentData = _.zipObject(this.eventsFields, eventData),
-            start = new Date(componentData.c_startdate * 1000);
+            start = new Date(componentData.c_startdate * 1000),
+            component;
         componentData.hour = start.getHourString();
         componentData.blocks = [];
-        objects.push(new Component(componentData));
+        component = new Component(componentData);
+        // Filter out categories for which there's no associated color
+        component.categories = _.filter(component.categories, function(name) {
+          return Component.$Preferences.defaults.SOGoCalendarCategoriesColors[name];
+        });
+        objects.push(component);
         return objects;
       };
 
@@ -306,7 +311,7 @@
 
       Component.$views = [];
       Component.$timeout(function() {
-        _.forEach(views, function(data) {
+        _.forEach(views, function(data, viewIndex) {
           var components = [], blocks = {}, allDayBlocks = {}, viewData;
 
           // Change some attributes names
@@ -325,24 +330,27 @@
           _.forEach(_.flatten(data.allDayBlocks), _.bind(associateComponent, components));
 
           // Build array of dates
-          if (dates.length === 0)
-            for (i = 0; i < data.blocks.length; i++) {
-              dates.push(startDate.getDayString());
-              startDate.addDays(1);
-            }
+          if (dayDates.length === 0) {
+            dayDates = _.flatMap(data.days, 'date');
+            dayNumbers = _.flatMap(data.days, 'number');
+          }
 
-          // Convert array of blocks to object with days as keys
+          // Convert array of blocks to an object literal with date strings as keys
           for (i = 0; i < data.blocks.length; i++) {
-            for (j = 0; j < data.blocks[i].length; j++)
-              data.blocks[i][j].dayNumber = i;
-            blocks[dates[i]] = data.blocks[i];
+            for (j = 0; j < data.blocks[i].length; j++) {
+              data.blocks[i][j].dayIndex = i + (viewIndex * data.blocks.length);
+              data.blocks[i][j].dayNumber = dayNumbers[i];
+            }
+            blocks[dayDates[i]] = data.blocks[i];
           }
 
           // Convert array of all-day blocks to object with days as keys
           for (i = 0; i < data.allDayBlocks.length; i++) {
-            for (j = 0; j < data.allDayBlocks[i].length; j++)
-              data.allDayBlocks[i][j].dayNumber = i;
-            allDayBlocks[dates[i]] = data.allDayBlocks[i];
+            for (j = 0; j < data.allDayBlocks[i].length; j++) {
+              data.allDayBlocks[i][j].dayIndex = i + (viewIndex * data.allDayBlocks.length);
+              data.allDayBlocks[i][j].dayNumber = dayNumbers[i];
+            }
+            allDayBlocks[dayDates[i]] = data.allDayBlocks[i];
           }
 
           // "blocks" is now an object literal with the following structure:
@@ -399,8 +407,13 @@
 
         // Instanciate Component objects
         _.reduce(data[type], function(components, componentData, i) {
-          var data = _.zipObject(fields, componentData);
-          components.push(new Component(data));
+          var data = _.zipObject(fields, componentData), component;
+          component = new Component(data);
+          // Filter out categories for which there's no associated color
+          component.categories = _.filter(component.categories, function(name) {
+            return Component.$Preferences.defaults.SOGoCalendarCategoriesColors[name];
+          });
+          components.push(component);
           return components;
         }, components);
 
@@ -421,6 +434,8 @@
   Component.$resetGhost = function() {
     this.$ghost.pointerHandler = null;
     this.$ghost.component = null;
+    this.$ghost.startHour = null;
+    this.$ghost.endHour = null;
   };
 
   /**
@@ -1055,7 +1070,7 @@
     var _this = this, options, path, component, date, dlp;
 
     component = this.$omit();
-    dlp = Component.$Preferences.constructor.$mdDateLocaleProvider;
+    dlp = Component.$Preferences.$mdDateLocaleProvider;
 
     // Format dates and times
     component.startDate = component.start ? component.start.format(dlp, '%Y-%m-%d') : '';
@@ -1074,7 +1089,8 @@
         delete component.repeat.monthdays;
         component.repeat.days = [{ day: this.repeat.month.day, occurrence: this.repeat.month.occurrence.toString() }];
       }
-      else if (this.repeat.month.type) {
+      else if ((this.repeat.frequency == 'monthly' || this.repeat.frequency == 'yearly') &&
+               this.repeat.month.type) {
         // montly recurrence by month days or yearly by month
         delete component.repeat.days;
       }
@@ -1225,6 +1241,28 @@
     }
 
     return localizedString;
+  };
+
+  /**
+   * @function copyTo
+   * @memberof Component.prototype
+   * @desc Copy an event to a calendar
+   * @param {string} calendar - a target calendar UID
+   * @returns a promise of the HTTP operation
+   */
+  Component.prototype.copyTo = function(calendar) {
+    return Component.$$resource.post(this.pid + '/' + this.id, 'copy', {destination: calendar});
+  };
+
+  /**
+   * @function moveTo
+   * @memberof Component.prototype
+   * @desc Move an event to a calendar
+   * @param {string} calendar - a target calendar UID
+   * @returns a promise of the HTTP operation
+   */
+  Component.prototype.moveTo = function(calendar) {
+    return Component.$$resource.post(this.pid + '/' + this.id, 'move', {destination: calendar});
   };
 
   Component.prototype.toString = function() {

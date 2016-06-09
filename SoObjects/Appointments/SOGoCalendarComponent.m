@@ -41,12 +41,14 @@
 #import <SOGo/NSDictionary+Utilities.h>
 #import <SOGo/NSObject+DAV.h>
 #import <SOGo/NSObject+Utilities.h>
+#import <SOGo/NSString+Crypto.h>
 #import <SOGo/NSString+Utilities.h>
 #import <SOGo/SOGoBuild.h>
 #import <SOGo/SOGoMailer.h>
 #import <SOGo/SOGoGroup.h>
 #import <SOGo/SOGoPermissions.h>
 #import <SOGo/SOGoUser.h>
+#import <SOGo/SOGoUserSettings.h>
 #import <SOGo/SOGoSystemDefaults.h>
 #import <SOGo/SOGoUserManager.h>
 #import <SOGo/SOGoWebDAVAclManager.h>
@@ -130,6 +132,16 @@
   return aclManager;
 }
 
+- (void) setIsNew: (BOOL) newIsNew
+{
+  [super setIsNew: newIsNew];
+}
+
+- (BOOL) isNew
+{
+  return [super isNew];
+}
+
 - (NSException *) changeParticipationStatus: (NSString *) newPartStat
                                withDelegate: (iCalPerson *) delegate
                                       alarm: (iCalAlarm *) alarm
@@ -192,11 +204,20 @@
 
 - (void) _filterComponent: (iCalEntityObject *) component
 {
-  NSString *type, *summary;
+  NSString *type, *summary, *tag, *uid;
+  SOGoUserSettings *settings;
+  SOGoUser *calendarOwner;
+  NSEnumerator *children;
+  CardElement *element;
+  NSArray *tags;
+
   int classification;
 
   type = @"vtodo";
   classification = 0;
+
+  calendarOwner = [SOGoUser userWithLogin: [self ownerInContext: context]];
+  settings = [calendarOwner userSettings];
 
   if ([component isKindOfClass: [iCalEvent class]])
     type = @"vevent";
@@ -209,14 +230,23 @@
   summary = [self labelForKey: [NSString stringWithFormat: @"%@_class%d",
                                          type, classification]
                     inContext: context];
+
+  tags = [NSArray arrayWithObjects: @"DTSTAMP", @"DTSTART", @"DTEND", @"DUE", @"EXDATE", @"EXRULE", @"RRULE", nil];
+  uid = [[component uid] asCryptedPassUsingScheme: @"ssha256"
+                                         withSalt: [[settings userSalt] dataUsingEncoding: NSASCIIStringEncoding]
+                                      andEncoding: encHex];
+
+  children = [[[[component children] copy] autorelease] objectEnumerator];
+
+  while ((element = [children nextObject]))
+    {
+      tag = [element tag];
+      if (![tags containsObject: [tag uppercaseString]])
+        [component removeChild: element];
+    }
+
   [component setSummary: summary];
-  [component setComment: @""];
-  [component setUserComment: @""];
-  [component setLocation: @""];
-  [component setCategories: [NSArray array]];
-  [component setUrl: @""];
-  [component removeAllAttendees];
-  [component removeAllAlarms];
+  [component setUid: uid];
 }
 
 - (NSString *) secureContentAsString
@@ -895,12 +925,15 @@
     }
 }
 
-#warning fix this when sendEmailUsing blabla has been cleaned up
-- (void) sendIMIPReplyForEvent: (iCalRepeatableEntityObject *) event
-			  from: (SOGoUser *) from
-			    to: (iCalPerson *) recipient
+//
+//
+//
+- (void) _sendIMIPReplyForEvent: (iCalRepeatableEntityObject *) event
+                           from: (SOGoUser *) from
+                             to: (iCalPerson *) recipient
+                       textOnly: (BOOL) textOnly
 {
-  NSString *pageName, *mailDate, *email;
+  NSString *mailDate, *email;
   WOApplication *app;
   iCalPerson *attendee;
   SOGoAptMailICalReply *p;
@@ -912,50 +945,58 @@
   SOGoDomainDefaults *dd;
 
   dd = [from domainDefaults];
-  if ([dd appointmentSendEMailNotifications] && [event isStillRelevant])
-    {
-      /* get WOApplication instance */
-      app = [WOApplication application];
 
-      /* create page name */
-      pageName = @"SOGoAptMailICalReply";
-      /* construct message content */
-      p = [app pageWithName: pageName inContext: context];
-      [p setApt: (iCalEvent *) event];
+  /* get WOApplication instance */
+  app = [WOApplication application];
 
-      attendee = [event userAsAttendee: from];
-      [p setAttendee: attendee];
+  /* construct message content */
+  p = [app pageWithName: @"SOGoAptMailICalReply"  inContext: context];
+  [p setApt: (iCalEvent *) event];
 
-      /* construct message */
-      headerMap = [NGMutableHashMap hashMapWithCapacity: 5];
+  attendee = [event userAsAttendee: from];
+  [p setAttendee: attendee];
 
-      /* NOTE: multipart/alternative seems like the correct choice but
-       * unfortunately Thunderbird doesn't offer the rich content alternative
-       * at all. Mail.app shows the rich content alternative _only_
-       * so we'll stick with multipart/mixed for the time being.
-       */
+  /* construct message */
+  headerMap = [NGMutableHashMap hashMapWithCapacity: 5];
+
+  /* NOTE: multipart/alternative seems like the correct choice but
+   * unfortunately Thunderbird doesn't offer the rich content alternative
+   * at all. Mail.app shows the rich content alternative _only_
+   * so we'll stick with multipart/mixed for the time being.
+   */
 #warning SOPE is just plain stupid here - if you change the case of keys, it will break the encoding of fields
-      [headerMap setObject: [attendee mailAddress] forKey: @"from"];
-      [headerMap setObject: [recipient mailAddress] forKey: @"to"];
-      mailDate = [[NSCalendarDate date] rfc822DateString];
-      [headerMap setObject: mailDate forKey: @"date"];
-      [headerMap setObject: [[p getSubject] asQPSubjectString: @"UTF-8"]
-                    forKey: @"subject"];
-      [headerMap setObject: [NSString generateMessageID] forKey: @"message-id"];
-      [headerMap setObject: @"1.0" forKey: @"MIME-Version"];
-      [headerMap setObject: @"multipart/mixed" forKey: @"content-type"];
-      [headerMap setObject: @"calendar:invitation-reply" forKey: @"x-sogo-message-type"];
-      msg = [NGMimeMessage messageWithHeader: headerMap];
+  [headerMap setObject: [attendee mailAddress] forKey: @"from"];
+  [headerMap setObject: [recipient mailAddress] forKey: @"to"];
+  mailDate = [[NSCalendarDate date] rfc822DateString];
+  [headerMap setObject: mailDate forKey: @"date"];
+  [headerMap setObject: [[p getSubject] asQPSubjectString: @"UTF-8"]
+                forKey: @"subject"];
+  [headerMap setObject: [NSString generateMessageID] forKey: @"message-id"];
+  [headerMap setObject: @"1.0" forKey: @"MIME-Version"];
 
+  if (textOnly)
+    [headerMap setObject: @"text/html" forKey: @"content-type"];
+  else
+    [headerMap setObject: @"multipart/mixed" forKey: @"content-type"];
+
+  [headerMap setObject: @"calendar:invitation-reply" forKey: @"x-sogo-message-type"];
+  msg = [NGMimeMessage messageWithHeader: headerMap];
+
+  /* text part */
+  headerMap = [NGMutableHashMap hashMapWithCapacity: 1];
+  [headerMap setObject: @"text/html; charset=utf-8"
+                forKey: @"content-type"];
+  bodyPart = [NGMimeBodyPart bodyPartWithHeader: headerMap];
+  bodyData = [[p getBody] dataUsingEncoding: NSUTF8StringEncoding];
+
+  if (textOnly)
+    {
+      [msg setBody: bodyData];
+    }
+  else
+    {
       /* multipart body */
       body = [[NGMimeMultipartBody alloc] initWithPart: msg];
-
-      /* text part */
-      headerMap = [NGMutableHashMap hashMapWithCapacity: 1];
-      [headerMap setObject: @"text/html; charset=utf-8"
-		    forKey: @"content-type"];
-      bodyPart = [NGMimeBodyPart bodyPartWithHeader: headerMap];
-      bodyData = [[p getBody] dataUsingEncoding: NSUTF8StringEncoding];
       [bodyPart setBody: bodyData];
 
       /* attach text part to multipart body */
@@ -967,15 +1008,51 @@
       /* attach multipart body to message */
       [msg setBody: body];
       [body release];
+    }
 
-      /* send the damn thing */
-      email = [recipient rfc822Email];
-      [[SOGoMailer mailerWithDomainDefaults: dd]
+  /* send the damn thing */
+  email = [recipient rfc822Email];
+  [[SOGoMailer mailerWithDomainDefaults: dd]
 	       sendMimePart: msg
                toRecipients: [NSArray arrayWithObject: email]
                      sender: [attendee rfc822Email]
           withAuthenticator: [self authenticatorInContext: context]
                   inContext: context];
+}
+
+
+//
+//
+//
+- (void) sendIMIPReplyForEvent: (iCalRepeatableEntityObject *) event
+			  from: (SOGoUser *) from
+			    to: (iCalPerson *) recipient
+{
+  SOGoDomainDefaults *dd;
+
+  dd = [from domainDefaults];
+  if ([dd appointmentSendEMailNotifications] && [event isStillRelevant])
+    {
+      // We first send to the real recipient (organizer)
+      [self _sendIMIPReplyForEvent: event
+                              from: from
+                                to: recipient
+                          textOnly: NO];
+
+      // If we have a sent-by, we send it to it also. This is useful since
+      // if Alice is Bob's asssitant and invites Tony, when Tony accepts/declines
+      // the event, Alice will also be informed about this. See #3195 for details.
+      if ([recipient hasSentBy])
+        {
+          iCalPerson *sentBy;
+
+          sentBy = [[[iCalPerson alloc] init] autorelease];
+          [sentBy setEmail: [recipient sentBy]];
+          [self _sendIMIPReplyForEvent: event
+                                  from: from
+                                    to: sentBy
+                              textOnly: YES];
+        }
     }
 }
 
@@ -1178,6 +1255,36 @@
   return uids;
 }
 
+- (NSException *) _copyComponent: (iCalCalendar *) calendar
+                        toFolder: (SOGoGCSFolder *) newFolder
+                       updateUID: (BOOL) updateUID
+{
+  NSString *newUID;
+  SOGoCalendarComponent *newComponent;
+
+  if (updateUID)
+    {
+      NSArray *elements;
+      unsigned int count, max;
+
+      newUID = [self globallyUniqueObjectId];
+      elements = [calendar allObjects];
+      max = [elements count];
+      for (count = 0; count < max; count++)
+        [[elements objectAtIndex: count] setUid: newUID];
+    }
+  else
+    {
+      newUID = [[[calendar events] objectAtIndex: 0] uid];
+    }
+
+  newComponent = [[self class] objectWithName:
+				 [NSString stringWithFormat: @"%@.ics", newUID]
+			       inContainer: newFolder];
+
+  return [newComponent saveCalendar: calendar];
+}
+
 - (NSException *) copyToFolder: (SOGoGCSFolder *) newFolder
 {
   return [self copyComponent: [self calendar: NO secure: NO]
@@ -1187,29 +1294,18 @@
 - (NSException *) copyComponent: (iCalCalendar *) calendar
 		       toFolder: (SOGoGCSFolder *) newFolder
 {
-  NSArray *elements;
-  NSString *newUID;
-  unsigned int count, max;
-  SOGoCalendarComponent *newComponent;
-
-  newUID = [self globallyUniqueObjectId];
-  elements = [calendar allObjects];
-  max = [elements count];
-  for (count = 0; count < max; count++)
-    [[elements objectAtIndex: count] setUid: newUID];
-
-  newComponent = [[self class] objectWithName:
-				 [NSString stringWithFormat: @"%@.ics", newUID]
-			       inContainer: newFolder];
-
-  return [newComponent saveCalendar: calendar];
+  return [self _copyComponent: calendar
+                     toFolder: newFolder
+                    updateUID: YES];
 }
 
 - (NSException *) moveToFolder: (SOGoGCSFolder *) newFolder
 {
   NSException *ex;
 
-  ex = [self copyToFolder: newFolder];
+  ex = [self _copyComponent: [self calendar: NO secure: NO]
+                   toFolder: newFolder
+                  updateUID: NO];
 
   if (!ex)
     ex = [self delete];
@@ -1356,19 +1452,17 @@
 
 - (id) PUTAction: (WOContext *) localContext
 {
-  WORequest *rq;
-  iCalCalendar *putCalendar;
-
-  rq = [localContext request];
-  putCalendar = [iCalCalendar parseSingleFromSource: [rq contentAsString]];
-
   if ([[SOGoSystemDefaults sharedSystemDefaults] enableEMailAlarms])
     {
       SOGoEMailAlarmsManager *eaMgr;
+      iCalCalendar *putCalendar;
+      WORequest *rq;
 
+      rq = [localContext request];
+      putCalendar = [iCalCalendar parseSingleFromSource: [rq contentAsString]];
       eaMgr = [SOGoEMailAlarmsManager sharedEMailAlarmsManager];
       [eaMgr handleAlarmsInCalendar: putCalendar
-	     fromComponent: self];
+                      fromComponent: self];
     }
 
   return [super PUTAction: localContext];
@@ -1389,5 +1483,37 @@
 
 //   return values;
 // }
+
+- (void) adjustClassificationInRequestCalendar: (iCalCalendar *) rqCalendar
+{
+  SOGoUserDefaults *userDefaults;
+  NSString *accessClass;
+  NSArray *allObjects;
+  id entity;
+
+  int i;
+
+  userDefaults = [[context activeUser] userDefaults];
+  allObjects = [rqCalendar allObjects];
+
+  for (i = 0; i < [allObjects count]; i++)
+    {
+      entity = [allObjects objectAtIndex: i];
+
+      if ([entity respondsToSelector: @selector(accessClass)])
+        {
+          accessClass = [entity accessClass];
+
+          if (!accessClass || [accessClass length] == 0)
+            {
+              if ([entity isKindOfClass: [iCalEvent class]])
+                [entity setAccessClass: [userDefaults calendarEventsDefaultClassification]];
+              else if ([entity isKindOfClass: [iCalToDo class]])
+                [entity setAccessClass: [userDefaults calendarTasksDefaultClassification]];
+            }
+        }
+    }
+}
+
 
 @end

@@ -1,25 +1,21 @@
 /// subheader.scss -*- Mode: scss; indent-tabs-mode: nil; basic-offset: 2 -*-
 @import 'extends';
 
-.md-subheader {
-  margin-right: 0;
-  line-height: $touch-zone-width;
-}
+$sg-subheader-padding-top-bottom: ($subheader-padding - ($icon-button-height - $subheader-font-size)/2);
+$sg-subheader-padding-left-right: $baseline-grid;
 
-.md-subheader {
-  .md-subheader-inner {
-    padding: 0 0 0 $layout-gutter-width;
-  }
-}
-md-tab-content {
-  .md-subheader {
-    .md-subheader-inner {
-      padding-left: $layout-gutter-width/2;
-    }
-  }
-}
 
 .sg-md-subheader {
+  &--with-icon ._md-subheader-inner,
+  &--with-secondary-icon ._md-subheader-inner {
+    line-height: $sg-avatar-width + ($sg-subheader-padding-top-bottom)*2;
+    padding: ($subheader-padding - ($icon-button-height - $subheader-font-size)/2) $baseline-grid;
+    padding: 0;
+    padding-left: $subheader-padding;
+  }
+  &--with-icon ._md-subheader-inner {
+    padding-left: 0;
+  }
   &--fixed {
     position: fixed;
     z-index: auto;

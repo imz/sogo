@@ -40,6 +40,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #import <NGObjWeb/SoPermissions.h>
 #import <NGObjWeb/SoSecurityManager.h>
 #import <NGObjWeb/WOContext+SoObjects.h>
+#import <NGObjWeb/WOCoreApplication.h>
 
 #import <NGCards/iCalCalendar.h>
 
@@ -111,7 +112,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "SOGoMailObject+ActiveSync.h"
 
 #import <GDLContentStore/GCSChannelManager.h>
+#import <GDLContentStore/GCSFolderManager.h>
 
+#include <signal.h>
 #include <unistd.h>
 
 #ifdef HAVE_OPENSSL
@@ -119,6 +122,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <openssl/err.h>
 #include <openssl/x509.h>
 #endif
+
+void handle_eas_terminate(int signum)
+{
+  NSLog(@"Forcing termination of EAS loop.");
+  easShouldTerminate = YES;
+  [[WOCoreApplication application] terminateAfterTimeInterval: 1];
+}
 
 @interface SOGoActiveSyncDispatcher (Sync)
 
@@ -137,6 +147,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   folderTableURL = nil;
   imapFolderGUIDS = nil;
   syncRequest = nil;
+
+  easShouldTerminate = NO;
+  signal(SIGTERM, handle_eas_terminate);
+
   return self;
 }
 
@@ -146,6 +160,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   RELEASE(imapFolderGUIDS);
   RELEASE(syncRequest);
   [super dealloc];
+}
+
+- (void) _ensureFolder: (SOGoMailFolder *) mailFolder
+{
+  BOOL rc;
+
+  if (![mailFolder isKindOfClass: [NSException class]])
+  {
+    rc = [mailFolder exists];
+    if (!rc)
+      rc = [mailFolder create];
+  }
 }
 
 - (void) _setFolderSyncKey: (NSString *) theSyncKey
@@ -770,6 +796,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   accountsFolder = [userFolder lookupName: @"Mail" inContext: context acquire: NO];
   accountFolder = [accountsFolder lookupName: @"0" inContext: context acquire: NO];
 
+  if (first_sync)
+    {
+      [self _ensureFolder: (SOGoMailFolder *)[accountFolder draftsFolderInContext: context]];
+      [self _ensureFolder: [accountFolder sentFolderInContext: context]];
+      [self _ensureFolder: (SOGoMailFolder *)[accountFolder trashFolderInContext: context]];
+    }
+
   allFoldersMetadata = [NSMutableArray array];
   [self _flattenFolders: [accountFolder allFoldersMetadata]  into: allFoldersMetadata  parent: nil];
   
@@ -857,7 +890,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
              else
                folderType = @"Contacts";
 
-             if ([ cKey rangeOfString: @"/"].location != NSNotFound) 
+	     currentFolder = nil;
+
+             if ([cKey rangeOfString: @"/"].location != NSNotFound) 
                currentFolder = [[[[context activeUser] homeFolderInContext: context] lookupName: folderType inContext: context acquire: NO]
                                                             lookupName: [cKey substringFromIndex: [cKey rangeOfString: @"/"].location+1]  inContext: context acquire: NO];
 
@@ -930,7 +965,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
        {
          // Search GUID to check name change in cache (diff between IMAP and cache)
          key = [NSString stringWithFormat: @"%@+%@", [context objectForKey: @"DeviceId"], [cachedGUIDs objectForKey: [imapGUIDs objectForKey: nameInCache ]]];
-         nkey = [NSString stringWithFormat: @"%@+folder%@", [context objectForKey: @"DeviceId"], [[folderMetadata objectForKey: @"path"] substringFromIndex: 1] ];
+         nkey = [NSString stringWithFormat: @"%@+folder%@", [context objectForKey: @"DeviceId"], [folderMetadata objectForKey: @"path"]];
                    
          if (![key isEqualToString: nkey])
            {
@@ -945,7 +980,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
              [o setTableUrl: [self folderTableURL]];
              [o reloadIfNeeded];
 
-             [[o properties ]  setObject: [[folderMetadata objectForKey: @"path"] substringFromIndex: 1]  forKey: @"displayName"];
+             [[o properties ]  setObject: [folderMetadata objectForKey: @"path"] forKey: @"displayName"];
              [o save];
 
              command_count++;
@@ -965,7 +1000,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          [o setTableUrl: [self folderTableURL]];
          [o reloadIfNeeded];
               
-         [[o properties ]  setObject: [[folderMetadata objectForKey: @"path"] substringFromIndex: 1] forKey: @"displayName"];
+         [[o properties ]  setObject: [folderMetadata objectForKey: @"path"] forKey: @"displayName"];
 
          // clean cache content to avoid stale data
          [[o properties] removeObjectForKey: @"SyncKey"];
@@ -976,6 +1011,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          [[o properties] removeObjectForKey: @"SupportedElements"];
          [[o properties] removeObjectForKey: @"SuccessfulMoveItemsOps"];
          [[o properties] removeObjectForKey: @"InitialLoadSequence"];
+         [[o properties] removeObjectForKey: @"FirstIdInCache"];
+         [[o properties] removeObjectForKey: @"LastIdInCache"];
+
          [o save];
               
          command_count++;
@@ -1074,6 +1112,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                    [[o properties] removeObjectForKey: @"SupportedElements"];
                    [[o properties] removeObjectForKey: @"SuccessfulMoveItemsOps"];
                    [[o properties] removeObjectForKey: @"InitialLoadSequence"];
+                   [[o properties] removeObjectForKey: @"FirstIdInCache"];
+                   [[o properties] removeObjectForKey: @"LastIdInCache"];
                  }
 
                [o save];
@@ -1099,6 +1139,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                    [[o properties] removeObjectForKey: @"SupportedElements"];
                    [[o properties] removeObjectForKey: @"SuccessfulMoveItemsOps"];
                    [[o properties] removeObjectForKey: @"InitialLoadSequence"];
+                   [[o properties] removeObjectForKey: @"FirstIdInCache"];
+                   [[o properties] removeObjectForKey: @"LastIdInCache"];
                  }
 
                [o save];
@@ -1182,7 +1224,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       [theResponse setHeader: [NSString stringWithFormat: @"%@/%@", [[currentBodyPart partInfo] objectForKey: @"type"], [[currentBodyPart partInfo] objectForKey: @"subtype"]]
                  forKey: @"Content-Type"];
 
-      [theResponse setContent: [currentBodyPart fetchBLOB] ];
+      [theResponse setContent: [currentBodyPart fetchBLOBWithPeek: YES] ];
     }
   else
     {
@@ -1400,7 +1442,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                   if ([[theResponse headerForKey: @"Content-Type"] isEqualToString:@"application/vnd.ms-sync.multipart"])
                     {
                       NSData *d;
-                      d = [currentBodyPart fetchBLOB];
+                      d = [currentBodyPart fetchBLOBWithPeek: YES];
 
                       [s appendFormat: @"<Part>%d</Part>", i+1];
                       [partLength addObject: [NSNumber numberWithInteger: [d length]]];
@@ -1409,7 +1451,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                   else
                     {
                       NSString *a;
-                      a = [[currentBodyPart fetchBLOB] activeSyncRepresentationInContext: context];
+                      a = [[currentBodyPart fetchBLOBWithPeek: YES] activeSyncRepresentationInContext: context];
 
                       [s appendFormat: @"<Range>0-%d</Range>", [a length]-1];
                       [s appendFormat: @"<Data>%@</Data>", a];
@@ -1424,6 +1466,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                   [context setObject: bodyPreferenceType  forKey: @"BodyPreferenceType"];
                   mimeSupport = [[(id)[theDocumentElement getElementsByTagName: @"MIMESupport"] lastObject] textValue];
                   [context setObject: mimeSupport  forKey: @"MIMESupport"];
+
+                  // https://msdn.microsoft.com/en-us/library/gg675490%28v=exchg.80%29.aspx
+                  // The fetch element is used to request the application data of an item that was truncated in a synchronization response from the server.
+                  // The complete item is then returned to the client in a server response.
+                  [context setObject: @"8" forKey: @"MIMETruncation"];
 
                   currentCollection = [self collectionFromId: realCollectionId  type: folderType];
 
@@ -1720,11 +1767,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   NSMutableString *s;
   NSData *d; 
   int i;
-  
-  currentFolder = nil;
 
   moveOperations = (id)[theDocumentElement getElementsByTagName: @"Move"];
-  
+
+  newSuccessfulMoveItemsOps = [NSMutableDictionary dictionary];
+  prevSuccessfulMoveItemsOps = nil;
+  folderMetadata = nil;
+  currentFolder = nil;
+
   s = [NSMutableString string];
 
   [s appendString: @"<?xml version=\"1.0\" encoding=\"utf-8\"?>"];
@@ -1748,7 +1798,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         {
           folderMetadata = [self _folderMetadataForKey: nameInCache];
           prevSuccessfulMoveItemsOps = [folderMetadata objectForKey: @"SuccessfulMoveItemsOps"];
-          newSuccessfulMoveItemsOps = [NSMutableDictionary dictionary] ;
           currentFolder = nameInCache;
         }
       
@@ -1984,24 +2033,35 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 - (void) processPing: (id <DOMElement>) theDocumentElement
           inResponse: (WOResponse *) theResponse
 {
-  NSString *collectionId, *realCollectionId, *syncKey;
+  NSString *collectionId, *realCollectionId, *syncKey, *processIdentifier, *pingRequestInCache;
   NSMutableArray *foldersWithChanges, *allFoldersID;
   SOGoMicrosoftActiveSyncFolderType folderType;
   NSMutableDictionary *folderMetadata;
   SOGoSystemDefaults *defaults;
+  SOGoCacheGCSObject *o;
   id <DOMElement> aCollection;
   NSArray *allCollections;
 
   NSMutableString *s;
   id collection;
   NSData *d;
-  
+  NSAutoreleasePool *pool;
 
-  int i, j, heartbeatInterval, defaultInterval, internalInterval, status;
+  int i, j, heartbeatInterval, defaultInterval, internalInterval, status, total_sleep, sleepInterval;
   
+  // Let other ping requests know that a new request has arrived.
+  processIdentifier = [NSString stringWithFormat: @"%d", [[NSProcessInfo processInfo] processIdentifier]];
+  o = [SOGoCacheGCSObject objectWithName: [context objectForKey: @"DeviceId"]  inContainer: nil  useCache: NO];
+  [o setObjectType: ActiveSyncGlobalCacheObject];
+  [o setTableUrl: [self folderTableURL]];
+  [o reloadIfNeeded];
+  [[o properties] setObject: processIdentifier forKey: @"PingRequest"];
+  [o save];
+
   defaults = [SOGoSystemDefaults sharedSystemDefaults];
   defaultInterval = [defaults maximumPingInterval];
   internalInterval = [defaults internalSyncInterval];
+  sleepInterval = (internalInterval < 5) ? internalInterval : 5;
 
   if (theDocumentElement)
     heartbeatInterval = [[[(id)[theDocumentElement getElementsByTagName: @"HeartbeatInterval"] lastObject] textValue] intValue];
@@ -2028,19 +2088,37 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   if (![allCollections count])
     {
-      // We received an empty Ping request. Return status '3' to ask client to resend the request with complete body.
-      s = [NSMutableString string];
-      [s appendString: @"<?xml version=\"1.0\" encoding=\"utf-8\"?>"];
-      [s appendString: @"<!DOCTYPE ActiveSync PUBLIC \"-//MICROSOFT//DTD ActiveSync//EN\" \"http://www.microsoft.com/\">"];
-      [s appendString: @"<Ping xmlns=\"Ping:\">"];
-      [s appendString: @"<Status>3</Status>"];
-      [s appendString: @"</Ping>"];
+      heartbeatInterval = [[[o properties] objectForKey: @"PingHeartbeatInterval"] intValue];
 
-      d = [[s dataUsingEncoding: NSUTF8StringEncoding] xml2wbxml];
+      if (debugOn)
+        [self logWithFormat: @"EAS - Empty Ping request - using cached HeatbeatInterval (%d)", heartbeatInterval];
 
-      [theResponse setContent: d];
+      if (heartbeatInterval > defaultInterval || heartbeatInterval == 0)
+        {
+          heartbeatInterval = defaultInterval;
+          status = 5;
+        }
 
-      return;
+      allFoldersID = [[o properties] objectForKey: @"PingCachedFolders"];
+      if (![allFoldersID count])
+        {
+          // We received an empty Ping request. Return status '3' to ask client to resend the request with complete body.
+          s = [NSMutableString string];
+          [s appendString: @"<?xml version=\"1.0\" encoding=\"utf-8\"?>"];
+          [s appendString: @"<!DOCTYPE ActiveSync PUBLIC \"-//MICROSOFT//DTD ActiveSync//EN\" \"http://www.microsoft.com/\">"];
+          [s appendString: @"<Ping xmlns=\"Ping:\">"];
+          [s appendString: @"<Status>3</Status>"];
+          [s appendString: @"</Ping>"];
+
+          d = [[s dataUsingEncoding: NSUTF8StringEncoding] xml2wbxml];
+
+          [theResponse setContent: d];
+
+          return;
+        }
+
+      if (debugOn)
+        [self logWithFormat: @"EAS - Empty Ping request - using cached folders %@", allFoldersID];
     }
   else
     {      
@@ -2050,6 +2128,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
           collectionId = [[(id) [aCollection getElementsByTagName: @"Id"] lastObject] textValue];
           [allFoldersID addObject: collectionId];
         }
+
+      if (![allFoldersID isEqualToArray: [[o properties] objectForKey: @"PingCachedFolders"]])
+        {
+          if (debugOn)
+            [self logWithFormat: @"EAS - Ping - Save folderlist to cache (HeartbeatInterval: %d) (%@)", heartbeatInterval, allFoldersID];
+
+          [[o properties] setObject: [NSNumber numberWithInteger: heartbeatInterval] forKey: @"PingHeartbeatInterval"];
+          [[o properties] setObject: allFoldersID forKey: @"PingCachedFolders"];
+          [o save];
+        }
     }
 
   foldersWithChanges = [NSMutableArray array];
@@ -2057,6 +2145,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   // We enter our loop detection change
   for (i = 0; i < (heartbeatInterval/internalInterval); i++)
     {
+      if (easShouldTerminate)
+        break;
+
+      pool = [[NSAutoreleasePool alloc] init];
       for (j = 0; j < [allFoldersID count]; j++)
         {
           collectionId = [allFoldersID objectAtIndex: j];
@@ -2081,7 +2173,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
               [foldersWithChanges addObject: collectionId];
             }
         }
-      
+      DESTROY(pool);
+
       if ([foldersWithChanges count])
         {
           [self logWithFormat: @"Change detected using Ping, we let the EAS client know to send a Sync."];
@@ -2090,8 +2183,30 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         }
       else
         {
-          [self logWithFormat: @"Sleeping %d seconds while detecting changes in Ping...", internalInterval];
-          sleep(internalInterval);
+          total_sleep = 0;
+
+          while (!easShouldTerminate && total_sleep < internalInterval)
+            {
+              // We check if we must break the current ping request since an other ping request
+              // has just arrived.
+              pingRequestInCache = [[self globalMetadataForDevice] objectForKey: @"PingRequest"];
+              if (pingRequestInCache && ![pingRequestInCache isEqualToString: processIdentifier])
+                {
+                  if (debugOn)
+                    [self logWithFormat: @"EAS - Ping request canceled (%@)", pingRequestInCache];
+
+                  // Make sure we end the heardbeat-loop.
+                  internalInterval = heartbeatInterval;
+
+                  break;
+                }
+              else
+                {
+                  [self logWithFormat: @"Sleeping %d seconds while detecting changes in Ping...", internalInterval-total_sleep];
+                  sleep(sleepInterval);
+                  total_sleep += sleepInterval;
+                }
+            }
         }
     }
   
@@ -2466,8 +2581,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         {          
           contact = [allContacts objectAtIndex: j];
           
-          // We skip lists for now
-          if ([[contact objectForKey: @"c_component"] isEqualToString: @"vlist"])
+          // We skip lists for now and bogus entries
+          if ([[contact objectForKey: @"c_component"] isEqualToString: @"vlist"] ||
+	      [[contact objectForKey: @"c_name"] length] == 0)
             continue;
           
           // We get the LDIF entry of our record, for easier processing
@@ -2856,7 +2972,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         {
           [map setObject: [mailObject messageId] forKey: @"in-reply-to"];
 
-          references = [[[[[mailObject mailHeaders] objectForKey: @"references"] componentsSeparatedByString: @" "] mutableCopy] autorelease];
+          references = [[[[[mailObject mailHeaders] objectForKey: @"references"] componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceCharacterSet]] mutableCopy] autorelease];
 
           // If there is no References: header, initialize it with In-Reply-To.
           if ([mailObject inReplyTo] && ![references count])
@@ -2870,7 +2986,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
               [references addObject: [mailObject messageId]];
 
-              [map setObject: [references componentsJoinedByString:@" "] forKey: @"references"];
+              [map setObject: [references componentsJoinedByString: @" "] forKey: @"references"];
             }
           else
             {
@@ -2909,28 +3025,28 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                     {
                       apart = [aparts objectAtIndex: j];
                       if ([[[apart contentType] type] isEqualToString: @"text"] && [[[apart contentType] subType] isEqualToString: @"html"])
-                          htmlPart = apart;
+                        htmlPart = apart;
                       if ([[[apart contentType] type] isEqualToString: @"text"] && [[[apart contentType] subType] isEqualToString: @"plain"])
-                          textPart = apart;
+                        textPart = apart;
                     }
                 }
               else 
                 {
                   if ([[[part contentType] type] isEqualToString: @"text"] && [[[part contentType] subType] isEqualToString: @"html"])
-                     htmlPart = part;
+                    htmlPart = part;
                   else if ([[[part contentType] type] isEqualToString: @"text"] && [[[part contentType] subType] isEqualToString: @"plain"])
-                     textPart = part;
+                    textPart = part;
                   else
-                     [attachments addObject: part];
+                    [attachments addObject: part];
                }
             }
         }
       else
         {
           if ([[[messageFromSmartForward contentType] type] isEqualToString: @"text"] && [[[messageFromSmartForward contentType] subType] isEqualToString: @"html"])
-             htmlPart = messageFromSmartForward;
+            htmlPart = messageFromSmartForward;
           else
-             textPart = messageFromSmartForward;
+            textPart = messageFromSmartForward;
         }
 
       htmlComposition = [[ud mailComposeMessageType] isEqualToString: @"html"];
@@ -3034,26 +3150,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                   response = [[mailObject fetchParts: paths] objectForKey: @"RawResponse"];
 
                   for (a = 0; a < [attachmentKeys count]; a++)
-                     {
-                       currentAttachment = [attachmentKeys objectAtIndex: a];
-                       bodydata = [[[response objectForKey: @"fetch"] objectForKey: [NSString stringWithFormat: @"body[%@]", [currentAttachment objectForKey: @"path"]]] valueForKey: @"data"]; 
+                    {
+                      currentAttachment = [attachmentKeys objectAtIndex: a];
+                      bodydata = [[[response objectForKey: @"fetch"] objectForKey: [NSString stringWithFormat: @"body[%@]", [currentAttachment objectForKey: @"path"]]] valueForKey: @"data"]; 
 
-                       map = [[[NGMutableHashMap alloc] initWithCapacity: 1] autorelease];
-                       [map setObject: [currentAttachment objectForKey: @"mimetype"] forKey: @"content-type"];
-                       [map setObject: [currentAttachment objectForKey: @"encoding"] forKey: @"content-transfer-encoding"];
-                       [map addObject: [NSString stringWithFormat: @"attachment; filename=\"%@\"", [currentAttachment objectForKey: @"filename"]] forKey: @"content-disposition"];
-                       bodyPart = [[[NGMimeBodyPart alloc] initWithHeader: map] autorelease];
+                      map = [[[NGMutableHashMap alloc] initWithCapacity: 1] autorelease];
+                      [map setObject: [currentAttachment objectForKey: @"mimetype"] forKey: @"content-type"];
+                      [map setObject: [currentAttachment objectForKey: @"encoding"] forKey: @"content-transfer-encoding"];
+                      [map addObject: [NSString stringWithFormat: @"attachment; filename=\"%@\"", [currentAttachment objectForKey: @"filename"]] forKey: @"content-disposition"];
+                      bodyPart = [[[NGMimeBodyPart alloc] initWithHeader: map] autorelease];
 
-                       fdata = [[NGMimeFileData alloc] initWithBytes:[bodydata bytes]  length:[bodydata length]];
-
-                       [bodyPart setBody: fdata];
-                       RELEASE(fdata);
-                       [body addBodyPart: bodyPart];
-                     }
-
+                      fdata = [[NGMimeFileData alloc] initWithBytes:[bodydata bytes]  length:[bodydata length]];
+                      [bodyPart setBody: fdata];
+                      RELEASE(fdata);
+                      [body addBodyPart: bodyPart];
+                    }
                 }
             }
-        }
+        } //  if (isSmartForward)
 
       [messageToSend setBody: body];
       
@@ -3068,6 +3182,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         {
           [theResponse setStatus: 500];
           [theResponse appendContentString: @"FATAL ERROR occured during SmartForward"];
+        }
+      else if (!isSmartForward)
+        {
+          [mailObject addFlags: @"Answered"];
+        }
+      else
+        {
+          [mailObject addFlags: @"$Forwarded"];
         }
     }
   else
@@ -3318,6 +3440,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   NSString *tableName, *query;
   GCSSpecialQueries *queries;
 
+  if ([GCSFolderManager singleStoreMode])
+    return;
+
   [self folderTableURL];
 
   cm = [GCSChannelManager defaultChannelManager];
@@ -3341,6 +3466,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
   [cm releaseChannel: channel]; 
+}
+
+- (BOOL) easShouldTerminate
+{
+  return easShouldTerminate;
 }
 
 @end

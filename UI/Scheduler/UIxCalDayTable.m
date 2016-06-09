@@ -1,8 +1,6 @@
 /* UIxCalDayTable.m - this file is part of SOGo
  *
- * Copyright (C) 2006-2009 Inverse inc.
- *
- * Author: Wolfgang Sourdeau <wsourdeau@inverse.ca>
+ * Copyright (C) 2006-2016 Inverse inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +23,8 @@
 #import <Foundation/NSValue.h>
 
 #import <NGExtensions/NSCalendarDate+misc.h>
+
+#import <SOPE/NGCards/iCalRecurrenceRule.h>
 
 #import <SOGo/NSCalendarDate+SOGo.h>
 #import <SOGo/SOGoDateFormatter.h>
@@ -61,7 +61,7 @@
       currentCalendar = nil;
       currentTableDay = nil;
       currentTableHour = nil;
-      weekDays = [locale objectForKey: NSShortWeekDayNameArray];
+      weekDays = [locale objectForKey: NSWeekDayNameArray];
       [weekDays retain];
       dateFormatter = [user dateFormatterInContext: context];
       [dateFormatter retain];
@@ -81,6 +81,7 @@
   [hoursToDisplay release];
   [dateFormatter release];
   [timeFormat release];
+  free(daysNumbersToDisplay);
   [super dealloc];
 }
 
@@ -135,7 +136,7 @@
 - (NSArray *) hoursToDisplay
 {
   unsigned int currentHour, lastHour;
-  
+
   if (!hoursToDisplay)
     {
       hoursToDisplay = [NSMutableArray new];
@@ -157,24 +158,36 @@
   return [NSString stringWithFormat: @"hour%d", [currentTableHour intValue]];
 }
 
+/**
+ * Return an array of NSCalendarDate instances matching the requested time period
+ * and the week days enabled in the user's defaults.
+ */
 - (NSArray *) daysToDisplay
 {
   NSCalendarDate *currentDate;
-  int count;
-  
+  NSString *weekDay;
+  int count, enabledCount;
+
   if (!daysToDisplay)
   {
     daysToDisplay = [NSMutableArray new];
+    daysNumbersToDisplay = malloc (numberOfDays * sizeof (unsigned int));
     currentDate = [[self startDate] hour: [self dayStartHour]
                                   minute: 0];
-    
-    for (count = 0; count < numberOfDays; count++)
+
+    for (count = 0, enabledCount = 0; count < numberOfDays; count++)
     {
-      [daysToDisplay addObject: currentDate];
+      weekDay = iCalWeekDayString[[currentDate dayOfWeek]];
+      if ([enabledWeekDays count] == 0 || [enabledWeekDays containsObject: weekDay])
+        {
+          [daysToDisplay addObject: currentDate];
+          daysNumbersToDisplay[enabledCount] = count;
+          enabledCount++;
+        }
       currentDate = [currentDate tomorrow];
     }
   }
-  
+
   return daysToDisplay;
 }
 
@@ -218,7 +231,7 @@
       }
     }
   }
-  
+
   return calendarsToDisplay;
 }
 
@@ -242,16 +255,21 @@
   return currentCalendar;
 }
 
-- (void) setCurrentTableHour: (NSString *) aTableHour
+- (void) setCurrentTableHour: (NSNumber *) aTableHour
 {
-  currentTableHour = aTableHour;
+  ASSIGN(currentTableHour, aTableHour);
 }
 
-- (NSString *) currentTableHour
+- (NSNumber *) currentTableHour
+{
+  return currentTableHour;
+}
+
+- (NSString *) currentFormattedHour
 {
   int hour;
   NSCalendarDate *tmp;
-  NSString *formatted = currentTableHour, *parse;
+  NSString *formatted = [NSString stringWithFormat: @"%d", [currentTableHour intValue]], *parse;
 
   hour = [currentTableHour intValue];
   parse = [NSString stringWithFormat: @"2000-01-01 %02d:00", hour];
@@ -259,7 +277,8 @@
   tmp = [NSCalendarDate dateWithString: parse
                         calendarFormat: @"%Y-%m-%d %H:%M"];
   if (tmp)
-    formatted = [tmp descriptionWithCalendarFormat: timeFormat];
+    formatted = [tmp descriptionWithCalendarFormat: timeFormat
+                                            locale: locale];
 
   return formatted;
 }
@@ -276,7 +295,9 @@
 
 - (int) currentDayNumber
 {
-  return [daysToDisplay indexOfObject: currentTableDay];
+  int i = [daysToDisplay indexOfObject: currentTableDay];
+
+  return daysNumbersToDisplay[i];
 }
 
 - (NSNumber *) currentAppointmentHour
@@ -354,7 +375,7 @@
 //     {
 //       newMutableAppointment
 //         = [NSMutableDictionary dictionaryWithDictionary: anAppointment];
-      
+
 //       if (startIsEarlier)
 //         [newMutableAppointment setObject: start
 //                                forKey: @"startDate"];
@@ -430,13 +451,13 @@
 // - (NSString *) daysViewClasses
 // {
 //   NSString *daysView;
-  
+
 //   if ([currentView isEqualToString:@"multicolumndayview"])
 //     daysView = @"daysView daysViewForMultipleDays";
 
 //   else
 //     daysView = [NSString stringWithFormat: @"daysView daysViewFor%dDays", numberOfDays];
-  
+
 //   return daysView;
 //}
 
@@ -448,14 +469,11 @@
 - (NSString *) dayClasses
 {
   NSMutableString *classes;
-  unsigned int currentDayNbr, realDayOfWeek;
-  
-  classes = [NSMutableString string];
-  currentDayNbr = [daysToDisplay indexOfObject: currentTableDay];
+  unsigned int realDayOfWeek;
+
+  classes = [NSMutableString stringWithString: @"day"];
   realDayOfWeek = [currentTableDay dayOfWeek];
-    
-  [classes appendFormat: @"day day%d", currentDayNbr];
-    
+
   if (numberOfDays > 1)
     {
       if (realDayOfWeek == 0 || realDayOfWeek == 6)
@@ -463,7 +481,7 @@
       if ([currentTableDay isToday])
         [classes appendString: @" dayOfToday"];
     }
-       
+
   return classes;
 }
 
@@ -487,7 +505,7 @@
 {
   if ([currentView isEqualToString:@"multicolumndayview"])
     return YES;
-  
+
   return NO;
 }
 
@@ -495,7 +513,7 @@
 {
   if ([currentView isEqualToString:@"dayview"] || [currentView isEqualToString:@"weekview"])
     return YES;
-  
+
   return NO;
 }
 

@@ -4,7 +4,7 @@
 (function() {
   'use strict';
 
-  angular.module('SOGo.SchedulerUI', ['ui.router', 'angularFileUpload', 'SOGo.Common', 'SOGo.PreferencesUI', 'SOGo.ContactsUI', 'SOGo.MailerUI'])
+  angular.module('SOGo.SchedulerUI', ['ngCookies', 'ui.router', 'angularFileUpload', 'ck', 'SOGo.Common', 'SOGo.PreferencesUI', 'SOGo.ContactsUI', 'SOGo.MailerUI', 'ng-sortable'])
     .config(configure)
     .run(runBlock);
 
@@ -123,6 +123,17 @@
           url += view[1];
         else
           url += 'week';
+        // Append today's date or next enabled weekday
+        var now = new Date();
+        if (Preferences.defaults.SOGoCalendarWeekdays) {
+          var weekDays = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+          var weekDay = weekDays[now.getDay()];
+          while (Preferences.defaults.SOGoCalendarWeekdays.indexOf(weekDay) < 0) {
+            now.addDays(1);
+            weekDay = weekDays[now.getDay()];
+          }
+        }
+        url += '/' + now.getDayString();
         $location.replace().url(url);
       });
     }

@@ -13,7 +13,7 @@
     // Expose controller
     $window.$mailboxController = vm;
 
-    Mailbox.selectedFolder = stateMailbox;
+    stateMailbox.selectFolder();
 
     vm.service = Mailbox;
     vm.accounts = stateAccounts;
@@ -26,7 +26,6 @@
     vm.markOrUnMarkMessagesAsJunk = markOrUnMarkMessagesAsJunk;
     vm.copySelectedMessages = copySelectedMessages;
     vm.moveSelectedMessages = moveSelectedMessages;
-    vm.saveSelectedMessages = saveSelectedMessages;
     vm.markSelectedMessagesAsFlagged = markSelectedMessagesAsFlagged;
     vm.markSelectedMessagesAsUnread = markSelectedMessagesAsUnread;
     vm.selectAll = selectAll;
@@ -34,7 +33,7 @@
     vm.sortedBy = sortedBy;
     vm.cancelSearch = cancelSearch;
     vm.newMessage = newMessage;
-    vm.mode = { search: false };
+    vm.mode = { search: false, multiple: 0 };
 
     function selectMessage(message) {
       if (Mailbox.$virtualMode)
@@ -45,12 +44,16 @@
 
     function toggleMessageSelection($event, message) {
       message.selected = !message.selected;
+      vm.mode.multiple += message.selected? 1 : -1;
       $event.preventDefault();
       $event.stopPropagation();
     }
 
     function unselectMessages() {
-      _.forEach(vm.selectedFolder.$messages, function(message) { message.selected = false; });
+      _.forEach(vm.selectedFolder.$messages, function(message) {
+        message.selected = false;
+      });
+      vm.mode.multiple = 0;
     }
 
     function confirmDeleteSelectedMessages() {
@@ -96,6 +99,7 @@
     function unselectMessage(message, index) {
       // Unselect current message and cleverly load the next message
       var nextMessage, previousMessage, nextIndex = index;
+      vm.mode.multiple = vm.selectedFolder.$selectedCount();
       if (message) {
         if (Mailbox.$virtualMode) {
           $state.go('mail.account.virtualMailbox');
@@ -148,16 +152,11 @@
       });
     }
 
-    function saveSelectedMessages() {
-      var selectedMessages = _.filter(vm.selectedFolder.$messages, function(message) { return message.selected; });
-      var selectedUIDs = _.map(selectedMessages, 'uid');
-      window.location.href = ApplicationBaseURL + '/' + vm.selectedFolder.id + '/saveMessages?uid=' + selectedUIDs.join(",");
-    }
-
     function selectAll() {
       var i = 0, length = vm.selectedFolder.$messages.length;
       for (; i < length; i++)
         vm.selectedFolder.$messages[i].selected = true;
+      vm.mode.multiple = length;
     }
 
     function markSelectedMessagesAsFlagged() {
@@ -219,7 +218,7 @@
             controller: 'MessageEditorController',
             controllerAs: 'editor',
             locals: {
-              stateAccounts: vm.accounts,
+              stateAccount: vm.account,
               stateMessage: message,
               stateRecipients: []
             }

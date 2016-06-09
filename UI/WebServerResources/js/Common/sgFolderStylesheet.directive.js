@@ -29,8 +29,7 @@
       template: [
         '<style type="text/css">',
         /* Background color */
-        '  .bg-folder{{ cssCtrl.ngModel.id }},',
-        '  .bg-folder{{ cssCtrl.ngModel.id }} label {',
+        '  .bg-folder{{ cssCtrl.ngModel.id }} {',
         '    background-color: {{ cssCtrl.ngModel.color }} !important;',
         '    color: {{ cssCtrl.contrast(cssCtrl.ngModel.color) }} !important;',
         '  }',
@@ -42,7 +41,8 @@
         '    color: {{ cssCtrl.contrast(cssCtrl.ngModel.color) }} !important;',
         '  }',
         // Set the contrast color of input labels
-        '  .bg-folder{{ cssCtrl.ngModel.id }} label {',
+        '  .bg-folder{{ cssCtrl.ngModel.id }} label,',
+        '  .bg-folder{{ cssCtrl.ngModel.id }} .md-input {',
         '    color: {{ cssCtrl.contrast(cssCtrl.ngModel.color) }} !important;',
         '    opacity: 0.8;',
         '  }',
@@ -55,11 +55,14 @@
         '  .bdr-folder{{ cssCtrl.ngModel.id }} {',
         '    border-color: {{ cssCtrl.ngModel.color }} !important;',
         '  }',
+        '  .contrast-bdr-folder{{ cssCtrl.ngModel.id }} {',
+        '    border-color: {{ cssCtrl.contrast(cssCtrl.ngModel.color) }} !important;',
+        '  }',
         /* Checkbox color */
-        '  .checkbox-folder{{ cssCtrl.ngModel.id }} .md-icon {',
+        '  .checkbox-folder{{ cssCtrl.ngModel.id }} ._md-icon {',
         '    background-color: {{ cssCtrl.ngModel.color }} !important;',
         '  }',
-        '  .checkbox-folder{{ cssCtrl.ngModel.id }}.md-checked .md-icon:after {',
+        '  .checkbox-folder{{ cssCtrl.ngModel.id }}.md-checked ._md-icon:after {',
         '    border-color: {{ cssCtrl.contrast(cssCtrl.ngModel.color) }} !important;',
         '  }',
         '</style>'
@@ -69,7 +72,7 @@
     function sgFolderStylesheetController() {
       var vm = this;
 
-      vm.contrast = contrast;
+      vm.contrast = contrast; // defined in Common/utils.js
     }
   }
 

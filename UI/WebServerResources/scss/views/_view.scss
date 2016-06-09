@@ -52,18 +52,21 @@ $listView-width: grid-step(6) !global;
   z-index: ($z-index-view - 1);
   min-width: ($listView-width - ($pitch * 2));
 
-  // With Material, when a button inside a md-list uses the class md-secondary, it has an absolute position on the
-  // right side of the list item. Since we define the avatar as the secondary button, we must move it to the left
-  // side of the list item and add some padding to the main button (.md-no-style).
+  // With Material, when a button inside a md-list uses the class md-secondary, it is moved inside a container
+  // on the right side of the list item. Since we define the avatar as the secondary button, we must move it to
+  // the left side of the list item.
   .md-with-secondary {
-    .md-no-style {
-      min-height: $baseline-grid * 7; // 56px
-      padding-left: 40 + $baseline-grid * 3;
+    ._md-list-item-inner {
+      order: 2;
+      padding-left: $baseline-grid;
     }
-    .md-secondary-container {
-      left: $baseline-grid * 2;
-      right: initial;
+    ._md-secondary-container {
+      order: 1; // move secondary container to the left
+    }
+    .md-secondary {
+      margin: 0;
       padding: 0;
+      text-align: left;
     }
   }
 
@@ -91,6 +94,9 @@ $listView-width: grid-step(6) !global;
       min-width: 100%;
       min-height: 0;
     }
+  }
+  md-card {
+    background-color: white;
   }
 
   // On small screens, the view slides from the right and takes all screen place.

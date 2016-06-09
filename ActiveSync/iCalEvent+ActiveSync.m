@@ -145,7 +145,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
           
           o = [organizer cn];
           if ([o length])
-            [s appendFormat: @"<Organizer_Name xmlns=\"Calendar:\">%@</Organizer_Name>", o];
+            [s appendFormat: @"<Organizer_Name xmlns=\"Calendar:\">%@</Organizer_Name>", [o activeSyncRepresentationInContext: context]];
         }
     }
   
@@ -501,6 +501,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   if ((o = [theValues objectForKey: @"Location"]))
     [self setLocation: o];
 
+  deltasecs = 0;
+  start = nil;
+
   if ((o = [theValues objectForKey: @"StartTime"]))
     {
       o = [o calendarDate];
@@ -508,8 +511,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       oldstart = [start dateTime];
       [start setTimeZone: tz];
 
-       if (isAllDay)
-         {
+      if (isAllDay)
+	{
           [start setDate: o];
           [start setTimeZone: nil];
         }
@@ -520,9 +523,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
       // Calculate delta if start date has been changed.
       if (oldstart)
-         deltasecs = [[start dateTime ] timeIntervalSinceDate: oldstart] * -1;
-      else
-         deltasecs = 0;
+	deltasecs = [[start dateTime ] timeIntervalSinceDate: oldstart] * -1;
     }
 
   if ((o = [theValues objectForKey: @"EndTime"]))
