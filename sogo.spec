@@ -387,8 +387,10 @@ fi
 %preun_service sogo
 
 %changelog
-* Tue Apr 12 2016 Andrey Cherepanov <cas@altlinux.org> 3.0.2-alt3
-- Fix user name in tmpwatch and logrotate rules (ALT #31962)
+* Thu Jun 09 2016 Andrey Cherepanov <cas@altlinux.org> 3.0.2-alt3
+- Fix user name in tmpwatch and logrotate rules
+- Add dlinklist.h from Samba
+- Rebuild with Apache 2.4
 
 * Thu Mar 10 2016 Andrey Cherepanov <cas@altlinux.org> 3.0.2-alt2
 - Rebuild with new rpm
