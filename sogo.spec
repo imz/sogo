@@ -3,8 +3,8 @@
 
 Summary:      SOGo is a very fast and scalable modern collaboration suite (groupware)
 Name:         sogo3
-Version:      3.0.2
-Release:      alt3
+Version:      3.1.2
+Release:      alt1
 
 License:      GPL
 URL:          http://www.inverse.ca/contributions/sogo.html
@@ -387,6 +387,9 @@ fi
 %preun_service sogo
 
 %changelog
+* Wed Jun 15 2016 Andrey Cherepanov <cas@altlinux.org> 3.1.2-alt1
+- New version
+
 * Thu Jun 09 2016 Andrey Cherepanov <cas@altlinux.org> 3.0.2-alt3
 - Fix user name in tmpwatch and logrotate rules
 - Add dlinklist.h from Samba
