@@ -72,11 +72,11 @@ static SoProduct *preferencesProduct = nil;
 
 - (WOResponse *) jsonDefaultsAction
 {
-  NSMutableDictionary *values, *account;
+  NSMutableDictionary *values, *account, *vacation;
   SOGoUserDefaults *defaults;
   SOGoDomainDefaults *domainDefaults;
   NSMutableArray *accounts;
-  NSDictionary *categoryLabels;
+  NSDictionary *categoryLabels, *vacationOptions;
   NSDictionary *locale;
 
   if (!preferencesProduct)
@@ -283,7 +283,7 @@ static SoProduct *preferencesProduct = nil;
   if (![[defaults source] objectForKey: @"SOGoMailDisplayRemoteInlineImages"])
     [[defaults source] setObject: [defaults mailDisplayRemoteInlineImages] forKey: @"SOGoMailDisplayRemoteInlineImages"];
 
-  // Populate default mail lablels, based on the user's preferred language
+  // Populate default mail labels, based on the user's preferred language
   if (![[defaults source] objectForKey: @"SOGoMailLabelsColors"])
     {
       SOGoMailLabel *label;
@@ -311,6 +311,14 @@ static SoProduct *preferencesProduct = nil;
 
   values = [[[[defaults source] values] mutableCopy] autorelease];
 
+  //
+  // Expose additional information that must *not* be synchronized in the defaults
+  //
+
+  // Expose the SOGoAppointmentSendEMailNotifications configuration parameter from the domain defaults
+  [values setObject: [NSNumber numberWithBool: [domainDefaults appointmentSendEMailNotifications]]
+             forKey: @"SOGoAppointmentSendEMailNotifications"];
+
   // Add locale code (used by CK Editor)
   locale = [[preferencesProduct resourceManager] localeForLanguageNamed: [defaults language]];
   [values setObject: [locale objectForKey: @"NSLocaleCode"] forKey: @"LocaleCode"];
@@ -321,10 +329,7 @@ static SoProduct *preferencesProduct = nil;
                                            [locale objectForKey: @"NSShortWeekDayNameArray"], @"shortDays",
                                                     nil] forKey: @"locale"];
 
-  //
-  // We inject our default mail account, something we don't want to do before we
-  // call -synchronize on our defaults.
-  //
+  // We inject our default mail account
   accounts = [NSMutableArray arrayWithArray: [values objectForKey: @"AuxiliaryMailAccounts"]];
   account = [[[context activeUser] mailAccounts] objectAtIndex: 0];
   if (![account objectForKey: @"receipts"])
@@ -335,10 +340,25 @@ static SoProduct *preferencesProduct = nil;
                                         @"ignore", @"receiptAnyAction", nil]
                   forKey:  @"receipts"];
     }
-
   [accounts insertObject: account  atIndex: 0];
   [values setObject: accounts  forKey: @"AuxiliaryMailAccounts"];
 
+  // Add the domain's default vacation subject if user has not specified a custom subject
+  vacationOptions = [defaults vacationOptions];
+  if (![vacationOptions objectForKey: @"customSubject"] && [domainDefaults vacationDefaultSubject])
+    {
+      if (vacationOptions)
+        vacation = [NSMutableDictionary dictionaryWithDictionary: vacationOptions];
+      else
+        vacation = [NSMutableDictionary dictionary];
+
+      [vacation setObject: [domainDefaults vacationDefaultSubject] forKey: @"customSubject"];
+      [values setObject: vacation forKey: @"Vacation"];
+    }
+
+  // Don't expose SOGoRememberLastModule;
+  // User can edit SOGoLoginModule but SOGoRememberLastModule is managed internally.
+  [values removeObjectForKey: @"SOGoRememberLastModule"];
 
   return [self responseWithStatus: 200 andJSONRepresentation: values];
 }

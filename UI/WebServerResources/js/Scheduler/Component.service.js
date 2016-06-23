@@ -475,14 +475,6 @@
     this.delta = 60;
     angular.extend(this, data);
 
-    Component.$Preferences.ready().then(function() {
-      var type = (_this.type == 'appointment')? 'Events' : 'Tasks';
-
-      // Set default values from user's defaults
-      _this.classification = _this.classification ||
-        Component.$Preferences.defaults['SOGoCalendar' + type + 'DefaultClassification'].toLowerCase();
-    });
-
     if (this.component == 'vevent')
       this.type = 'appointment';
     else if (this.component == 'vtodo')
@@ -564,8 +556,14 @@
     this.$hasCustomRepeat = this.hasCustomRepeat();
 
     if (this.isNew) {
-      // Set default alarm
+      // Set default values
       Component.$Preferences.ready().then(function() {
+        var type = (_this.type == 'appointment')? 'Events' : 'Tasks';
+
+        // Set default classification
+        _this.classification = Component.$Preferences.defaults['SOGoCalendar' + type + 'DefaultClassification'].toLowerCase();
+
+        // Set default alarm
         var units = { M: 'MINUTES', H: 'HOURS', D: 'DAYS', W: 'WEEKS' };
         var match = /-PT?([0-9]+)([MHDW])/.exec(Component.$Preferences.defaults.SOGoCalendarDefaultReminder);
         if (match) {
@@ -573,6 +571,9 @@
           _this.alarm.quantity = parseInt(match[1]);
           _this.alarm.unit = units[match[2]];
         }
+
+        // Set notitifications
+        _this.sendAppointmentNotifications = Component.$Preferences.defaults.SOGoAppointmentSendEMailNotifications;
       });
     }
     else {
@@ -831,7 +832,7 @@
   Component.prototype.addAttendee = function(card) {
     var _this = this, attendee, list, url, params;
     if (card) {
-      if (card.$isList() && card.isGroup !== 1) {
+      if (card.$isList({expandable: true})) {
         // Decompose list members
         list = Component.$Card.$find(card.container, card.c_name);
         list.$id().then(function(listId) {
@@ -840,7 +841,7 @@
               name: ref.c_cn,
               email: ref.$preferredEmail(),
               role: 'req-participant',
-              status: 'needs-action',
+              partstat: 'needs-action',
               uid: ref.c_uid
             };
             if (!_.find(_this.attendees, function(o) {
@@ -863,7 +864,7 @@
           name: card.c_cn,
           email: card.$preferredEmail(),
           role: 'req-participant',
-          status: 'needs-action',
+          partstat: 'needs-action',
           uid: card.c_uid
         };
         if (!_.find(this.attendees, function(o) {

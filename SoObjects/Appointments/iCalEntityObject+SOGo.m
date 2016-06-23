@@ -118,7 +118,7 @@ NSNumber *iCalDistantFutureNumber = nil;
     {
       organizerData = [NSMutableDictionary dictionaryWithObjectsAndKeys:
                                              [organizer rfc822Email], @"email",
-                                           [organizer cnWithoutQuotes], @"name",
+                                           ([[organizer cnWithoutQuotes] length] ? [organizer cnWithoutQuotes] : [organizer rfc822Email]), @"name",
                                            nil];
       uid = [organizer uid];
       if ([uid length]) [organizerData setObject: uid forKey: @"uid"];
@@ -134,7 +134,7 @@ NSNumber *iCalDistantFutureNumber = nil;
     {
       attendeeData = [NSMutableDictionary dictionaryWithObjectsAndKeys:
                                             [currentAttendee rfc822Email], @"email",
-                                          [currentAttendee cnWithoutQuotes], @"name",
+                                          ([[currentAttendee cnWithoutQuotes] length] ? [currentAttendee cnWithoutQuotes] : [currentAttendee rfc822Email]) , @"name",
                                           nil];
       if ((uid = [currentAttendee uid]))
         {
@@ -158,7 +158,7 @@ NSNumber *iCalDistantFutureNumber = nil;
                 }
             }
         }
-      [attendeeData setObject: [[currentAttendee partStat] lowercaseString] forKey: @"status"];
+      [attendeeData setObject: [[currentAttendee partStat] lowercaseString] forKey: @"partstat"];
       [attendeeData setObject: [[currentAttendee role] lowercaseString] forKey: @"role"];
       if ([[currentAttendee delegatedTo] length])
 	[attendeeData setObject: [[currentAttendee delegatedTo] rfc822Email] forKey: @"delegatedTo"];
@@ -232,7 +232,9 @@ NSNumber *iCalDistantFutureNumber = nil;
                   [currentAttendee setCn: [currentData objectForKey: @"name"]];
                   [currentAttendee setEmail: currentEmail];
                 }
-              [currentAttendee
+              if (!currentAttendee || ![[currentAttendee role] isEqualToString: role])
+                // Set the RSVP only if this is a new attendee or the role has changed
+                [currentAttendee
                     setRsvp: ([role isEqualToString: @"NON-PARTICIPANT"]
                               ? @"FALSE"
                               : @"TRUE")];

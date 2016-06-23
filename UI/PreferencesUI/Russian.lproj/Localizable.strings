@@ -3,6 +3,18 @@
 "Close" = "Закрыть не сохраняя";
 "Preferences saved" = "Настройки сохранены";
 
+/* Unsaved changes confirmation dialog title */
+"Unsaved Changes" = "Несохранённые изменения";
+
+/* Unsaved changes confirmation dialog text */
+"Do you want to save your changes made to the configuration?" = "Вы хотите, чтобы сохранить изменения, внесенные в конфигурацию?";
+
+/* Unsaved changes confirmation dialog button */
+"Save" = "Сохранить";
+
+/* Unsaved changes confirmation dialog button */
+"Don't Save" = "Не сохранять";
+
 /* tabs */
 "General" = "Общее";
 "Calendar Options" = "Календарь";
@@ -24,11 +36,15 @@
 
 /* vacation (auto-reply) */
 "Enable vacation auto reply" = "Включить автоматическую отправку сообщения об отпуске";
+"Enable custom auto reply subject" = "Настраиваемая тема сообщения автоответа";
+"Auto reply subject" = "Тема сообщения автоответа";
+"You can write ${subject} to insert the original subject" = "Вы может написать ${subject} для вставки в исходную тему";
 "Auto reply message" = "Текст сообщения автоответа";
 "Email addresses (separated by commas)" = "E-mail адреса (разделенные запятыми)";
 "Add default email addresses" = "Добавить e-mail адреса по умолчанию";
 "Days between responses" = "Дней между ответами";
 "Do not send responses to mailing lists" = "Не отправлять ответы на почтовые списки рассылки";
+"Enable auto reply on" = "Включить автоответ на";
 "Disable auto reply on" = "Отключить автоответ";
 "Always send vacation message response" = "Всегда отправлять ответное сообщение об отпуске";
 "Please specify your message and your email addresses for which you want to enable auto reply."
@@ -87,11 +103,15 @@
 "timeFmt_3" = "";
 "timeFmt_4" = "";
 
+/* Timezone autocompletion */
+"No matches found." = "Не найдено совпадений.";
+
 /* calendar */
 "Week begins on" = "Неделя начинается с";
 "Day start time" = "Рабочий день начинается в";
 "Day end time" = "Рабочий день заканчивается в";
 "Day start time must be prior to day end time." = "Время начала дня должно быть перед временем его окончания.";
+"Week days to display" = "Отображаемые дни недели";
 "Show time as busy outside working hours" = "Показывать нерабочее время как занятое";
 "First week of year" = "Первая неделя года";
 "Enable reminders for Calendar items" = "Включить напоминания для событий календаря";
@@ -127,6 +147,7 @@
 "Labels" = "Метки";
 "Label" = "Метка";
 "Show subscribed mailboxes only" = "Показывать только почтовые ящики, на которые подписан";
+"Synchronize only default mail folders (EAS)" = "Синхронизировать только почтовые папки по умолчанию (EAS)";
 "Sort messages by threads" = "Группировать сообщения по обсуждениям";
 "When sending mail, add unknown recipients to my" = "При отправке добавлять неизвестных получателей в:";
 "Address Book" = "Адресная книга";
@@ -142,6 +163,10 @@
 "Compose messages in" = "Составлять сообщения как";
 "composemessagestype_html" = "HTML";
 "composemessagestype_text" = "Простой текст";
+
+/* Base font size for messages composed in HTML */
+"Default font size" = "Размер шрифта по умолчанию";
+
 "Display remote inline images" = "Показать изображения из сети";
 "displayremoteinlineimages_never" = "Никогда";
 "displayremoteinlineimages_always" = "Всегда";
@@ -211,7 +236,6 @@
 "Catalan" = "Català";
 "ChineseTaiwan" = "Chinese (Taiwan)";
 "Croatian" = "Hrvatski";
-"Croatian" = "Hrvatski";
 "Czech" = "Česky";
 "Danish" = "Dansk (Danmark)";
 "Dutch" = "Nederlands";
@@ -223,10 +247,12 @@
 "Icelandic" = "Íslenska";
 "Italian" = "Italiano";
 "Lithuanian" = "Lietuvių";
+"Macedonian" = "Македонски";
 "NorwegianBokmal" = "Norsk bokmål";
 "NorwegianNynorsk" = "Norsk nynorsk";
-"BrazilianPortuguese" = "Português brasileiro";
 "Polish" = "Polski";
+"Portuguese" = "Português";
+"BrazilianPortuguese" = "Português brasileiro";
 "Russian" = "Русский";
 "Slovak" = "Slovensky";
 "Slovenian" = "Slovenščina";
@@ -236,6 +262,7 @@
 "TurkishTurkey" = "Türkçe (Türkiye)";
 "Ukrainian" = "Українська";
 "Welsh" = "Cymraeg";
+
 "Refresh View" = "Обновлять вид";
 "refreshview_manually" = "Вручную";
 "refreshview_every_minute" = "Каждую минуту";
@@ -342,6 +369,7 @@
 "TLS" = "TLS";
 
 /* Avatars */
+"Use Gravatar" = "Использовать Gravatar";
 "Alternate Avatar" = "Альтернативный аватар";
 "none" =  "Ничего";
 "identicon" = "Иконка идентификатора";

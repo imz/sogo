@@ -1,3 +1,38 @@
+3.1.3 (2016-06-22)
+------------------
+
+New features
+ - [core] now possible to define default Sieve filters (#2949)
+ - [core] now possible to set vacation message start date (#3679)
+ - [web] add a header and/or footer to the vacation message (#1961)
+ - [web] specify a custom subject for the vacation message (#685, #1447)
+
+Enhancements
+ - [core] when restoring data using sogo-tool, regenerate Sieve script (#3029)
+ - [web] always display name of month in week view (#3724)
+ - [web] use a speed dial (instead of a dialog) for card/list creation
+ - [web] use a speed dial for event/task creation
+ - [web] CSS is now minified using clean-css
+
+Bug fixes
+ - [core] properly handle sorted/deleted calendars (#3723)
+ - [core] properly handle flattened timezone definitions (#2690)
+ - [web] fixed generic avatar in lists (#3719)
+ - [web] fixed validation in Sieve filter editor
+ - [web] properly encode rawsource of events and tasks to avoid XSS issues (#3718)
+ - [web] properly encode rawsource of cards to avoid XSS issues
+ - [web] fixed all-day events covering a timezone change (#3457)
+ - [web] sgTimePicker parser now respects the user's time format and language
+ - [web] fixed time format when user chooses the default one
+ - [web] added missing delegators identities in mail editor (#3720)
+ - [web] honour the domain default SOGoAppointmentSendEMailNotifications (#3729)
+ - [web] the login module parameter is now properly restored when set as "Last used"
+ - [web] if cn isn't found for shared mailboxes, use email address (#3733)
+ - [web] fixed handling of attendees when updating an event
+ - [web] show tooltips over long calendar/ab names (#232)
+ - [web] one-click option to give all permissions for user (#1637)
+ - [web] never query gravatar.com when disabled
+
 3.1.2 (2016-06-06)
 ------------------
 

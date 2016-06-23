@@ -1998,6 +1998,33 @@ message expiration.
 See the _Cronjob — Vacation messages expiration_ section below for
 details.
 
+|D |SOGoVacationDefaultSubject
+|Parameter used to define a default vacation subject if user don't specify a
+custom subject.
+
+Defaults to the characters "Auto: " followed by the original subject when unset,
+as stated by RFC 5230.
+
+|D |SOGoVacationHeaderTemplateFile
+|Parameter used to specify the path of a text file whose content must be
+prepended to the user's vacation message. For example:
+
+`SOGoVacationHeaderTemplateFile = /etc/sogo/autoresponder.header.txt;`
+
+The following template variables can appear in the content:
+
+[options="compact"]
+* `%{username}`
+* `%{daysBetweenResponse}`
+
+|D |SOGoVacationFooterTemplateFile
+|Parameter used to specify the path of a text file whose content must be
+appended to the user's vacation message. For example:
+
+`SOGoVacationFooterTemplateFile = /etc/sogo/autoresponder.footer.txt;`
+
+See `SOGoVacationHeaderTemplateFile` for available template variables.
+
 |D |SOGoForwardEnabled
 |Parameter used to activate the edition from the preferences window of a
 forwarding email address. Requires Sieve script support on the IMAP
@@ -2017,6 +2044,11 @@ server-side mail filters. Requires Sieve script support on the IMAP
 host.
 
 Defaults to `NO` when unset.
+
+|U |SOGoSieveFilters
+|Parameter used to define initial Sieve scripts for users. The user
+can still modify the scripts and the initial values will be written
+to the Sieve server upon first login.
 
 |D |SOGoMailPollingIntervals
 |Parameter used to define the mail polling intervals (in minutes)
@@ -2275,7 +2307,7 @@ be put under `~sogo/GNUstep/Library/SOGo/Templates/PreferencesUI/`.
 and the follow keys are supported: `vendor` (which must be set to "generic"
 for now), `junkEmailAddress` which sets the email address to whom SOGo will
 send junk mails to, `notJunkEmailAddress` which sets the email address to
-whome SOGo will send non-junk mails to and `limit`, which is an integer value
+whom SOGo will send non-junk mails to and `limit`, which is an integer value
 and sets the maximum number of mails that will be attached to a
 junk/not junk report sent by SOGo. Example: `SOGoMailJunkSettings = {
 vendor = "generic"; junkEmailAddress = "spam@foo.com";
@@ -2504,11 +2536,11 @@ If your mail server requires use of SMTP AUTH, specify a credential file
 using `-p /path/to/credFile`. This file should contain the username and
 password, separated by a colon (`username:password`)
 
-_Cronjob_ — Vacation messages expiration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+_Cronjob_ — Vacation messages activation and expiration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When vacation messages are enabled (see the parameter
-_SOGoVacationEnabled_), users can set an expiration date to messages
+_SOGoVacationEnabled_), users can set an activation or expiration date to messages
 auto-reply. For this feature to work, you must run a _cronjob_ under the
 "sogo" user.
 
@@ -2522,7 +2554,7 @@ contain the username and password, separated by a colon
 The _cronjob_ should look like this:
 
 ----
-0 0 * * * sogo /usr/sbin/sogo-tool expire-autoreply -p /etc/sogo/sieve.creds
+0 0 * * * sogo /usr/sbin/sogo-tool update-autoreply -p /etc/sogo/sieve.creds
 ----
 
 Managing User Accounts

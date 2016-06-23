@@ -102,12 +102,12 @@
         <md-list-item ng-class="{ 'md-2-line': editor.component.isAllDay, 'md-3-line': !editor.component.isAllDay }">
           <md-icon>access_time</md-icon>
           <div class="md-list-item-text" ng-show="editor.component.startDate">
-            <p><var:string label:value="Start"/></p>
+            <label class="pseudo-input-label"><var:string label:value="Start"/></label>
             <h3>{{::editor.component.localizedStartDate}}</h3>
             <h3 ng-hide="editor.component.isAllDay">{{::editor.component.localizedStartTime}}</h3>
           </div>
           <div class="md-list-item-text" ng-show="editor.component.endDate">
-            <p><var:string label:value="End"/></p>
+            <label class="pseudo-input-label"><var:string label:value="End"/></label>
             <h3>{{::editor.component.localizedEndDate}}</h3>
             <h3 ng-hide="editor.component.isAllDay">{{::editor.component.localizedEndTime}}</h3>
           </div>
@@ -179,7 +179,7 @@
                     <a href="#"
                        ng-click="editor.newMessageWithRecipient($event, $chip.name, $chip.email)">{{$chip.name}}</a>
                   </div>
-                  <md-icon ng-class="'icon-' + $chip.status"><!-- partstat --></md-icon>
+                  <md-icon ng-class="'icon-' + $chip.partstat"><!-- partstat --></md-icon>
                 </md-chip-template>
               </md-chips>
             </div>

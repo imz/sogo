@@ -96,7 +96,7 @@
       acls.then(function() {
         user.wasSubscribed = false;
         user.userClass = user.isGroup ? 'normal-group' : 'normal-user';
-        user.$rights = angular.bind(user, user.$acl, _this.folderId);
+        user.$rights = angular.bind(user, user.$acl, _this.folderId, owner);
         _this.users.push(user);
         deferred.resolve(user);
       }, function(data, status) {
@@ -127,6 +127,18 @@
       if (i >= 0) {
         _this.users.splice(i, 1);
       }
+    });
+  };
+
+  /**
+   * @function $selectAllRights
+   * @memberof Acl.prototype
+   * @desc Select all rights of an user
+   */
+  Acl.prototype.$selectAllRights = function(user) {
+      _.forEach(user.rights, function(value, right) {
+        if (angular.isNumber(user.rights[right]))
+          user.rights[right] = 1;
     });
   };
 

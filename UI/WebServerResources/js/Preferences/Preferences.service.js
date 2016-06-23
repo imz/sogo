@@ -39,6 +39,12 @@
       // We also convert our date objects into real date, otherwise we'll have strings
       // or undefined values and the md-datepicker does NOT like this.
       if (data.Vacation) {
+        if (data.Vacation.startDate)
+          data.Vacation.startDate = new Date(parseInt(data.Vacation.startDate) * 1000);
+        else {
+          data.Vacation.startDateEnabled = 0;
+          data.Vacation.startDate = new Date();
+        }
         if (data.Vacation.endDate)
           data.Vacation.endDate = new Date(parseInt(data.Vacation.endDate) * 1000);
         else {
@@ -58,6 +64,11 @@
 
       if (angular.isUndefined(data.Vacation.daysBetweenResponse))
         data.Vacation.daysBetweenResponse = 7;
+
+      if (angular.isUndefined(data.Vacation.startDate)) {
+        data.Vacation.startDateEnabled = 0;
+        data.Vacation.startDate = new Date();
+      }
 
       if (angular.isUndefined(data.Vacation.endDate)) {
         data.Vacation.endDateEnabled = 0;
@@ -92,6 +103,9 @@
       _this.$mdDateLocaleProvider.formatDate = function(date) {
         return date? date.format(_this.$mdDateLocaleProvider, data.SOGoShortDateFormat) : '';
       };
+      _this.$mdDateLocaleProvider.parseTime = function(timeString) {
+        return timeString? timeString.parseDate(_this.$mdDateLocaleProvider, data.SOGoTimeFormat) : new Date(NaN);
+      };
       _this.$mdDateLocaleProvider.formatTime = function(date) {
         return date? date.format(_this.$mdDateLocaleProvider, data.SOGoTimeFormat) : '';
       };
@@ -102,11 +116,17 @@
     this.settingsPromise = Preferences.$$resource.fetch("jsonSettings").then(function(data) {
       // We convert our PreventInvitationsWhitelist hash into a array of user
       if (data.Calendar) {
-        if (data.Calendar.PreventInvitationsWhitelist)
+        if (data.Calendar.PreventInvitationsWhitelist) {
           data.Calendar.PreventInvitationsWhitelist = _.map(data.Calendar.PreventInvitationsWhitelist, function(value, key) {
-            var match = /^(.+)\s<(\S+)>$/.exec(value);
-            return new Preferences.$User({uid: key, cn: match[1], c_email: match[2]});
+            var match = /^(.+)\s<(\S+)>$/.exec(value),
+                user = new Preferences.$User({uid: key, cn: match[1], c_email: match[2]});
+            if (!user.$$image)
+              _this.avatar(user.c_email, 32, {no_404: true}).then(function(url) {
+                user.$$image = url;
+              });
+            return user;
           });
+        }
         else
           data.Calendar.PreventInvitationsWhitelist = [];
       }
@@ -122,14 +142,15 @@
    * @desc The factory we'll use to register with Angular
    * @returns the Preferences constructor
    */
-  Preferences.$factory = ['$q', '$timeout', '$log', '$mdDateLocale', 'sgSettings', 'Resource', 'User', function($q, $timeout, $log, $mdDateLocaleProvider, Settings, Resource, User) {
+  Preferences.$factory = ['$q', '$timeout', '$log', '$mdDateLocale', 'sgSettings', 'Gravatar', 'Resource', 'User', function($q, $timeout, $log, $mdDateLocaleProvider, Settings, Gravatar, Resource, User) {
     angular.extend(Preferences, {
       $q: $q,
       $timeout: $timeout,
       $log: $log,
       $mdDateLocaleProvider: $mdDateLocaleProvider,
+      $gravatar: Gravatar,
       $$resource: new Resource(Settings.activeUser('folderURL'), Settings.activeUser()),
-      activeUser: Settings.activeUser(),
+      $resourcesURL: Settings.resourcesURL(),
       $User: User
     });
 
@@ -156,6 +177,26 @@
    */
   Preferences.prototype.ready = function() {
     return Preferences.$q.all([this.defaultsPromise, this.settingsPromise]);
+  };
+
+  /**
+   * @function avatar
+   * @memberof Preferences.prototype
+   * @desc Get the avatar URL associated to an email address
+   * @return a combined promise
+   */
+  Preferences.prototype.avatar = function(email, size, options) {
+    var _this = this;
+    return this.ready().then(function() {
+      var alternate_avatar = _this.defaults.SOGoAlternateAvatar, url;
+      if (_this.defaults.SOGoGravatarEnabled)
+        url = Preferences.$gravatar(email, size, alternate_avatar, options);
+      else
+        url = [Preferences.$resourcesURL, 'img', 'ic_person_grey_24px.svg'].join('/');
+      if (options && options.dstObject && options.dstAttr)
+        options.dstObject[options.dstAttr] = url;
+      return url;
+    });
   };
 
   /**
@@ -215,6 +256,10 @@
     delete preferences.defaults.SOGoMailComposeFontSizeEnabled;
 
     if (preferences.defaults.Vacation) {
+      if (preferences.defaults.Vacation.startDateEnabled)
+        preferences.defaults.Vacation.startDate = preferences.defaults.Vacation.startDate.getTime()/1000;
+      else
+        preferences.defaults.Vacation.startDate = 0;
       if (preferences.defaults.Vacation.endDateEnabled)
         preferences.defaults.Vacation.endDate = preferences.defaults.Vacation.endDate.getTime()/1000;
       else

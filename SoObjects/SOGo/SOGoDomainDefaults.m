@@ -220,6 +220,21 @@
   return [self boolForKey: @"SOGoVacationEnabled"];
 }
 
+- (NSString *) vacationDefaultSubject
+{
+  return [self stringForKey: @"SOGoVacationDefaultSubject"];
+}
+
+- (NSString *) vacationHeaderTemplateFile
+{
+  return [self stringForKey: @"SOGoVacationHeaderTemplateFile"];
+}
+
+- (NSString *) vacationFooterTemplateFile
+{
+  return [self stringForKey: @"SOGoVacationFooterTemplateFile"];
+}
+
 - (NSString *) mailingMechanism
 {
   NSString *mailingMechanism;

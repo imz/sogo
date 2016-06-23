@@ -122,7 +122,9 @@
       // Add new cards matching the search query
       _.forEach(results, function(data, index) {
         if (_.isUndefined(_.find(AddressBook.$cards, _.bind(compareIds, data)))) {
-          var card = new AddressBook.$Card(data, search);
+          var card = new AddressBook.$Card(_.mapKeys(data, function(value, key) {
+            return key.toLowerCase();
+          }), search);
           AddressBook.$cards.splice(index, 0, card);
         }
       });
@@ -589,35 +591,6 @@
   AddressBook.prototype.$save = function() {
     return AddressBook.$$resource.save(this.id, this.$omit()).then(function(data) {
       return data;
-    });
-  };
-
-  /**
-   * @function $getCard
-   * @memberof AddressBook.prototype
-   * @desc Fetch the card attributes from the server.
-   * @returns a promise of the HTTP operation
-   */
-  AddressBook.prototype.$getCard = function(cardId) {
-    var _this = this;
-
-    return this.$id().then(function(addressbookId) {
-      var fullCard,
-          cachedCard = _.find(_this.$cards, function(data) {
-            return cardId == data.id;
-          });
-
-      if (cachedCard && cachedCard.$futureCardData)
-        // Full card is available
-        return cachedCard;
-
-      fullCard = AddressBook.$Card.$find(addressbookId, cardId);
-      fullCard.$id().then(function(cardId) {
-        // Extend the Card object of the addressbook list with the full card description
-        if (cachedCard)
-          angular.extend(cachedCard, fullCard);
-      });
-      return fullCard;
     });
   };
 

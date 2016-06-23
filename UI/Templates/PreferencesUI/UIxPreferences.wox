@@ -31,6 +31,7 @@
                 ng-class="{ 'sg-close': leftIsClose }">
       <var:component className="UIxSidenavToolbarTemplate" />
       <md-content md-scroll-y="md-scroll-y" class="md-flex md-hue-2">
+          <md-subheader>{{ ::'Preferences' | loc }}</md-subheader>
         <md-list>
           <md-list-item ng-click="app.go('general', preferencesForm)"
                         ng-disabled="preferencesForm.$invalid"
@@ -99,7 +100,7 @@
       <md-tab id="generalOptionsView" aria-controls="generalOptionsView-content" label:label="General">
         <md-content layout="row"
                     aria-labelledby="generalOptionsView"
-                    id="generalOptionsView-content" class="md-padding">
+                    id="generalOptionsView-content" class="md-inline-form md-padding">
           <div layout="column" flex="100">
             <md-input-container>
               <label><var:string label:value="SOGo Version"/></label>
@@ -444,12 +445,14 @@
                 </label>
                 <md-contact-chips
                     flex="100"
+                    class="sg-chips-autocomplete"
                     ng-model="app.preferences.settings.Calendar.PreventInvitationsWhitelist"
                     md-contacts="app.userFilter($query, app.preferences.settings.Calendar.PreventInvitationsWhitelist)"
                     md-contact-name="cn"
                     md-contact-image="$$image"
                     md-contact-email="c_email"
                     md-require-match="true"
+                    md-highlight-flags="i"
                     filter-selected="false"
                     label:placeholder="Add"><!-- users --></md-contact-chips>
               </div>
@@ -519,7 +522,7 @@
         <!-- MAIL > GENERAL -->
         <md-tab id="mailGeneralTab" aria-controls="mailGeneralTab-content" label:label="General">
           <md-content role="tabpanel" aria-labelledby="mailGeneralView"
-                      id="mailGeneralView-content" class="md-padding">
+                      id="mailGeneralView-content" class="md-padding md-inline-form">
 
             <div>
               <md-checkbox
@@ -634,11 +637,10 @@
                              ng-model="app.preferences.defaults.SOGoMailComposeFontSize">
                     <var:foreach list="fontSizesList" item="item">
                       <md-option var:value="item">
-                        <var:string value="item"/>
+                        <var:string value="itemFontSizeText"/>
                       </md-option>
                     </var:foreach>
                   </md-select>
-                  <div class="md-char-counter">px</div>
                 </md-input-container>
               </div>
             </div>
@@ -816,12 +818,37 @@
                 <var:string label:value="Enable vacation auto reply"/>
               </md-checkbox>
 
-              <div layout="column" flex-offset="5" ng-show="app.preferences.defaults.Vacation.enabled == 1">
+              <div class="md-inline-form" layout="column" flex-offset="5" ng-show="app.preferences.defaults.Vacation.enabled == 1">
+
+                <div layout="row">
+                  <md-checkbox
+                      ng-model="app.preferences.defaults.Vacation.customSubjectEnabled"
+                      ng-true-value="1"
+                      ng-false-value="0"
+                      label:aria-label="Enable custom auto reply subject">
+                  <!-- enable auto reply subject --></md-checkbox>
+                  <md-input-container class="md-block md-flex">
+                    <label><var:string label:value="Auto reply subject"/></label>
+                    <input type="text"
+                           ng-disabled="!app.preferences.defaults.Vacation.customSubjectEnabled"
+                           ng-model="app.preferences.defaults.Vacation.customSubject"/>
+                    <div class="sg-hint" ng-show="app.sieveVariablesCapability">
+                      <var:string label:value="You can write ${subject} to insert the original subject"/>
+                    </div>
+                  </md-input-container>
+                </div>
+
                 <md-input-container class="md-block md-flex">
                   <label><var:string label:value="Auto reply message"/></label>
+                  <var:if condition="vacationHeader.length">
+                    <p class="text-preview" md-colors="::{color: 'default-background-600'}"><var:string value="vacationHeader"/></p>
+                  </var:if>
                   <textarea const:name="autoReplyText"
                             const:id="autoReplyText"
                             ng-model="app.preferences.defaults.Vacation.autoReplyText"/>
+                  <var:if condition="vacationFooter.length">
+                    <p class="text-preview" md-colors="::{color: 'default-background-600'}"><var:string value="vacationFooter"/></p>
+                  </var:if>
                 </md-input-container>
 
                 <div layout="row" layout-align="start center">
@@ -856,6 +883,18 @@
                       ng-false-value="0">
                     <var:string label:value="Do not send responses to mailing lists" />
                   </md-checkbox>
+                </div>
+
+                <div>
+                  <md-checkbox
+                      ng-model="app.preferences.defaults.Vacation.startDateEnabled"
+                      ng-true-value="1"
+                      ng-false-value="0">
+                    <var:string label:value="Enable auto reply on" />
+                  </md-checkbox>
+                  <md-datepicker
+                      ng-disabled="app.preferences.defaults.Vacation.startDateEnabled == 0"
+                      ng-model="app.preferences.defaults.Vacation.startDate"><!-- datepicker --></md-datepicker>
                 </div>
 
                 <div layout="row">

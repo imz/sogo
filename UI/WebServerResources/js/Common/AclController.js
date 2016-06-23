@@ -6,8 +6,8 @@
   /**
    * @ngInject
    */
-  AclController.$inject = ['$mdDialog', 'Dialog', 'usersWithACL', 'User', 'folder'];
-  function AclController($mdDialog, Dialog, usersWithACL, User, folder) {
+  AclController.$inject = ['$timeout', '$mdDialog', 'Dialog', 'usersWithACL', 'User', 'folder'];
+  function AclController($timeout, $mdDialog, Dialog, usersWithACL, User, folder) {
     var vm = this;
 
     vm.users = usersWithACL; // ACL users
@@ -22,6 +22,7 @@
     vm.confirmChange = confirmChange;
     vm.removeUser = removeUser;
     vm.addUser = addUser;
+    vm.selectAllRights = selectAllRights;
     vm.selectUser = selectUser;
     vm.confirmation = { showing: false,
                         message: ''};
@@ -52,7 +53,9 @@
     }
 
     function removeUser(user) {
-      folder.$acl.$removeUser(user.uid);
+      $timeout(function() {
+        folder.$acl.$removeUser(user.uid);
+      }, 500); // wait for CSS transition to complete (see card.scss)
     }
 
     function addUser(data) {
@@ -63,13 +66,17 @@
           vm.selectedUid = null;
           if (user)
             selectUser(user);
-        }, function(error) {
-          Dialog.alert(l('Warning'), error);
         });
       }
     }
 
-    function selectUser(user) {
+    function selectAllRights(user) {
+      folder.$acl.$selectAllRights(user);
+    }
+
+    function selectUser(user, $event) {
+      if ($event && $event.target.parentNode.classList.contains('md-secondary'))
+        return false;
       if (vm.selectedUid == user.uid) {
         vm.selectedUid = null;
       }

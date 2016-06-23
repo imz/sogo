@@ -63,6 +63,7 @@
                  ng-dblclick="app.editFolder(calendar)"
                  ng-show="app.editMode != calendar.id">
                 {{calendar.name}}
+		<md-tooltip md-delay="2000">{{calendar.name}}</md-tooltip>
                 <span class="sg-counter-badge" ng-show="calendar.activeTasks">{{calendar.activeTasks}}</span>
               </p>
               <md-input-container class="md-flex"
@@ -157,11 +158,13 @@
                            ng-class="calendar.getClassName('checkbox')"
                            ng-true-value="1"
                            ng-false-value="0"
-                           label:aria-label="Enable"><!-- enable --></md-checkbox>
+                           label:aria-label="Enable"><!-- enable -->
+	      </md-checkbox>
               <p class="sg-item-name"
                  ng-dblclick="app.editFolder(calendar)"
                  ng-show="app.editMode != calendar.id">
                 {{calendar.name}}
+		<md-tooltip md-delay="2000">{{calendar.name}}</md-tooltip>
                 <span class="sg-counter-badge" ng-show="calendar.activeTasks">{{calendar.activeTasks}}</span>
               </p>
               <md-input-container class="md-flex"
@@ -240,6 +243,7 @@
                   <md-icon class="md-warn">warning</md-icon>
                   <md-tooltip>{{ calendar.$error }}</md-tooltip>
                 </span>
+		<md-tooltip md-delay="2000">{{calendar.name}}</md-tooltip>
                 {{calendar.name}}
               </p>
               <md-input-container class="md-flex"
@@ -641,18 +645,28 @@
             </md-tab>
           </md-tabs>
         </md-content>
-        <md-button class="md-fab md-fab-bottom-right"
-                   label:aria-label="Create a new event"
-                   ng-click="list.newComponent($event)"
-                   ng-if="list.componentType == 'events'">
-          <md-icon >event</md-icon>
-        </md-button>
-        <md-button class="md-fab md-fab-bottom-right"
-                   label:aria-label="Create a new task"
-                   ng-click="list.newComponent($event)"
-                   ng-if="list.componentType == 'tasks'">
-          <md-icon>assignment_turned_in</md-icon>
-        </md-button>
+        <md-fab-speed-dial
+             class="md-fling md-fab-bottom-right"
+             md-direction="up" md-open="false"
+             ng-cloak="ng-cloak">
+            <md-fab-trigger>
+              <md-button class="md-fab md-accent" label:aria-label="New Event">
+                <md-icon>add</md-icon>
+              </md-button>
+            </md-fab-trigger>
+            <md-fab-actions>
+              <md-button var:aria-label="Create a new event" class="md-fab md-raised md-mini"
+                         ng-click="list.newComponent($event, 'appointment')">
+                <md-tooltip md-direction="left"><var:string label:value="Create a new event"/></md-tooltip>
+                <md-icon>event</md-icon>
+              </md-button>
+              <md-button var:aria-label="Create a new task" class="md-fab md-raised md-mini"
+                         ng-click="list.newComponent($event, 'task')">
+                <md-tooltip md-direction="left"><var:string label:value="Create a new task"/></md-tooltip>
+                <md-icon>assignment_turned_in</md-icon>
+              </md-button>
+            </md-fab-actions>
+          </md-fab-speed-dial>
         </div>
         <div id="detailView" class="view-detail hide show-gt-md md-default-theme md-background md-bg md-hue-2"
              layout="column" ui-view="calendarView">

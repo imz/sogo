@@ -41,6 +41,7 @@
 #import <SOGo/SOGoSystemDefaults.h>
 #import <SOGo/SOGoUserFolder.h>
 #import <SOGo/SOGoParentFolder.h>
+#import <SOGo/SOGoTextTemplateFile.h>
 #import <SOGo/WOResourceManager+SOGo.h>
 #import <SOGo/SOGoBuild.h>
 #import <Mailer/SOGoMailAccount.h>
@@ -1103,6 +1104,40 @@ static NSArray *reminderValues = nil;
   return [[user domainDefaults] vacationEnabled];
 }
 
+- (NSString *) vacationHeader
+{
+  NSString *path;
+
+  path = [[user domainDefaults] vacationHeaderTemplateFile];
+
+  return [self _vacationTextForTemplate: path];
+}
+
+- (NSString *) vacationFooter
+{
+  NSString *path;
+
+  path = [[user domainDefaults] vacationFooterTemplateFile];
+
+  return [self _vacationTextForTemplate: path];
+}
+
+- (NSString *) _vacationTextForTemplate: (NSString *) templateFilePath
+{
+  NSString *text;
+  SOGoTextTemplateFile *templateFile;
+
+  text = nil;
+  if (templateFilePath)
+    {
+      templateFile = [SOGoTextTemplateFile textTemplateFromFile: templateFilePath];
+      if (templateFile)
+        text = [templateFile textForUser: user];
+    }
+
+  return text;
+}
+
 // - (void) setSieveFiltersValue: (NSString *) newValue
 // {
 //   sieveFilters = [newValue objectFromJSONString];
@@ -1206,6 +1241,11 @@ static NSArray *reminderValues = nil;
     }
 
   return fontSizes;
+}
+
+- (NSString *) itemFontSizeText
+{
+  return [NSString stringWithFormat: @"%@ px", item];
 }
 
 //
@@ -2155,12 +2195,15 @@ static NSArray *reminderValues = nil;
       else
         [v setObject: [NSNumber numberWithBool: NO]  forKey: @"SOGoRememberLastModule"];
 
-      // We remove short/long date formats if they are default ones
+      // We remove short/long date/time formats if they are default ones
       if ([[v objectForKey: @"SOGoShortDateFormat"] isEqualToString: @"default"])
         [v removeObjectForKey: @"SOGoShortDateFormat"];
 
       if ([[v objectForKey: @"SOGoLongDateFormat"] isEqualToString: @"default"])
         [v removeObjectForKey: @"SOGoLongDateFormat"];
+
+      if ([[v objectForKey: @"SOGoTimeFormat"] isEqualToString: @"default"])
+        [v removeObjectForKey: @"SOGoTimeFormat"];
 
       if (![self externalAvatarsEnabled])
         {
