@@ -346,18 +346,22 @@ static Class NSNullK;
   NSDictionary *contactInfos;
   NSString *cn, *email, *fullEmail;
 
+  fullEmail = nil;
   contactInfos = [self contactInfosForUserWithUIDorEmail: uid];
-  email = [contactInfos objectForKey: @"c_email"];
-  cn = [contactInfos objectForKey: @"cn"];
-  if ([cn length] > 0)
+  if (contactInfos)
     {
-      if ([email length] > 0)
-        fullEmail = [NSString stringWithFormat: @"%@ <%@>", cn, email];
+      email = [contactInfos objectForKey: @"c_email"];
+      cn = [contactInfos objectForKey: @"cn"];
+      if ([cn length] > 0)
+        {
+          if ([email length] > 0)
+            fullEmail = [NSString stringWithFormat: @"%@ <%@>", cn, email];
+          else
+            fullEmail = cn;
+        }
       else
-        fullEmail = cn;
+        fullEmail = email;
     }
-  else
-    fullEmail = email;
 
   return fullEmail;
 }
@@ -598,6 +602,9 @@ static Class NSNullK;
   jsonUser = [[SOGoCache sharedCache] userAttributesForLogin: username];
   currentUser = [jsonUser objectFromJSONString];
 
+  if ([currentUser isKindOfClass: NSNullK])
+    currentUser = nil;
+
   //
   // If we are using multidomain and the UIDFieldName is not part of the email address
   // we must bind without the domain part since internally, SOGo will use
@@ -611,7 +618,7 @@ static Class NSNullK;
   // and authenticates with "foo", using bindFields = (uid, mail) and SOGoEnableDomainBasedUID = YES;
   // Otherwise, -_sourceCheckLogin:... would have failed because SOGo would try to bind using: foo@example.com
   //
-  if ([[currentUser objectForKey: @"DomainLessLogin"] boolValue])
+  if (currentUser && [[currentUser objectForKey: @"DomainLessLogin"] boolValue])
     {
       NSRange r;
 
@@ -619,7 +626,7 @@ static Class NSNullK;
       _login = [_login substringToIndex: r.location];
     }
 
-  dictPassword = [currentUser objectForKey: @"password"];
+  dictPassword = (currentUser ? [currentUser objectForKey: @"password"] : nil);
   if (useCache && currentUser && dictPassword)
     {
       checkOK = ([dictPassword isEqualToString: [_pwd asSHA1String]]);
@@ -710,6 +717,9 @@ static Class NSNullK;
 
   jsonUser = [[SOGoCache sharedCache] userAttributesForLogin: login];
   currentUser = [jsonUser objectFromJSONString];
+
+  if ([currentUser isKindOfClass: NSNullK])
+    currentUser = nil;
 
   if ([self _sourceChangePasswordForLogin: login
                                  inDomain: domain

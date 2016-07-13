@@ -14,7 +14,6 @@ $(SOGO_TOOL)_OBJC_FILES += \
 	\
 	SOGoTool.m \
 	SOGoToolBackup.m \
-	SOGoToolCheckDoubles.m \
 	SOGoToolDumpDefaults.m \
 	SOGoToolUpdateAutoReply.m \
 	SOGoToolExpireUserSessions.m \
@@ -24,7 +23,8 @@ $(SOGO_TOOL)_OBJC_FILES += \
 	SOGoToolRestore.m \
 	SOGoToolCreateFolder.m \
 	SOGoToolUserPreferences.m \
-	SOGoToolManageEAS.m
+	SOGoToolManageEAS.m \
+	SOGoToolTruncateCalendar.m
 TOOL_NAME += $(SOGO_TOOL)
 
 ###

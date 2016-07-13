@@ -10,10 +10,10 @@
     "angular-sanitize": "1.4.x",
     "angular-ui-router": "latest",
     "angular-file-upload": "latest",
-    "angular-material": ">1.1.0-rc.5-master-8758488",
+    "angular-material": "1.1.0-rc.5-master-82fdd2c",
     "file-saver.js": "latest",
     "lodash": "latest",
-    "Sortable": "latest",
+    "ng-sortable": "latest",
     "breakpoint-sass": ">=2.4.2"
   }
 }

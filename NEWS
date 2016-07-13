@@ -1,3 +1,29 @@
+3.1.4 (2016-07-12)
+------------------
+
+New features
+ - [core] new sogo-tool truncate-calendar feature (#1513, #3141)
+ - [eas] initial Out-of-Office support in EAS
+ - [oc] initial support for calendar and address book sharing with OpenChange
+
+Enhancements
+ - [eas] use the preferred email identity in EAS if valid (#3698)
+ - [eas] handle inline attachments during EAS content generation
+ - [web] all batch operations can now be performed on selected messages in advanced search mode
+ - [web] add date picker to change date, week, or month of current Calendar view
+ - [web] style cancelled events in Calendar module
+ - [web] replace sortable library for better support with Firefox
+ - [web] stage-1 tuning of sgColorPicker directive
+ - [oc] better handling of nested attachments with OpenChange
+
+Bug fixes
+ - [web] fixed crash when an attachment filename has no extension
+ - [web] fixed selection of transparent all-day events (#3744)
+ - [web] leaving the dropping area while dragging a file was blocking the mail editor
+ - [web] fixed scrolling of all-day events (#3190)
+ - [eas] handle base64 EAS protocol version
+ - [eas] handle missing IMAP folders from a hierarchy using EAS
+
 3.1.3 (2016-06-22)
 ------------------
 

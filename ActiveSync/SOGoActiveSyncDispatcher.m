@@ -716,6 +716,7 @@ void handle_eas_terminate(int signum)
 - (void) _flattenFolders: (NSArray *) theFolders
                     into: (NSMutableArray *) theTarget
                   parent: (NSString *) theParent
+              parentType: (NSString *) theParentType
 {
   NSArray *o;
   int i;
@@ -724,13 +725,16 @@ void handle_eas_terminate(int signum)
 
   for (i = 0; i < [theFolders count]; i++)
     {
-      if (theParent)
+      if (theParent && ![theParentType isEqualToString: @"additional"])
         [[theFolders objectAtIndex: i] setObject: theParent  forKey: @"parent"];
+
+      if ([theParentType isEqualToString: @"additional"])
+        [[theFolders objectAtIndex: i] setObject: [[theFolders objectAtIndex: i] objectForKey: @"path"]  forKey: @"name"];
 
       o = [[theFolders objectAtIndex: i] objectForKey: @"children"];
 
       if (o)
-        [self _flattenFolders: o  into: theTarget  parent: [[theFolders objectAtIndex: i] objectForKey: @"path"]];
+        [self _flattenFolders: o  into: theTarget  parent: [[theFolders objectAtIndex: i] objectForKey: @"path"] parentType: [[theFolders objectAtIndex: i] objectForKey: @"type"]];
     }
 }
 
@@ -804,7 +808,7 @@ void handle_eas_terminate(int signum)
     }
 
   allFoldersMetadata = [NSMutableArray array];
-  [self _flattenFolders: [accountFolder allFoldersMetadata]  into: allFoldersMetadata  parent: nil];
+  [self _flattenFolders: [accountFolder allFoldersMetadata]  into: allFoldersMetadata  parent: nil parentType: nil];
   
   // Get GUIDs of folder (IMAP)
   // e.g. {folderINBOX = folder6b93c528176f1151c7260000aef6df92}
@@ -2694,6 +2698,38 @@ void handle_eas_terminate(int signum)
   return nil;
 }
 
+- (BOOL) _isEMailValid: (NSString *) email
+{
+  NSArray *identities;
+  int i;
+
+  identities = [[context activeUser] allIdentities];
+
+  for (i = 0; i < [identities count]; i++)
+    {
+      if ([email isEqualToString: [[identities objectAtIndex: i] objectForKey: @"email"]])
+	return YES;
+    }
+
+  return NO;
+}
+
+- (NSString *) _fullNameForEMail: (NSString *) email
+{
+  NSArray *identities;
+  int i;
+
+  identities = [[context activeUser] allIdentities];
+
+  for (i = 0; i < [identities count]; i++)
+    {
+      if ([email isEqualToString: [[identities objectAtIndex: i] objectForKey: @"email"]])
+	return [[identities objectAtIndex: i] objectForKey: @"fullName"];
+    }
+
+  return nil;
+}
+
 //
 //
 //
@@ -2707,10 +2743,12 @@ void handle_eas_terminate(int signum)
   NSData *new_from_header;
   NSDictionary *identity;
   NSString *fullName, *email;
+  NSArray *from;
 
   const char *bytes;
   int i, e, len;
   BOOL found_header;
+  email = nil;
   
   // We get the mail's data
   data = [NSMutableData dataWithData: [[[[(id)[theDocumentElement getElementsByTagName: @"MIME"] lastObject] textValue] stringByDecodingBase64] dataUsingEncoding: NSUTF8StringEncoding]];
@@ -2720,81 +2758,97 @@ void handle_eas_terminate(int signum)
   message = [parser parsePartFromData: data];
   RELEASE(parser);
 
-  identity = [[context activeUser] primaryIdentity];
+  from = [message headersForKey: @"from"];
 
-  fullName = [identity objectForKey: @"fullName"];
-  email = [identity objectForKey: @"email"];
-
-  if ([fullName length])
-    new_from_header = [[NSString stringWithFormat: @"From: %@ <%@>\r\n", [fullName asQPSubjectString: @"utf-8"], email] dataUsingEncoding:NSUTF8StringEncoding];
-  else
-    new_from_header = [[NSString stringWithFormat: @"From: %@\r\n", email] dataUsingEncoding:NSUTF8StringEncoding];
-
-  bytes = [data bytes];
-  len = [data length];
-  i = 0;
-  found_header = NO;
-
-  // Search for the from-header
-  while (i < len)
+  if (![from count] || ![self _isEMailValid: [[from objectAtIndex: 0] pureEMailAddress]] ||
+      [[[from objectAtIndex: 0] pureEMailAddress] isEqualToString: [from objectAtIndex: 0]] ||
+      [[NSString stringWithFormat: @"<%@>", [[from objectAtIndex: 0] pureEMailAddress]] isEqualToString: [from objectAtIndex: 0]])
     {
-      if (i == 0 &&
-          (*bytes == 'f' || *bytes == 'F') &&
-          (*(bytes+1) == 'r' || *(bytes+1) == 'R') &&
-          (*(bytes+2) == 'o' || *(bytes+2) == 'O') &&
-          (*(bytes+3) == 'm' || *(bytes+3) == 'M') &&
-          (*(bytes+4) == ':'))
+      if ([from count] && [self _isEMailValid: [[from objectAtIndex: 0] pureEMailAddress]])
         {
-          found_header = YES;
-          break;
+          // We have a valid email address, lets fill in the fullname.
+          email = [[from objectAtIndex: 0] pureEMailAddress];
+          fullName = [self _fullNameForEMail: email];
+        }
+      else
+        {
+          // Fallback to primary identity.
+          identity = [[context activeUser] primaryIdentity];
+          fullName = [identity objectForKey: @"fullName"];
+          email = [identity objectForKey: @"email"];
         }
 
-      if (((*bytes == '\r') && (*(bytes+1) == '\n')) &&
-          (*(bytes+2) == 'f' || *(bytes+2) == 'F') &&
-          (*(bytes+3) == 'r' || *(bytes+3) == 'R') &&
-          (*(bytes+4) == 'o' || *(bytes+4) == 'O') &&
-          (*(bytes+5) == 'm' || *(bytes+5) == 'M') &&
-          (*(bytes+6) == ':'))
+      if ([fullName length])
+        new_from_header = [[NSString stringWithFormat: @"From: %@ <%@>\r\n", [fullName asQPSubjectString: @"utf-8"], email] dataUsingEncoding: NSUTF8StringEncoding];
+      else
+        new_from_header = [[NSString stringWithFormat: @"From: %@\r\n", email] dataUsingEncoding: NSUTF8StringEncoding];
+
+      bytes = [data bytes];
+      len = [data length];
+      i = 0;
+      found_header = NO;
+
+      // Search for the from-header
+      while (i < len)
         {
-          found_header = YES;
-          i = i + 2; // \r\n
-          bytes = bytes + 2;
-          break;
+          if (i == 0 &&
+              (*bytes == 'f' || *bytes == 'F') &&
+              (*(bytes+1) == 'r' || *(bytes+1) == 'R') &&
+              (*(bytes+2) == 'o' || *(bytes+2) == 'O') &&
+              (*(bytes+3) == 'm' || *(bytes+3) == 'M') &&
+              (*(bytes+4) == ':'))
+            {
+              found_header = YES;
+              break;
+            }
+
+          if (((*bytes == '\r') && (*(bytes+1) == '\n')) &&
+              (*(bytes+2) == 'f' || *(bytes+2) == 'F') &&
+              (*(bytes+3) == 'r' || *(bytes+3) == 'R') &&
+              (*(bytes+4) == 'o' || *(bytes+4) == 'O') &&
+              (*(bytes+5) == 'm' || *(bytes+5) == 'M') &&
+              (*(bytes+6) == ':'))
+            {
+              found_header = YES;
+              i = i + 2; // \r\n
+              bytes = bytes + 2;
+              break;
+            }
+
+          bytes++;
+          i++;
         }
 
-      bytes++;
-      i++;
-    }
+      // We search for the first \r\n AFTER the From: header to get the length of the string to replace.
+      e = i;
+      while (e < len)
+	{
+	  if ((*bytes == '\r') && (*(bytes+1) == '\n'))
+	    {
+	      e = e + 2;
+	      break;
+	    }
 
-   // We search for the first \r\n AFTER the From: header to get the length of the string to replace.
-   e = i;
-   while (e < len)
-     {
-       if ((*bytes == '\r') && (*(bytes+1) == '\n'))
-         {
-           e = e + 2;
-           break;
-         }
+	  bytes++;
+	  e++;
+	}
 
-       bytes++;
-       e++;
-     }
-
-  // Update/Add the From header in the MIMEBody of the SendMail request.
-  // Any other way to modify the mail body would break s/mime emails.
-  if (found_header)
-    {
-      // Change the From header
-      [data replaceBytesInRange: NSMakeRange(i, (NSUInteger)(e-i))
-                      withBytes: [new_from_header bytes]
-                         length: [new_from_header length]];
-    }
-  else
-    {
-      // Add a From header
-      [data replaceBytesInRange: NSMakeRange(0, 0)
-                      withBytes: [new_from_header bytes]
-                         length: [new_from_header length]];
+      // Update/Add the From header in the MIMEBody of the SendMail request.
+      // Any other way to modify the mail body would break s/mime emails.
+      if (found_header)
+        {
+          // Change the From header
+          [data replaceBytesInRange: NSMakeRange(i, (NSUInteger)(e-i))
+                          withBytes: [new_from_header bytes]
+                             length: [new_from_header length]];
+        }
+      else
+        {
+          // Add a From header
+          [data replaceBytesInRange: NSMakeRange(0, 0)
+                          withBytes: [new_from_header bytes]
+                             length: [new_from_header length]];
+        }
     }
 
   error = [self _sendMail: data
@@ -2851,15 +2905,128 @@ void handle_eas_terminate(int signum)
 - (void) processSettings: (id <DOMElement>) theDocumentElement
               inResponse: (WOResponse *) theResponse
 {
-  
+  SOGoDomainDefaults *dd;
+  NSMutableDictionary *vacationOptions;
   NSMutableString *s;
   NSData *d;
-  
+  int OofState, time, i;
+  id setElements;
+  NSCalendarDate *startDate, *endDate;
+  NSString *autoReplyText;
+  NSArray *OofMessages;
+
   s = [NSMutableString string];
+
   [s appendString: @"<?xml version=\"1.0\" encoding=\"utf-8\"?>"];
   [s appendString: @"<!DOCTYPE ActiveSync PUBLIC \"-//MICROSOFT//DTD ActiveSync//EN\" \"http://www.microsoft.com/\">"];
   [s appendString: @"<Settings xmlns=\"Settings:\">"];
-  [s appendFormat: @"    <Status>1</Status>"];
+  [s appendString: @"<Status>1</Status>"];
+
+  if ([(id)[[(id)[theDocumentElement getElementsByTagName: @"Oof"] lastObject] getElementsByTagName: @"Get"] lastObject])
+    {
+      dd = [[context activeUser] domainDefaults];
+      if ([dd vacationEnabled])
+        {
+          vacationOptions = [[[[context activeUser] userDefaults] vacationOptions] mutableCopy];
+          if (!vacationOptions)
+            vacationOptions = [NSMutableDictionary new];
+
+          if ([[vacationOptions objectForKey: @"enabled"] boolValue] && [[vacationOptions objectForKey: @"endDateEnabled"] intValue])
+            OofState = 2;
+          else if ([[vacationOptions objectForKey: @"enabled"] boolValue])
+            OofState = 1;
+          else
+            OofState = 0;
+
+          [s appendString: @"<Oof>"];
+          [s appendString: @"<Status>1</Status>"];
+          [s appendString: @"<Get>"];
+          [s appendFormat: @"<OofState>%d</OofState>", OofState];
+
+          time = [[vacationOptions objectForKey: @"startDate"] intValue];
+          [s appendFormat: @"<StartTime>%@</StartTime>", [[NSCalendarDate dateWithTimeIntervalSince1970: time] activeSyncRepresentationInContext: context]];
+
+          time = [[vacationOptions objectForKey: @"endDate"] intValue];
+          [s appendFormat: @"<EndTime>%@</EndTime>", [[NSCalendarDate dateWithTimeIntervalSince1970: time] activeSyncRepresentationInContext: context]];
+
+          [s appendFormat: @"<OofMessage>"];
+          [s appendFormat: @"<AppliesToInternal/>"];
+          [s appendFormat: @"<Enabled>%d</Enabled>", (OofState) ? 1 : 0];
+          [s appendFormat: @"<ReplyMessage>%@</ReplyMessage>", [vacationOptions objectForKey: @"autoReplyText"]];
+          [s appendFormat: @"<BodyType>TEXT</BodyType>"];
+          [s appendFormat: @"</OofMessage>"];
+
+          [s appendFormat: @"<OofMessage>"];
+          [s appendFormat: @"<AppliesToExternalKnown/>"];
+          [s appendFormat: @"<Enabled>0</Enabled>"];
+          [s appendFormat: @"<ReplyMessage/>"];
+          [s appendFormat: @"</OofMessage>"];
+
+          [s appendFormat: @"<OofMessage>"];
+          [s appendFormat: @"<AppliesToExternalUnknown/>"];
+          [s appendFormat: @"<Enabled>0</Enabled>"];
+          [s appendFormat: @"<ReplyMessage/>"];
+          [s appendFormat: @"</OofMessage>"];
+
+          [s appendString: @"</Get>"];
+          [s appendString: @"</Oof>"];
+        }
+    }
+
+  if ([(id)[[(id)[theDocumentElement getElementsByTagName: @"Oof"] lastObject] getElementsByTagName: @"Set"] lastObject])
+    {
+      dd = [[context activeUser] domainDefaults];
+      if ([dd vacationEnabled])
+        {
+          setElements = [(id)[[(id)[theDocumentElement getElementsByTagName: @"Oof"] lastObject] getElementsByTagName: @"Set"] lastObject];
+          OofState = [[[(id)[setElements getElementsByTagName: @"OofState"] lastObject] textValue] intValue];
+          OofMessages = (id)[setElements getElementsByTagName: @"OofMessage"];
+
+          autoReplyText = [NSMutableString string];
+
+          for (i = 0; i < [OofMessages count]; i++)
+            {
+              if ([(id)[[OofMessages objectAtIndex: i] getElementsByTagName: @"AppliesToInternal"] lastObject])
+                {
+                  autoReplyText = [[(id)[[OofMessages objectAtIndex: i] getElementsByTagName: @"ReplyMessage"] lastObject] textValue];
+                  break;
+                }
+            }
+
+          vacationOptions = [[[[context activeUser] userDefaults] vacationOptions] mutableCopy];
+
+          if (!vacationOptions)
+            vacationOptions = [NSMutableDictionary new];
+
+          [vacationOptions setObject: [NSNumber numberWithBool: (OofState > 0) ? YES : NO]
+                    forKey: @"enabled"];
+
+          startDate = [[[(id)[setElements getElementsByTagName: @"StartTime"] lastObject] textValue] calendarDate];
+
+          if (startDate)
+            [vacationOptions setObject: [NSNumber numberWithInt: [startDate timeIntervalSince1970]] forKey: @"startDate"];
+
+          [vacationOptions setObject: [NSNumber numberWithBool: (OofState == 2) ? YES : NO]
+                    forKey: @"startDateEnabled"];
+
+          [vacationOptions setObject: [NSNumber numberWithBool: (OofState == 2) ? YES : NO]
+                    forKey: @"endDateEnabled"];
+
+          endDate = [[[(id)[setElements getElementsByTagName: @"EndTime"] lastObject] textValue] calendarDate];
+
+          if (endDate)
+            [vacationOptions setObject: [NSNumber numberWithInt: [endDate timeIntervalSince1970]] forKey: @"endDate"];
+
+          if (autoReplyText)
+            [vacationOptions setObject: autoReplyText forKey: @"autoReplyText"];
+
+          [[[context activeUser] userDefaults] setVacationOptions: vacationOptions];
+          [[[context activeUser] userDefaults] synchronize];
+
+          [s appendString: @"<Oof><Status>1</Status></Oof>"];
+        }
+     }
+
   [s appendString: @"</Settings>"];
   
   d = [[s dataUsingEncoding: NSUTF8StringEncoding] xml2wbxml];
@@ -2933,7 +3100,7 @@ void handle_eas_terminate(int signum)
       NSMutableArray *attachments, *references;
 
       id body, bodyFromSmartForward, htmlPart, textPart;
-      NSString *fullName, *email, *charset, *s;
+      NSString *fullName, *email, *charset, *s, *from;
       NSDictionary *identity;
 
       int a;
@@ -2959,14 +3126,32 @@ void handle_eas_terminate(int signum)
       map = [NGHashMap hashMapWithDictionary: [messageFromSmartForward headers]];
       [map setObject: @"multipart/mixed"  forKey: @"content-type"];
 
-      identity = [[context activeUser] primaryIdentity];
+      from = [map objectForKey: @"from"];
 
-      fullName = [identity objectForKey: @"fullName"];
-      email = [identity objectForKey: @"email"];
-      if ([fullName length])
-        [map setObject: [NSString stringWithFormat: @"%@ <%@>", fullName, email]  forKey: @"from"];
-      else
-        [map setObject: email forKey: @"from"];
+      if (![from length] || ![self _isEMailValid: [from pureEMailAddress]] ||
+          [[from pureEMailAddress] isEqualToString: from] ||
+          [[NSString stringWithFormat: @"<%@>", [from pureEMailAddress]] isEqualToString: from])
+        {
+          if ([from length] && [self _isEMailValid: [from pureEMailAddress]])
+            {
+              // We have a valid email address, lets fill in the fullname.
+              email = [from pureEMailAddress];
+              fullName = [self _fullNameForEMail: email];
+            }
+          else
+            {
+              // Fallback to primary identity.
+              identity = [[context activeUser] primaryIdentity];
+
+              fullName = [identity objectForKey: @"fullName"];
+              email = [identity objectForKey: @"email"];
+            }
+
+          if ([fullName length])
+            [map setObject: [NSString stringWithFormat: @"%@ <%@>", fullName, email]  forKey: @"from"];
+          else
+            [map setObject: email forKey: @"from"];
+        }
 
       if ([mailObject messageId])
         {
@@ -3278,6 +3463,12 @@ void handle_eas_terminate(int signum)
   [context setObject: deviceId  forKey: @"DeviceId"];
   [context setObject: [[theRequest uri] deviceType]  forKey: @"DeviceType"];
   [context setObject: [[theRequest uri] attachmentName]  forKey: @"AttachmentName"];
+
+  // Save ASProtocolVersion to context
+  if ([[context request] headerForKey: @"MS-ASProtocolVersion"])
+    [context setObject: [[context request] headerForKey: @"MS-ASProtocolVersion"] forKey: @"ASProtocolVersion"];
+  else
+    [context setObject: [[theRequest uri] protocolVersion] forKey: @"ASProtocolVersion"];
 
   cmdName = [[theRequest uri] command];
 
