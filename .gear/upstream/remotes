@@ -1,0 +1,3 @@
+[remote "upstream"]
+	url = https://github.com/inverse-inc/sogo
+	fetch = +refs/heads/*:refs/remotes/upstream/*
